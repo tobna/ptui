@@ -120,6 +120,8 @@ class PtuiApp(App[None]):
     # ── key dispatch ────────────────────────────────────────────────────────
 
     async def on_key(self, event: Any) -> None:
+        if len(self.screen_stack) > 1:
+            return  # a modal owns the keyboard
         if self.prompt_kind:
             if event.key == "escape":
                 self.close_prompt()

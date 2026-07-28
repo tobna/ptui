@@ -140,9 +140,12 @@ escape_chain = ["modal", "visual", "narrow"]
 "e"        = { cmd = "doc.edit" }
 "escape"   = { cmd = "pane.focus", args = { pane = "list" } }
 
+# The filter box has focus so that typing filters, so motions cannot be letters.
 [modes.picker]
-"j"        = { cmd = "nav.down" }
-"k"        = { cmd = "nav.up" }
+"down"     = { cmd = "nav.down" }
+"up"       = { cmd = "nav.up" }
+"ctrl+n"   = { cmd = "nav.down" }
+"ctrl+p"   = { cmd = "nav.up" }
 "enter"    = { cmd = "picker.confirm" }
 "shift+enter" = { cmd = "picker.confirm", args = { invert = true } }
 "escape"   = { cmd = "picker.cancel" }

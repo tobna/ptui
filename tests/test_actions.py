@@ -1,6 +1,6 @@
-from ptui import actions, clip
-
 from conftest import press, settle
+
+from ptui import actions, clip
 
 
 def _attach(papis_lib, name: str = "downloaded paper.pdf", body: bytes = b"pdf") -> None:

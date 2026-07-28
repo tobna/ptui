@@ -54,7 +54,7 @@ def haystack(doc: Document, fields: list[str]) -> str:
     return " ".join(str(doc.get(f, "")) for f in fields).casefold()
 
 
-def _is_subsequence(needle: str, hay: str) -> bool:
+def is_subsequence(needle: str, hay: str) -> bool:
     it = iter(hay)
     return all(char in it for char in needle)
 
@@ -74,7 +74,7 @@ def narrow(docs: list[Document], query: str, fields: list[str], mode: str) -> li
         return [d for d in docs if needle in haystack(d, fields)]
     # fuzzy: every character in order, like fzf
     tight = needle.replace(" ", "")
-    return [d for d in docs if _is_subsequence(tight, haystack(d, fields))]
+    return [d for d in docs if is_subsequence(tight, haystack(d, fields))]
 
 
 # ── sorting ─────────────────────────────────────────────────────────────────

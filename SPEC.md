@@ -177,6 +177,12 @@ Fuzzy filter as you type, current item pre-highlighted and marked, `enter`
 confirms, `shift+enter` confirms with the picker-specific variant, `esc`
 cancels. Bindings live in `[modes.picker]`.
 
+Navigation in the picker is `up`/`down` and `ctrl+n`/`ctrl+p`, **not** `j`/`k`:
+the filter box has focus so that typing filters, and a key cannot be both a
+letter and a motion. `columns` is not implemented — `Item.hint` (a dim
+right-hand field: the sort key, a path, the bound keys) covers every current
+caller.
+
 ## Marks
 
 - A set of `papis_id`. Survives re-sort and re-filter by design.

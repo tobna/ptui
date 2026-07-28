@@ -12,7 +12,7 @@ from typing import Any
 
 from textual.widgets import DataTable
 
-from ptui import clip, library, place, safewrite
+from ptui import clip, library, place, safewrite, ui
 from ptui.commands import command
 
 # ── navigation ──────────────────────────────────────────────────────────────
@@ -179,6 +179,56 @@ def sort_reverse(app: Any) -> None:
     sort_by(app, app.sort_key, not app.sort_reverse)
 
 
+@command("sort.picker", "sort by…")
+def sort_picker(app: Any) -> None:
+    """Presets first, then keys discovered in the library. `enter` applies the
+    key's own default direction, `shift+enter` inverts it — a single global
+    reverse flag is wrong half the time (author ascending, date descending)."""
+    presets = app.cfg.get("list.sort_presets", [])
+    items = [
+        ui.Item(
+            label=f"{p.get('label', p['key'])} {'↓' if p.get('dir') == 'desc' else '↑'}",
+            value=p["key"],
+            hint=p["key"],
+        )
+        for p in presets
+    ]
+    if app.cfg.get("list.sort_discover_keys", True):
+        known = {p["key"] for p in presets}
+        # ponytail: discovered from the documents already in memory. Add the
+        # worker + cache generation from SPEC if a big library makes this drag.
+        items += [
+            ui.Item(label=key, value=key, hint="discovered")
+            for key in library.discover_keys(app.docs)
+            if key not in known
+        ]
+
+    def apply(key: str, inverted: bool) -> None:
+        directions = {p["key"]: p.get("dir", "asc") for p in presets}
+        reverse = directions.get(key, "asc") == "desc"
+        sort_by(app, key, reverse != inverted)
+
+    ui.pick(app, items, title="Sort by", current=app.sort_key)(apply)
+
+
+@command("lib.switch", "switch library")
+def lib_switch(app: Any, name: str | None = None) -> None:
+    import papis.config
+
+    def apply(library_name: str, _inverted: bool = False) -> None:
+        app.cfg.data["general"]["library"] = library_name
+        app.marks.clear()
+        reload(app)
+        app.log_line(f"library: {library_name}")
+
+    if name:
+        apply(name)
+        return
+    current = app.cfg.get("general.library") or papis.config.get_lib_name()
+    items = [ui.Item(label=lib, value=lib) for lib in papis.config.get_libs()]
+    ui.pick(app, items, title="Library", current=current)(apply)
+
+
 # ── marks ───────────────────────────────────────────────────────────────────
 
 
@@ -263,6 +313,19 @@ def _touch_opened_at(app: Any, doc: Any) -> None:
         safewrite.edit(doc, lambda data: data.__setitem__("opened_at", stamp))
     except safewrite.StaleError:
         app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
+
+
+@command("files.open_pick", "open which file…")
+def files_open_pick(app: Any) -> None:
+    doc = app.current
+    if doc is None:
+        return
+    paths = files_of(app, doc)
+    items = [
+        ui.Item(label=p.name, value=i, hint="" if p.exists() else "missing")
+        for i, p in enumerate(paths)
+    ]
+    ui.pick(app, items, title="Open file")(lambda index, _invert: doc_open(app, which=index))
 
 
 @command("doc.open_folder", "open folder")
@@ -424,3 +487,15 @@ def config_check(app: Any) -> None:
 @command("app.quit", "quit")
 def app_quit(app: Any) -> None:
     app.exit()
+
+
+# Modal-only: `SelectList` reads these straight out of `[modes.picker]`. They are
+# registered so the keymap check does not flag them as unknown.
+@command("picker.confirm", "confirm")
+def picker_confirm(app: Any, invert: bool = False) -> None:
+    app.log_line("[dim]picker.confirm only applies inside a picker[/]")
+
+
+@command("picker.cancel", "cancel")
+def picker_cancel(app: Any) -> None:
+    app.log_line("[dim]picker.cancel only applies inside a picker[/]")
