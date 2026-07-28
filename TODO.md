@@ -69,6 +69,15 @@ understood; they were traced in the code, not guessed.
 3. **The list pane can never be hidden.** Drop `pane.toggle` for `list`; only
    the info, files and log panes toggle.
 4. **`venue` belongs in the info pane** field list.
+5. **`[ui] icons` must actually mean something.** The setting exists and is
+   honoured in exactly one place (the mark glyph, `app.py`); every other symbol
+   is hardcoded ASCII (`·`/`!` for file present/missing, `↑`/`↓` for sort, `>`
+   in the picker, pane borders). Define one glyph table with an ASCII and a
+   nerd-font column, look every symbol up through it, and never emit a glyph
+   directly. Shipped default stays `false` — the HPC/SSH case in SPEC
+   § "Terminal reality" is real — but the maintainer runs `icons = true`, so
+   the nerd-font column is the one that has to look good, not an afterthought.
+   Worth a screenshot in both modes (§ F) once it lands.
 
 ## D. Display polish
 
