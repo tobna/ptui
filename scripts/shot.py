@@ -30,14 +30,22 @@ CONVERTERS = (
 )
 
 
-async def shoot(keys: list[str], out: Path, size: tuple[int, int], settle: float) -> None:
+async def shoot(
+    keys: list[str], out: Path | None, size: tuple[int, int], settle: float
+) -> str | None:
     app = PtuiApp(config.load(), keymap.load())
     async with app.run_test(size=size) as pilot:
         await pilot.pause(settle)
         for key in keys:
             await pilot.press(key)
             await pilot.pause(settle)
+        if out is None:
+            # ponytail: private compositor API, but it is the only authoritative
+            # view of the screen — the SVG splits styled runs into separately
+            # positioned elements, which fakes lost spaces and misalignment.
+            return "\n".join(strip.text for strip in app.screen._compositor.render_strips())
         out.with_suffix(".svg").write_text(app.export_screenshot())
+        return None
 
 
 def to_png(svg: Path, png: Path) -> None:
@@ -54,16 +62,27 @@ def to_png(svg: Path, png: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("out", type=Path, help="PNG to write (the SVG lands beside it)")
+    parser.add_argument("out", type=Path, nargs="?", help="PNG to write (SVG lands beside it)")
     parser.add_argument("keys", nargs="*", help="keys to press, in order")
+    parser.add_argument(
+        "--text",
+        action="store_true",
+        help="print the composited screen instead — the truth about spacing",
+    )
     parser.add_argument("--size", default="140x40", help="terminal size, WxH")
     parser.add_argument("--settle", type=float, default=0.2, help="pause after each key")
     args = parser.parse_args()
 
+    keys = ([str(args.out)] if args.text and args.out else []) + args.keys
     width, _, height = args.size.partition("x")
-    asyncio.run(shoot(args.keys, args.out, (int(width), int(height)), args.settle))
-    to_png(args.out.with_suffix(".svg"), args.out)
-    print(args.out)
+    screen = asyncio.run(
+        shoot(keys, None if args.text else args.out, (int(width), int(height)), args.settle)
+    )
+    if args.text:
+        print(screen)
+    else:
+        to_png(args.out.with_suffix(".svg"), args.out)
+        print(args.out)
 
 
 if __name__ == "__main__":

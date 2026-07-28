@@ -75,13 +75,8 @@ understood; they were traced in the code, not guessed.
 - `tags` (and any other list value) renders as a Python list —
   `['vision-transformers']`. Join lists for display, in the info pane and in
   list columns.
-- **The hint bar and which-key panel lose the space between key and
-  description**: `enteropen file`, `ddoctor findings`. Seen in a screenshot
-  (§ F), not reported — the markup `[bold]{keys}[/] {desc}` is not surviving
-  rendering. Probably needs an explicit separator instead of a plain space.
-- Marked rows shift right: the `*` glyph is prepended inside the first cell, so
-  a bold marked row no longer lines up with its neighbours. Put the mark in its
-  own fixed-width column.
+- Column set: no `Tags` column survives at a normal width, and `Title` is cut
+  off mid-word. Related to A4.
 
 ## E. New features asked for
 
@@ -102,11 +97,19 @@ key sequence, and writes a PNG of the resulting screen:
 
 ```sh
 uv run python scripts/shot.py /tmp/shot.png --size 160x30 slash n a u e n
+uv run python scripts/shot.py --text --size 120x20 j space     # plain text
 ```
 
 Every visual claim in this file should be checked that way before and after a
 fix. Snapshot regressions can move to `pytest-textual-snapshot` (already a dev
 dependency) once the layout stops changing every day.
+
+**The PNG lies about spacing.** SVG export writes each styled run as its own
+positioned text element, so bold text looks like it has lost the space beside it
+(`enteropen file`) and marked rows look misaligned. Neither is real. Use
+`--text` — the composited screen buffer — for anything about alignment, padding
+or truncation, and the PNG only for layout and colour. Two entries in this file
+were wrong for exactly this reason before being checked.
 
 ## Not yet exercised
 
