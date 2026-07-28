@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "loguru>=0.7.3",
     "papis>=0.15.0",
     "python-slugify>=8.0.4",
     "ruamel-yaml>=0.19.1",
@@ -28,6 +29,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=8.4",
+    "pytest-asyncio>=1.4.0",
     "pytest-textual-snapshot>=1.1.0",
     "ruff>=0.14.4",
 ]
@@ -41,6 +43,7 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.ruff.format]
 exclude = ["*.md"]  # ruff would reformat the python blocks in SPEC.md

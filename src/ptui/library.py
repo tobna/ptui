@@ -12,8 +12,14 @@ Sorting applies to the scoped set and is independent of narrowing.
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
+
+# Papis forks a process pool to build its cache. Inside a TUI that copies the
+# whole app and dies on Textual's redirected file descriptors, so ask papis for
+# the sequential path (PAPIS_NP is papis's own switch — a user can override it).
+os.environ.setdefault("PAPIS_NP", "0")
 
 import papis.database
 import papis.id

@@ -34,19 +34,46 @@ uv run ruff check --fix && uv run ruff format
 ## Layout
 
 ```
-SPEC.md                     design contract — the source of truth for behaviour
+SPEC.md              design contract — the source of truth for behaviour
 src/ptui/
-  defaults/                 shipped defaults, copied to the user config dir on
-    config.toml             first run; also the documented example config
-    keys.toml
-    themes/ink-crimson.tcss
+  cli.py             click entry point; refuses to start on keymap conflicts
+  app.py             PtuiApp: widgets, key dispatch, the state commands mutate
+  actions.py         every command implementation, one @command per function
+  commands.py        the registry — keymaps, help and hints all derive from it
+  keymap.py          keys.toml -> chords, prefix-conflict check, which-key data
+  config.py          shipped defaults + per-key user overrides
+  library.py         scope query, in-memory narrow, sorting, display text
+  place.py           file placement: atomic, idempotent, no-clobber
+  safewrite.py       the only path that writes info.yaml
+  defaults/          shipped config.toml, keys.toml, themes/*.tcss
 tests/
 ```
+
+Data flow: a keypress becomes a chord in `app.on_key`, resolves through
+`keymap` to a name in `commands.REGISTRY`, and lands in `actions.py`. Adding a
+command means adding one decorated function — help, the hint bar and which-key
+pick it up for free. An unregistered command logs "not implemented yet" rather
+than crashing, which is how the shipped keymap can bind post-v0 commands.
 
 User config lives in `$XDG_CONFIG_HOME/papis/ptui/` and mirrors
 `src/ptui/defaults/`. Anything papis already owns (library paths, `editor`,
 `opentool`, `use-git`) is read from papis config; `config.toml` may override
 per key.
+
+## papis and Textual gotchas (learned the hard way)
+
+- **`PAPIS_NP=0`** is set in `library.py`. Papis forks a process pool to build
+  its cache; inside a TUI that copies the whole app and dies on Textual's
+  redirected file descriptors (`ValueError: bad value(s) in fds_to_keep`).
+- **Never name app state after a Textual property.** `App.visible` exists, so
+  the narrowed list is `app.rows`. Check `hasattr(App, name)` before adding one.
+- The `papis.command` entry point must be a **`click.Command`**, so `cli.main`
+  is decorated with `@click.command`.
+- Papis resolves the current library from lazily-loaded global state, so tests
+  need the autouse `papis_lib` fixture (`tests/conftest.py`) or they depend on
+  whoever runs them having a library named `papers`.
+- Textual widgets are driven manually: `can_focus = False` everywhere except the
+  prompt `Input`, so every key reaches `App.on_key` and the keymap owns dispatch.
 
 ## Status
 
@@ -57,7 +84,13 @@ safe-write · log pane · `keymap.check` · which-key + hint bar.
 
 Built so far:
 
-- project scaffolding, dependencies, shipped default config
+- config + keymap loading, command registry, prefix-conflict check
+- safe `info.yaml` writes, `place()` file placement
+- the app: list + info panes, scope query, debounced narrow, sorting, marks,
+  which-key, hint bar, status bar, log pane
+
+Not built yet: `doc.open`, `doc.edit_raw`, `export.citekey`, `doc.add`,
+`files.relocate`, the `SelectList` modal, state persistence.
 
 ## Conventions
 
