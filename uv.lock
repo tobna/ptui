@@ -475,6 +475,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "papis" },
+    { name = "python-slugify" },
     { name = "ruamel-yaml" },
     { name = "textual" },
 ]
@@ -489,6 +490,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "papis", specifier = ">=0.15.0" },
+    { name = "python-slugify", specifier = ">=8.0.4" },
     { name = "ruamel-yaml", specifier = ">=0.19.1" },
     { name = "textual", specifier = ">=8.2.8" },
 ]
