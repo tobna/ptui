@@ -40,3 +40,6 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff.format]
+exclude = ["*.md"]  # ruff would reformat the python blocks in SPEC.md
