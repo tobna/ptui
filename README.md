@@ -3,7 +3,7 @@
 <p align="center">
   A fast, keyboard-driven terminal UI for
   <a href="https://github.com/papis/papis">papis</a>.<br>
-  <em>Work in progress — v0 is being built.</em>
+  <em>v0 — browsing, searching, marking, opening and filing. Early days.</em>
 </p>
 
 <p align="center">
@@ -29,8 +29,14 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **Safe by construction** — every write re-checks `info.yaml`'s mtime, writes
   atomically, and leaves unknown keys and comments untouched. Files move via
   `os.link`, never a clobbering `mv`.
-- **SSH-friendly** — no nerd fonts by default, 256-colour fallback, collapses
+- **Files that file themselves** — ordered rules decide where a PDF belongs;
+  `f r` relocates and renames a whole selection to the scheme, skipping anything
+  it does not understand.
+- **SSH-friendly** — no nerd fonts by default, no forked worker pools, collapses
   to one pane on narrow terminals.
+
+Not there yet: undo, the structured editor, doctor integration, saved searches,
+`:` command line. Bindings for them exist and say so when pressed.
 
 ## Install
 
@@ -61,10 +67,12 @@ reference — copy and edit. Values papis already owns (library paths, `editor`,
 
 ## Keys
 
-`j`/`k` move · `o` open · `/` filter · `s` search · `space` mark · `?` help.
+`j`/`k` move · `o` open · `/` filter · `s` search · `space` mark · `S` sort ·
+`a` add · `i` add from inbox · `E` edit `info.yaml` · `q` quit.
 
-Prefixes are namespaces: `g` go · `f` files · `y` yank · `c` change ·
-`m` marks · `z` layout · `d` delete · `\` admin.
+Prefixes are namespaces, and hold one to see its menu: `g` go · `f` files ·
+`y` yank · `c` change · `m` marks · `z` layout · `d` delete · `\` admin.
+So `y y` yanks a `\cite{…}`, `f r` files a PDF where it belongs.
 
 ## Development
 

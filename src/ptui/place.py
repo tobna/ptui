@@ -149,12 +149,19 @@ def resolve(doc: Document, entry: str) -> Path:
     return path if path.is_absolute() or not folder else Path(folder) / path
 
 
-def target(doc: Document, src: Path, rule: Rule, rules: Rules) -> Path:
-    """The path `rule` wants `src` at. Pure — touches nothing."""
+def target(
+    doc: Document, src: Path, rule: Rule, rules: Rules, *, default: str | None = None
+) -> Path:
+    """The path `rule` wants `src` at. Pure — touches nothing.
+
+    `default` fills in missing document keys instead of raising; the add-flow
+    preview uses it so a half-filled form still shows a path.
+    """
     formatted = papis.format.format(
         rule.dest or src.name,
         doc,
         additional={"pdf_root": str(rules.pdf_root or "")},
+        default=default,
     )
     dest = Path(formatted).expanduser()
     if rule.slugify:
@@ -186,7 +193,13 @@ def place(
     if not src.exists():
         return PlaceResult("error", src, rule.name, message="source does not exist")
 
-    dest = target(doc, src, rule, rules)
+    try:
+        dest = target(doc, src, rule, rules)
+    except Exception as exc:
+        # A naming scheme the document cannot satisfy is one document's problem,
+        # not the batch's: report it and let the other documents through.
+        return PlaceResult("error", src, rule.name, message=f"cannot name destination: {exc}")
+
     clash = _existing(dest)
     if clash is not None:
         if src.resolve() == clash.resolve() or os.path.samefile(src, clash):

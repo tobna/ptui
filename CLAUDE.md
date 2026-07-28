@@ -76,15 +76,22 @@ per key.
   whoever runs them having a library named `papers`.
 - Textual widgets are driven manually: `can_focus = False` everywhere except the
   prompt `Input`, so every key reaches `App.on_key` and the keymap owns dispatch.
+- Do not shadow Textual internals: `SelectList._populate` is called that because
+  `Widget._render` already exists and overriding it renders nothing.
+- `Static.update` parses markup, and a destination path is full of
+  `[doc[year]]`-shaped text — pass `markup=False` for anything path-shaped.
+- `papis.format.format` **returns the unformatted pattern** (or raises deep in
+  `string.Formatter`) when a key is missing; `default=""` does not save nested
+  lookups like `{doc[author_list][0][family]}`. Check for a leftover `{`.
 
 ## Status
 
-v0 in progress. Scope per `SPEC.md` § "v0 scope":
-two panes · scope query + narrow filter · vim navigation · `doc.open`,
-`doc.edit_raw`, `export.citekey` · marks · add flow · `files.relocate` ·
-safe-write · log pane · `keymap.check` · which-key + hint bar.
+**v0 is feature-complete** against `SPEC.md` § "v0 scope" — two panes, scope
+query + narrow filter, vim navigation, `doc.open`, `doc.edit_raw`,
+`export.citekey`, marks, the add flow, `files.relocate`, safe-write, log pane,
+`keymap.check`, which-key + hint bar. 47 tests, `uv run pytest`.
 
-Built so far:
+Built:
 
 - config + keymap loading, command registry, prefix-conflict check
 - safe `info.yaml` writes, `place()` file placement
@@ -93,12 +100,16 @@ Built so far:
 - verbs: `doc.open`, `doc.open_folder`, `doc.browse`, `doc.edit_raw`,
   `export.{citekey,path,url,bibtex}`, `files.relocate`
 - `SelectList` modal + `sort.picker`, `files.open_pick`, `lib.switch`
+- the add flow: inbox picker, metadata form, live destination preview, `place()`
 
-Not built yet: `doc.add`, state persistence, `help.show`, and everything SPEC
-lists as post-v0.
+Not built (deliberately, per SPEC "not in v0"): structured editor, undo, doctor,
+saved searches, themes beyond the built-in one, picker entry point, reading
+status, ratings. Also missing and *not* excluded by SPEC: `help.show`, the `:`
+command line, `doc.notes`, `doc.delete`, state persistence
+(`general.persist_state` is read but ignored). Unbound commands log
+"not implemented yet".
 
-Widget methods starting with `_render` (and other Textual internals) must not be
-shadowed — `SelectList._populate` is named that way for a reason.
+Next step per SPEC: use it daily for two weeks before extending.
 
 ## Conventions
 

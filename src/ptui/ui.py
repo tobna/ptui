@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from textual.app import ComposeResult
@@ -120,3 +121,67 @@ def pick(app: Any, items: list[Item], *, title: str, current: Any = None) -> Cal
         app.push_screen(SelectList(items, title=title, current=current), handle)
 
     return run
+
+
+# ponytail: a fixed field list. `edit.structured_fields` belongs to the
+# structured editor (post-v0), and `author_list` is not a one-line text field.
+ADD_FIELDS = ("title", "author", "year", "ref", "tags", "doi")
+
+
+class AddForm(ModalScreen[dict[str, str] | None]):
+    """Metadata *before* the name is computed, with a live destination preview.
+
+    Nothing touches the disk until this screen is confirmed.
+    """
+
+    DEFAULT_CSS = """
+    AddForm { align: center middle; }
+    AddForm > Vertical {
+        width: 80%; max-width: 110; height: auto;
+        border: round $accent; background: $surface; padding: 0 1;
+    }
+    AddForm Input { border: none; padding: 0; }
+    AddForm .field-label { color: $text-muted; }
+    AddForm #add-preview { padding: 1 0 0 0; }
+    """
+
+    def __init__(self, source: Path, data: dict[str, str], preview: Callable[[dict], str]) -> None:
+        super().__init__()
+        self.source = source
+        self.data = data
+        self.preview = preview
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Static(f"Add [bold]{self.source.name}[/]", id="picker-title")
+            for field_name in ADD_FIELDS:
+                yield Static(field_name, classes="field-label")
+                yield Input(value=str(self.data.get(field_name, "")), id=f"add-{field_name}")
+            # markup=False: a destination path is full of `[doc[year]]`-shaped
+            # text that Textual would otherwise read as markup.
+            yield Static(id="add-preview", markup=False)
+
+    def on_mount(self) -> None:
+        self._refresh_preview()
+        self.query(Input).first().focus()
+
+    def _values(self) -> dict[str, str]:
+        return {
+            name: self.query_one(f"#add-{name}", Input).value.strip()
+            for name in ADD_FIELDS
+            if self.query_one(f"#add-{name}", Input).value.strip()
+        }
+
+    def _refresh_preview(self) -> None:
+        self.query_one("#add-preview", Static).update(self.preview(self._values()))
+
+    def on_input_changed(self, _: Input.Changed) -> None:
+        self._refresh_preview()
+
+    def on_input_submitted(self, _: Input.Submitted) -> None:
+        self.dismiss(self._values())
+
+    def on_key(self, event: Any) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+            event.stop()

@@ -128,8 +128,11 @@ def scope(app: Any, query: str) -> None:
 
 
 def prompt_result(app: Any, kind: str, value: str) -> None:
-    """Dispatch a prompt whose result is not a query (set by later commands)."""
-    app.log_line(f"[yellow]unhandled prompt {kind!r}: {value}[/]")
+    """Dispatch a prompt whose result is not a query."""
+    if kind == "add":
+        add_form(app, Path(value).expanduser())
+    else:
+        app.log_line(f"[yellow]unhandled prompt {kind!r}: {value}[/]")
 
 
 @command("query.scope", "search (papis query)")
@@ -361,6 +364,105 @@ def doc_edit_raw(app: Any) -> None:
     papis.database.get().update(doc)
     app.refresh_rows()
     app.log_line(f"edited {doc.get('ref', doc.get('title', ''))}")
+
+
+# ── add ─────────────────────────────────────────────────────────────────────
+
+
+@command("doc.add", "add document")
+def doc_add(app: Any, source: str | None = None) -> None:
+    """Pick a source file, confirm the metadata, preview where the file lands."""
+    if source == "inbox":
+        inbox = app.cfg.as_path("files.inbox")
+        if inbox is None or not inbox.is_dir():
+            app.log_line(f"[yellow]inbox not found:[/] {inbox}")
+            return
+        entries = sorted(
+            (p for p in inbox.iterdir() if p.is_file()),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        items = [ui.Item(label=p.name, value=str(p), hint=_age(p)) for p in entries]
+        ui.pick(app, items, title=f"Add from {inbox}")(lambda path, _i: add_form(app, Path(path)))
+    elif source:
+        add_form(app, Path(source).expanduser())
+    else:
+        app.open_prompt("add", "path to a file")
+
+
+def _age(path: Path) -> str:
+    from datetime import datetime
+
+    return datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d")
+
+
+def _expand(data: dict[str, str]) -> dict[str, Any]:
+    """Form fields as papis keys: `author` also becomes `author_list`, which is
+    what naming schemes sort and format on."""
+    import papis.document
+
+    out: dict[str, Any] = dict(data)
+    if out.get("author"):
+        out["author_list"] = papis.document.split_authors_name([out["author"]])
+    if isinstance(out.get("tags"), str):
+        out["tags"] = out["tags"].replace(",", " ").split()
+    return out
+
+
+def add_form(app: Any, path: Path) -> None:
+    if not path.is_file():
+        app.log_line(f"[red]no such file:[/] {path}")
+        return
+
+    rules = place.Rules.from_config(app.cfg)
+
+    def preview(data: dict[str, str]) -> str:
+        """Where the file would end up. Pure: `place.target` touches nothing."""
+        import papis.document
+
+        doc = papis.document.from_data({**_expand(data), "files": [path.name]})
+        rule = rules.first_match(path)
+        if rule.op == "in-place" or not rule.dest:
+            return f"stays in the document folder ({rule.name})"
+        try:
+            dest = str(place.target(doc, path, rule, rules, default=""))
+        except Exception as exc:
+            return f"destination not resolvable yet ({exc})"
+        # papis hands back the unformatted pattern when a key it needs is missing.
+        if "{" in dest:
+            return "fill in the fields above to see the destination"
+        return f"-> {dest}"
+
+    def confirm(data: dict[str, str] | None) -> None:
+        if data is not None:
+            _add_document(app, path, data)
+
+    app.push_screen(ui.AddForm(path, {"title": path.stem}, preview), confirm)
+
+
+def _add_document(app: Any, path: Path, data: dict[str, str]) -> None:
+    import papis.commands.add
+
+    data = _expand(data)
+    try:
+        # ponytail: papis copies the source in; the original stays in the inbox
+        # rather than being deleted behind the user's back.
+        papis.commands.add.run(
+            [str(path)],
+            data=dict(data),
+            auto_doctor=app.cfg.get("add.auto_doctor", False),
+            git=bool(app.cfg.papis("edit.use_git", "use-git")),
+        )
+    except Exception as exc:
+        app.log_line(f"[red]add failed:[/] {exc}")
+        return
+
+    reload(app)
+    added = next((d for d in app.docs if d.get("title") == data.get("title")), None)
+    if added is not None:
+        app.refresh_rows(keep=library.doc_id(added))
+        files_relocate(app)
+    app.log_line(f"added {data.get('title', path.name)} (source left at {path})")
 
 
 # ── export ──────────────────────────────────────────────────────────────────
