@@ -1,0 +1,180 @@
+# ptui configuration.
+# Values papis already owns (library paths, editor, opentool, use-git) are
+# read from papis config. Setting them here overrides, per key.
+# Key-behaviour settings live in keys.toml, not here.
+
+[general]
+library = ""                  # empty = papis default library
+startup_query = ""            # scope query applied at launch
+persist_state = true          # restore last position, scope, sort
+track_opens = false           # write `opened_at` on doc.open
+confirm_destructive = true
+
+[ui]
+layout = "vertical"           # vertical = side-by-side | horizontal
+split_ratio = 0.45            # width fraction of the list pane
+narrow_width = 90             # below this, collapse to a single pane
+theme = "ink-crimson"         # themes/<name>.tcss
+icons = false                 # nerd-font glyphs; false is SSH-safe
+mouse = true
+
+[list]
+null_ordering = "last"        # docs missing the sort key
+strip_latex = true            # display only; never affects stored data
+sort_discover_keys = true     # offer arbitrary yaml keys in the sort picker
+sort_tiebreak = "time-added"  # secondary key; ties on `year` are otherwise arbitrary
+
+# Order here is the order in the sort picker. `dir` is this key's own default.
+[[list.sort_presets]]
+key = "time-added"
+label = "Recently added"
+dir = "desc"
+default = true                # applied at startup unless state is restored
+
+[[list.sort_presets]]
+key = "year"
+label = "Year"
+dir = "desc"
+
+[[list.sort_presets]]
+key = "author_list.0.family"
+label = "First author"
+dir = "asc"
+
+[[list.sort_presets]]
+key = "title"
+label = "Title"
+dir = "asc"
+
+[[list.sort_presets]]
+key = "opened_at"
+label = "Recently opened"
+dir = "desc"                  # requires general.track_opens
+
+[[list.sort_presets]]
+key = "reading_status"
+label = "Reading status"
+dir = "asc"
+
+# Columns are papis format strings. width = 0 means flex.
+[[list.columns]]
+title = "Year"
+format = "{doc[year]}"
+width = 6
+
+[[list.columns]]
+title = "Author"
+format = "{doc[author_list][0][family]}"
+width = 18
+
+[[list.columns]]
+title = "Title"
+format = "{doc[title]}"
+width = 0
+
+[[list.columns]]
+title = "Tags"
+format = "{doc[tags]}"
+width = 20
+
+[query]
+narrow_mode = "fuzzy"         # fuzzy | substring | regex
+narrow_debounce_ms = 60
+narrow_fields = ["title", "author", "tags", "ref", "year"]
+history_file = "~/.local/state/ptui/query_history"
+
+# Typed on the scope prompt, expanded before hitting papis.
+[query.aliases]
+a = "author:"
+t = "title:"
+y = "year:"
+k = "tags:"
+
+[query.saved]
+to-read = "tags:to-read"
+mine    = "author:Nauen"
+
+[marks]
+advance = true                # move cursor down after marking
+clear_on_filter = false       # marks are papis_id-keyed and survive filters
+
+# ---------------------------------------------------------------
+# File placement. Rules are ordered; FIRST MATCH WINS.
+# An unmatched file falls through to [files.default] — which is
+# in-place, so ptui never relocates something it does not understand.
+# ---------------------------------------------------------------
+[files]
+pdf_root = "~/papers/pdfs"
+collision = "skip"            # skip | suffix | ask
+hash_check = true             # detect byte-identical duplicates
+follow_symlinks = true
+inbox = "~/Downloads"         # source dir for files.attach and doc.add --inbox
+
+# Used to infer main/notes/supplement. Never written to info.yaml.
+[files.kind_patterns]
+notes = ["*_notes.pdf", "*-notes.pdf"]
+supplement = ["*_supp*.pdf", "*_appendix*.pdf"]
+slides = ["*_slides.pdf", "*_talk.pdf"]
+
+[files.default]
+op = "in-place"
+path_style = "keep"
+
+[[files.rules]]
+name = "notes stay put"
+match = ["*_notes.pdf", "*-notes.pdf"]
+op = "in-place"
+path_style = "keep"           # keep | absolute | relative-doc
+
+[[files.rules]]
+name = "pdfs to central root"
+match = ["*.pdf"]
+dest = "{pdf_root}/{doc[year]}_{doc[author_list][0][family]}_{doc[title]:.40}.pdf"
+op = "move"                   # move | copy | link | hardlink | in-place
+path_style = "absolute"
+slugify = true                # ascii-fold, strip punctuation, collapse spaces
+
+[[files.rules]]
+name = "everything else"
+match = ["*"]
+op = "in-place"
+path_style = "keep"
+
+[add]
+fetch_metadata = true         # DOI/arXiv/crossref before naming
+confirm_metadata = true       # edit metadata BEFORE the name is computed
+preview_destination = true    # show resolved path; nothing touches disk first
+auto_doctor = true            # run papis doctor on the new document
+
+[delete]
+ask_files = true
+default_check_managed_only = true
+check_referenced_elsewhere = true
+
+[undo]
+strategy = "trash"            # trash | git | none  (files ALWAYS use trash)
+trash_dir = "~/.local/share/ptui/trash"
+trash_retention_days = 30
+stack_size = 50               # in-memory metadata undo, any strategy
+git_warn_untracked = true
+
+[edit]
+mode = "structured"           # structured | editor
+editor = ""                   # empty = papis `editor` / $EDITOR
+use_git = false               # papis `use-git` wins if set
+structured_fields = ["title", "author_list", "year", "tags", "ref", "doi", "url"]
+
+[export]
+citekey_format = "\\cite{{{doc[ref]}}}"
+bib_target = ""               # optional .bib kept in sync on export
+clipboard = "auto"            # auto | wl-copy | xclip | pbcopy | osc52
+
+[log]
+level = "info"
+max_entries = 500
+file = "~/.local/state/ptui/ptui.log"
+
+[performance]
+workers = 4
+page_size = 200               # rows rendered ahead of the viewport
+warn_library_size = 20000

@@ -1,0 +1,148 @@
+# Design contract:
+#   single letters  = verbs on the current document
+#   prefix letters  = namespaces, NEVER also a verb
+#   SHIFT           = variant of the lowercase meaning
+#   \               = leader, for rare/administrative commands
+#
+# Namespaces: g=go  f=files  y=yank  c=change  m=marks  z=layout  d=delete
+# Reserved (intentionally unbound): n N — for query.narrow_style = "jump"
+
+[options]
+which_key = true
+which_key_delay_ms = 400
+leader = "\\"                    # not space: space is mark.toggle
+hint_bar = true                  # persistent context hints, bottom row
+hint_bar_max = 6
+show_keys_in_cmdline = true      # teach bindings via the command line
+
+# Escape precedence, first applicable wins. Note: escape never clears marks.
+escape_chain = ["modal", "visual", "narrow"]
+
+[modes.list]
+# — navigation ————————————————————————————————
+"j"        = { cmd = "nav.down" }
+"k"        = { cmd = "nav.up" }
+"down"     = { cmd = "nav.down" }
+"up"       = { cmd = "nav.up" }
+"ctrl+d"   = { cmd = "nav.page_down" }
+"ctrl+u"   = { cmd = "nav.page_up" }
+"G"        = { cmd = "nav.bottom" }
+
+# — panes ——————————————————————————————————
+"1"        = { cmd = "pane.focus", args = { pane = "list" } }
+"2"        = { cmd = "pane.focus", args = { pane = "info" } }
+"3"        = { cmd = "pane.focus", args = { pane = "files" } }
+"4"        = { cmd = "pane.focus", args = { pane = "log" } }
+"tab"      = { cmd = "pane.cycle" }
+"shift+tab"= { cmd = "pane.cycle", args = { back = true } }
+
+# — verbs on the current document ——————————————————
+"enter"    = { cmd = "doc.open",        desc = "open file" }
+"o"        = { cmd = "doc.open",        desc = "open file" }
+"O"        = { cmd = "doc.open_folder", desc = "open folder" }
+"b"        = { cmd = "doc.browse",      desc = "open URL/DOI" }
+"e"        = { cmd = "doc.edit",        desc = "edit (structured)" }
+"E"        = { cmd = "doc.edit_raw",    desc = "edit info.yaml in $EDITOR" }
+"a"        = { cmd = "doc.add",         desc = "add document" }
+"i"        = { cmd = "doc.add", args = { source = "inbox" }, desc = "add from inbox" }
+
+# — search / sort ————————————————————————————
+"/"        = { cmd = "query.narrow", desc = "narrow (instant)" }
+"s"        = { cmd = "query.scope",  desc = "search (papis query)" }
+"S"        = { cmd = "sort.picker",  desc = "sort by…" }
+"ctrl+s"   = { cmd = "sort.reverse", desc = "reverse sort" }
+"escape"   = { cmd = "app.escape" }
+
+# — marks ——————————————————————————————————
+"space"    = { cmd = "mark.toggle" }
+"ctrl+a"   = { cmd = "mark.all_filtered", desc = "mark all (alias of m a)" }
+"v"        = { cmd = "visual.start" }
+"V"        = { cmd = "visual.line" }
+
+# — undo / refresh ————————————————————————————
+"u"        = { cmd = "app.undo" }
+"ctrl+r"   = { cmd = "app.redo" }
+"r"        = { cmd = "app.reload", desc = "reload library" }
+
+# — meta ———————————————————————————————————
+"?"        = { cmd = "help.show" }
+":"        = { cmd = "cmdline.open" }
+"ctrl+p"   = { cmd = "cmdline.open" }
+"q"        = { cmd = "app.quit" }
+
+# ————— g : go somewhere —————————————————————————
+"g g"      = { cmd = "nav.top",     desc = "top" }
+"g n"      = { cmd = "doc.notes",   desc = "notes" }
+"g d"      = { cmd = "view.doctor", desc = "doctor findings" }
+"g s"      = { cmd = "view.saved",  desc = "saved searches" }
+"g m"      = { cmd = "view.marked", desc = "marked only" }
+"g l"      = { cmd = "lib.switch",  desc = "switch library" }
+"g o"      = { cmd = "app.log",     desc = "operation log" }
+
+# ————— c : change a field ———————————————————————
+"c t"      = { cmd = "doc.tag",    desc = "add tags" }
+"c T"      = { cmd = "doc.untag",  desc = "remove tags" }
+"c s"      = { cmd = "doc.status", desc = "reading status" }
+"c r"      = { cmd = "doc.rating", desc = "rating" }
+"c f"      = { cmd = "doc.set",    desc = "set any field" }
+
+# ————— y : yank / export ————————————————————————
+"y y"      = { cmd = "export.citekey", desc = "\\cite{ref}" }
+"y p"      = { cmd = "export.path",    desc = "absolute path" }
+"y b"      = { cmd = "export.bibtex",  desc = "bibtex" }
+"y u"      = { cmd = "export.url",     desc = "DOI/URL" }
+
+# ————— f : files ————————————————————————————
+"f o"      = { cmd = "files.open_pick", desc = "open which file…" }
+"f a"      = { cmd = "files.attach",    desc = "attach file" }
+"f r"      = { cmd = "files.relocate",  desc = "relocate + rename to scheme" }
+"f R"      = { cmd = "files.relocate", args = { force = true }, desc = "relocate (force)" }
+"f n"      = { cmd = "files.normalize", desc = "normalize path styles" }
+
+# ————— m : marks ————————————————————————————
+"m a"      = { cmd = "mark.all_filtered", desc = "mark all filtered" }
+"m i"      = { cmd = "mark.invert",       desc = "invert marks" }
+"m c"      = { cmd = "mark.clear",        desc = "clear marks" }
+"m o"      = { cmd = "mark.show_only",    desc = "toggle marked-only" }
+
+# ————— z : layout ———————————————————————————
+"z z"      = { cmd = "pane.toggle_layout", desc = "horizontal/vertical" }
+"z i"      = { cmd = "pane.toggle", args = { pane = "info" } }
+"z f"      = { cmd = "pane.toggle", args = { pane = "files" } }
+"z +"      = { cmd = "pane.resize", args = { delta =  0.05 } }
+"z -"      = { cmd = "pane.resize", args = { delta = -0.05 } }
+
+# ————— d : delete ———————————————————————————
+"d d"      = { cmd = "doc.delete", desc = "delete document" }
+
+# ————— \ : leader (rare / admin) ——————————————————
+"\\ s"     = { cmd = "query.save",        desc = "save current search" }
+"\\ t"     = { cmd = "theme.picker",      desc = "theme" }
+"\\ c"     = { cmd = "app.config_check",  desc = "check config" }
+"\\ k"     = { cmd = "keymap.check",      desc = "check keymap conflicts" }
+"\\ d"     = { cmd = "doctor.run",        desc = "run doctor" }
+
+[modes.files]
+"j"        = { cmd = "nav.down" }
+"k"        = { cmd = "nav.up" }
+"enter"    = { cmd = "doc.open" }
+"r"        = { cmd = "files.rename",   desc = "rename to scheme" }
+"m"        = { cmd = "files.relocate", desc = "move to pdf_root" }
+"p"        = { cmd = "files.repoint",  desc = "fix broken path" }
+"x"        = { cmd = "files.detach",   desc = "remove from list, keep file" }
+"K"        = { cmd = "files.reorder", args = { to = -1 } }
+"J"        = { cmd = "files.reorder", args = { to =  1 } }
+"escape"   = { cmd = "pane.focus", args = { pane = "list" } }
+
+[modes.info]
+"j"        = { cmd = "nav.down" }
+"k"        = { cmd = "nav.up" }
+"e"        = { cmd = "doc.edit" }
+"escape"   = { cmd = "pane.focus", args = { pane = "list" } }
+
+[modes.picker]
+"j"        = { cmd = "nav.down" }
+"k"        = { cmd = "nav.up" }
+"enter"    = { cmd = "picker.confirm" }
+"shift+enter" = { cmd = "picker.confirm", args = { invert = true } }
+"escape"   = { cmd = "picker.cancel" }
