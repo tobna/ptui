@@ -77,7 +77,7 @@ understood; they were traced in the code, not guessed.
    directly. Shipped default stays `false` — the HPC/SSH case in SPEC
    § "Terminal reality" is real — but the maintainer runs `icons = true`, so
    the nerd-font column is the one that has to look good, not an afterthought.
-   Worth a screenshot in both modes (§ F) once it lands.
+   Worth a screenshot in both modes (§ G) once it lands.
 
 ## D. Display polish
 
@@ -99,7 +99,19 @@ understood; they were traced in the code, not guessed.
 2. **"Add to"** — attach a file to an *existing* document (`files.attach`,
    already in the registry and bound to `f a`), routed through `place()`.
 
-## F. Seeing the UI without a terminal (done — use it)
+## F. Packaging
+
+- **Not on PyPI**, so `uv tool install ptui` / `pipx install ptui` do not exist.
+  The README said they did; it now documents the checkout install instead.
+  Publish once § A is clear and the thing is worth other people's time.
+- **`papis ptui` only works inside the environment that holds ptui.** The
+  `papis.command` entry point is resolved through papis's own metadata, so a
+  pipx-installed papis cannot see a uv-installed ptui. Documented in the README
+  (`pipx inject --editable --include-apps papis <path>`); nothing to fix in the
+  code, but expect this question from every user who has papis from pipx or the
+  distro.
+
+## G. Seeing the UI without a terminal (done — use it)
 
 `scripts/shot.py` boots the app headlessly against the real library, presses a
 key sequence, and writes a PNG of the resulting screen:

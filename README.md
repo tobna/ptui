@@ -41,15 +41,25 @@ pressed — see [`TODO.md`](TODO.md).
 
 ## Install
 
+Not on PyPI yet — install from a checkout:
+
 ```sh
-uv tool install ptui        # or: pipx install ptui
-ptui                        # also available as: papis ptui
+git clone https://github.com/tnauen/ptui && cd ptui
+uv sync
+uv run ptui                 # or: uv run papis ptui
 ```
 
-From a checkout:
+To get `ptui` on your `$PATH`:
 
 ```sh
-uv sync && uv run ptui
+uv tool install --editable .
+```
+
+`papis ptui` only works when ptui lives in the *same* environment as papis — a
+plugin is found through papis's own entry points. If your papis came from pipx:
+
+```sh
+pipx inject --editable --include-apps papis /path/to/ptui
 ```
 
 ## Configure
