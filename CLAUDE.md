@@ -9,8 +9,11 @@ anything, and take work from the top of section A.**
 ## Golden rules
 
 1. **Keep `CLAUDE.md` and `README.md` current.** Any change to structure,
-   commands, config keys, or workflow updates both, in the same commit. Run
-   `/sync-docs` (`.claude/commands/sync-docs.md`) if unsure whether they drifted.
+   commands, config keys, or workflow updates both, in the same commit. If they
+   have drifted: re-read `ls -R src` and the recent commits, fix `CLAUDE.md` for
+   agents (layout, commands, status, gotchas) and `README.md` for humans (short,
+   install, features), and update `SPEC.md` if behaviour diverged.
+   (`.claude/` is local-only and not tracked.)
 2. **`SPEC.md` wins over intuition.** If the code must deviate, change the spec
    in the same commit and say why.
 3. **Verify every papis API call against the installed version** (`uv run python -c ...`).
