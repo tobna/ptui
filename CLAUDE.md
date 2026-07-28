@@ -43,6 +43,7 @@ src/ptui/
   keymap.py          keys.toml -> chords, prefix-conflict check, which-key data
   config.py          shipped defaults + per-key user overrides
   library.py         scope query, in-memory narrow, sorting, display text
+  clip.py            clipboard: local tool, else OSC52
   place.py           file placement: atomic, idempotent, no-clobber
   safewrite.py       the only path that writes info.yaml
   defaults/          shipped config.toml, keys.toml, themes/*.tcss
@@ -88,9 +89,11 @@ Built so far:
 - safe `info.yaml` writes, `place()` file placement
 - the app: list + info panes, scope query, debounced narrow, sorting, marks,
   which-key, hint bar, status bar, log pane
+- verbs: `doc.open`, `doc.open_folder`, `doc.browse`, `doc.edit_raw`,
+  `export.{citekey,path,url,bibtex}`, `files.relocate`
 
-Not built yet: `doc.open`, `doc.edit_raw`, `export.citekey`, `doc.add`,
-`files.relocate`, the `SelectList` modal, state persistence.
+Not built yet: `doc.add`, the `SelectList` modal (and everything that needs it —
+`sort.picker`, `files.open_pick`, `lib.switch`), state persistence, `help.show`.
 
 ## Conventions
 

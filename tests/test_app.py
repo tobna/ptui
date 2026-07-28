@@ -1,26 +1,4 @@
-import pytest
-
-from ptui import config, keymap
-from ptui.app import PtuiApp
-
-
-@pytest.fixture
-def app(papis_lib):
-    return PtuiApp(
-        config.load(config.DEFAULTS_DIR / "none.toml"),
-        keymap.load(config.DEFAULTS_DIR / "none.toml"),
-    )
-
-
-async def press(pilot, *keys):
-    for key in keys:
-        await pilot.press(key)
-    await settle(pilot)
-
-
-async def settle(pilot):
-    """Let the debounced narrow worker finish."""
-    await pilot.pause(0.2)
+from conftest import press, settle
 
 
 async def test_starts_and_lists_the_library(app):

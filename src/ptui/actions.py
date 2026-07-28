@@ -6,11 +6,13 @@ app module, so `app.py` can import this at load time to register everything.
 
 from __future__ import annotations
 
+from fnmatch import fnmatch
+from pathlib import Path
 from typing import Any
 
 from textual.widgets import DataTable
 
-from ptui import library
+from ptui import clip, library, place, safewrite
 from ptui.commands import command
 
 # ── navigation ──────────────────────────────────────────────────────────────
@@ -215,6 +217,175 @@ def mark_clear(app: Any) -> None:
 def mark_show_only(app: Any) -> None:
     app.marked_only = not app.marked_only
     app.refilter()
+
+
+# ── document verbs ──────────────────────────────────────────────────────────
+
+
+def files_of(app: Any, doc: Any) -> list[Path]:
+    """Existing files of a document, main first.
+
+    Kind is *inferred* from `files.kind_patterns` and never written to disk — a
+    parallel `kind` key would desync with a script that appends to `files`.
+    """
+    patterns = [p for group in app.cfg.get("files.kind_patterns", {}).values() for p in group]
+    paths = [place.resolve(doc, entry) for entry in doc.get("files", [])]
+    main = [p for p in paths if not any(fnmatch(p.name, pat) for pat in patterns)]
+    return main + [p for p in paths if p not in main]
+
+
+@command("doc.open", "open file")
+def doc_open(app: Any, which: int | None = None) -> None:
+    import papis.utils
+
+    doc = app.current
+    if doc is None:
+        return
+    paths = files_of(app, doc)
+    if not paths:
+        app.log_line("[yellow]no files attached[/]")
+        return
+    path = paths[which] if which is not None and which < len(paths) else paths[0]
+    if not path.exists():
+        app.log_line(f"[red]missing file:[/] {path}")
+        return
+    papis.utils.open_file(str(path), wait=False)
+    app.log_line(f"opened {path.name}")
+    if app.cfg.get("general.track_opens", False):
+        _touch_opened_at(app, doc)
+
+
+def _touch_opened_at(app: Any, doc: Any) -> None:
+    from datetime import datetime
+
+    stamp = datetime.now().astimezone().isoformat(timespec="seconds")
+    try:
+        safewrite.edit(doc, lambda data: data.__setitem__("opened_at", stamp))
+    except safewrite.StaleError:
+        app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
+
+
+@command("doc.open_folder", "open folder")
+def doc_open_folder(app: Any) -> None:
+    import papis.api
+
+    doc = app.current
+    if doc is not None and doc.get_main_folder():
+        papis.api.open_dir(doc.get_main_folder())
+
+
+@command("doc.browse", "open URL/DOI")
+def doc_browse(app: Any) -> None:
+    import papis.commands.browse
+
+    doc = app.current
+    if doc is not None:
+        app.log_line(f"browsing {papis.commands.browse.run(doc)}")
+
+
+@command("doc.edit_raw", "edit info.yaml in $EDITOR")
+def doc_edit_raw(app: Any) -> None:
+    """Full-screen `$EDITOR` on `info.yaml` — never a pty embedded in a pane."""
+    import papis.commands.edit
+    import papis.database
+
+    doc = app.current
+    if doc is None:
+        return
+    with app.suspend():
+        papis.commands.edit.run(doc, wait=True)
+    doc.load()
+    papis.database.get().update(doc)
+    app.refresh_rows()
+    app.log_line(f"edited {doc.get('ref', doc.get('title', ''))}")
+
+
+# ── export ──────────────────────────────────────────────────────────────────
+
+
+def _yank(app: Any, text: str, what: str) -> None:
+    if not text:
+        app.log_line(f"[yellow]nothing to yank for {what}[/]")
+        return
+    method = clip.copy(app, text)
+    app.log_line(f"yanked {what} ({method})")
+
+
+@command("export.citekey", "\\cite{ref}")
+def export_citekey(app: Any) -> None:
+    import papis.format
+
+    fmt = app.cfg.get("export.citekey_format", "{doc[ref]}")
+    # Verbatim stored values: LaTeX in a title is display-stripped, never yanked stripped.
+    keys = [papis.format.format(fmt, doc, default="") for doc in app.targets]
+    _yank(app, " ".join(k for k in keys if k), f"{len(keys)} citekey(s)")
+
+
+@command("export.path", "absolute path")
+def export_path(app: Any) -> None:
+    paths = [str(p) for doc in app.targets for p in files_of(app, doc)[:1]]
+    _yank(app, "\n".join(paths), "path")
+
+
+@command("export.url", "DOI/URL")
+def export_url(app: Any) -> None:
+    urls = []
+    for doc in app.targets:
+        doi = doc.get("doi")
+        urls.append(doc.get("url") or (f"https://doi.org/{doi}" if doi else ""))
+    _yank(app, "\n".join(u for u in urls if u), "url")
+
+
+@command("export.bibtex", "bibtex")
+def export_bibtex(app: Any, target: str | None = None) -> None:
+    import papis.bibtex
+
+    entries = [papis.bibtex.to_bibtex(doc) for doc in app.targets]
+    text = "\n".join(e for e in entries if e)
+    if target:
+        Path(target).expanduser().write_text(text)
+        app.log_line(f"wrote {len(entries)} entries to {target}")
+    else:
+        _yank(app, text, f"{len(entries)} bibtex entrie(s)")
+
+
+# ── files ───────────────────────────────────────────────────────────────────
+
+
+@command("files.relocate", "relocate + rename to scheme")
+def files_relocate(app: Any, force: bool = False) -> None:
+    """Run `place()` over every file of every target. Partial failure is normal:
+    the clean ones go through, the rest are reported in the log."""
+    rules = place.Rules.from_config(app.cfg)
+    tally: dict[str, int] = {}
+    for doc in app.targets:
+        entries = list(doc.get("files", []))
+        results = [place.place(doc, e, rules, force=force, previous=e) for e in entries]
+        for result in results:
+            tally[result.status] = tally.get(result.status, 0) + 1
+            if result.status not in ("ok", "already", "unmanaged"):
+                app.log_line(f"[yellow]{result.status}[/] {result.src.name}: {result.message}")
+
+        updated = [
+            r.entry if r.entry and r.status in ("ok", "already") else e
+            for e, r in zip(entries, results, strict=True)
+        ]
+        if updated == entries:
+            continue
+        try:
+            safewrite.edit(doc, lambda data, new=updated: data.__setitem__("files", new))
+        except Exception as exc:
+            # File first, info.yaml second — so a failed write means rolling the
+            # files back, not leaving dangling references behind.
+            for result in results:
+                place.rollback(result)
+            app.log_line(f"[red]rolled back {doc.get('ref', '')}:[/] {exc}")
+
+    app.refresh_rows()
+    summary = ", ".join(f"{count} {status}" for status, count in sorted(tally.items()))
+    app.log_line(f"relocate: {summary or 'nothing to do'}")
+    if tally.get("conflict") or tally.get("error"):
+        app.query_one("#log-pane").display = True
 
 
 # ── app ─────────────────────────────────────────────────────────────────────

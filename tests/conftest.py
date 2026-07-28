@@ -1,6 +1,17 @@
 import pytest
 
 
+async def press(pilot, *keys):
+    for key in keys:
+        await pilot.press(key)
+    await settle(pilot)
+
+
+async def settle(pilot):
+    """Let the debounced narrow worker finish."""
+    await pilot.pause(0.2)
+
+
 @pytest.fixture(autouse=True)
 def papis_lib(tmp_path, monkeypatch):
     """A throwaway papis library with three documents, isolated from the user's.
@@ -46,3 +57,21 @@ def papis_lib(tmp_path, monkeypatch):
     yield tmp_path
     papis.database.clear_cached()
     papis.config.CURRENT_CONFIGURATION, papis.config.CURRENT_LIBRARY = previous
+
+
+@pytest.fixture
+def app(papis_lib):
+    """The app under test, wired to the throwaway library.
+
+    `osc52` keeps the test run out of the developer's real clipboard.
+    """
+    from ptui import config, keymap
+    from ptui.app import PtuiApp
+
+    ptui_config = papis_lib / "ptui.toml"
+    ptui_config.write_text(
+        f'[export]\nclipboard = "osc52"\n\n'
+        f'[files]\npdf_root = "{papis_lib / "pdfs"}"\n'
+        f'[log]\nfile = ""\n'
+    )
+    return PtuiApp(config.load(ptui_config), keymap.load(papis_lib / "no-keys.toml"))
