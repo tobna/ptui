@@ -35,8 +35,9 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **SSH-friendly** — no nerd fonts by default, no forked worker pools, collapses
   to one pane on narrow terminals.
 
-Not there yet: undo, the structured editor, doctor integration, saved searches,
-`:` command line. Bindings for them exist and say so when pressed.
+Not there yet: undo, tagging, delete, doctor integration, saved searches, the
+`?` overlay and the `:` command line. Bindings for them exist and say so when
+pressed — see [`TODO.md`](TODO.md).
 
 ## Install
 

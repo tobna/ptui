@@ -3,7 +3,8 @@
 ptui is a [Textual](https://textual.textualize.io/) TUI for
 [papis](https://github.com/papis/papis). `SPEC.md` is the design contract —
 read it before changing behaviour; this file is the map of what actually
-exists.
+exists. `TODO.md` is the backlog from real use: **read it before starting
+anything, and take work from the top of section A.**
 
 ## Golden rules
 
@@ -109,7 +110,10 @@ command line, `doc.notes`, `doc.delete`, state persistence
 (`general.persist_state` is read but ignored). Unbound commands log
 "not implemented yet".
 
-Next step per SPEC: use it daily for two weeks before extending.
+First real session produced `TODO.md`. Known-bad right now: switching panes
+strands the keyboard (no per-mode fallback to `[modes.list]`), Textual's own
+command palette steals `ctrl+p`, the layout toggle does nothing, and `/` narrows
+too loosely. Do not add features before `TODO.md` § A is clear.
 
 ## Conventions
 
