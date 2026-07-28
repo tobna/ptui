@@ -11,9 +11,13 @@ understood; they were traced in the code, not guessed.
    `info`/`files`/`log` and each mode's keymap is used *alone* —
    `[modes.info]` defines four bindings, and `[modes.log]` does not exist at
    all, so the log pane traps the keyboard completely (this is also why the
-   operations log cannot be closed again). Fix: `Keymap.lookup` should fall back
-   to `[modes.list]` for any chord the active mode does not define, and `escape`
-   must always return to the list.
+   operations log cannot be closed again).
+
+   **Decided fix: `escape` always leaves the current mode.** Modes stay modes —
+   a mode is allowed to define few keys — but escape is guaranteed by the
+   dispatcher, above the keymap, so no pane can ever trap the keyboard. In the
+   list mode escape keeps its `escape_chain` meaning. Not doing the alternative
+   (falling back to `[modes.list]` for undefined chords).
 
 2. **`ctrl+p` opens Textual's own command palette**, not ours, and its "show
    keys and help panel" item opens an unstyled side pane with no way out.
