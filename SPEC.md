@@ -254,6 +254,11 @@ Namespaces: `g` go · `f` files · `y` yank · `c` change · `m` marks ·
 `n` / `N` are deliberately left unbound, reserved for next/prev match if a
 jump-style narrow mode is added.
 
+**Second hard invariant**: no mode may trap the keyboard. Outside `[modes.list]`,
+`escape` is handled by the dispatcher *above* the keymap — it discards any pending
+chord and returns to the list — so a mode is free to define very few bindings, or
+none at all. In the list mode `escape` keeps its `escape_chain` meaning.
+
 **Hard invariant**: no single-key binding may be a proper prefix of any chord
 in the same mode. `keymap.check` runs automatically at config load and
 **refuses to start** on a conflict, naming both bindings. Verify at load

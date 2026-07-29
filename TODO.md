@@ -6,32 +6,19 @@ understood; they were traced in the code, not guessed.
 
 ## A. Broken — fix first
 
-1. **The keyboard dies after `tab` or `1`–`4`.** After switching panes, only
-   `j`/`k` work; `E`, `q`, `G`, `g g` are gone. Cause: `app.mode` becomes
-   `info`/`files`/`log` and each mode's keymap is used *alone* —
-   `[modes.info]` defines four bindings, and `[modes.log]` does not exist at
-   all, so the log pane traps the keyboard completely (this is also why the
-   operations log cannot be closed again).
-
-   **Decided fix: `escape` always leaves the current mode.** Modes stay modes —
-   a mode is allowed to define few keys — but escape is guaranteed by the
-   dispatcher, above the keymap, so no pane can ever trap the keyboard. In the
-   list mode escape keeps its `escape_chain` meaning. Not doing the alternative
-   (falling back to `[modes.list]` for undefined chords).
-
-2. **`z z` (vertical ↔ horizontal split) does nothing visible.** Cause:
+1. **`z z` (vertical ↔ horizontal split) does nothing visible.** Cause:
    `pane.toggle_layout` flips `styles.layout` on `#panes`, but the list pane
    keeps its explicit `width: 45%`, so the panes stay put. Fix: swap width/height
    constraints along with the layout.
 
-3. **Hiding the info pane leaves the list at its old width.** The list must
+2. **Hiding the info pane leaves the list at its old width.** The list must
    expand to the full window when it is the only pane.
 
-4. **The list overflows horizontally.** Columns must fit the pane: the flex
+3. **The list overflows horizontally.** Columns must fit the pane: the flex
    column absorbs the remainder and cells truncate (with `wcwidth`, per SPEC
    § "Terminal reality"). No horizontal scrolling.
 
-5. **`/` narrows far too little.** `Nauen` returns obviously unrelated entries —
+4. **`/` narrows far too little.** `Nauen` returns obviously unrelated entries —
    measured on the real library: **695 of 747 documents still shown**. Cause:
    fuzzy narrowing is a subsequence test over *all* narrow fields joined into
    one string, so scattered letters match. Fix: make `substring` the default
@@ -85,7 +72,7 @@ understood; they were traced in the code, not guessed.
   `['vision-transformers']`. Join lists for display, in the info pane and in
   list columns.
 - Column set: no `Tags` column survives at a normal width, and `Title` is cut
-  off mid-word. Related to A4.
+  off mid-word. Related to A3.
 
 ## E. New features asked for
 

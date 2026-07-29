@@ -120,10 +120,14 @@ command line, `doc.notes`, `doc.delete`, state persistence
 (`general.persist_state` is read but ignored). Unbound commands log
 "not implemented yet".
 
-First real session produced `TODO.md`. Known-bad right now: switching panes
-strands the keyboard (no per-mode fallback to `[modes.list]`), Textual's own
+First real session produced `TODO.md`. Known-bad right now: Textual's own
 command palette steals `ctrl+p`, the layout toggle does nothing, and `/` narrows
 too loosely. Do not add features before `TODO.md` § A is clear.
+
+`escape` is dispatched above the keymap (`app.on_key`): outside `[modes.list]`
+it drops any pending chord and returns to the list, so a mode with few or no
+bindings can never trap the keyboard. Inside the list mode it resolves through
+`escape_chain` as usual.
 
 ## Conventions
 

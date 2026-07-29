@@ -131,7 +131,14 @@ class PtuiApp(App[None]):
         event.stop()
         event.prevent_default()
         self.hide_which_key()
-        chord = (*self.pending, keymap.normalize(event.key, event.character))
+        key = keymap.normalize(event.key, event.character)
+        # Escape is guaranteed above the keymap: a mode may define few keys, but
+        # none may trap the keyboard. In list mode it keeps its escape_chain meaning.
+        if key == "escape" and self.mode != "list":
+            self.pending = ()
+            self.focus_pane("list")
+            return
+        chord = (*self.pending, key)
         binding = self.km.lookup(self.mode, chord)
         if binding is not None:
             self.pending = ()

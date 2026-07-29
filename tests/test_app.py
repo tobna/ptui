@@ -49,6 +49,19 @@ async def test_chord_and_unknown_command(app):
         assert app.pending == ()
 
 
+async def test_escape_leaves_any_mode(app):
+    async with app.run_test() as pilot:
+        await press(pilot, "4")  # the log mode defines no bindings at all
+        assert app.mode == "log"
+        await press(pilot, "escape")
+        assert app.mode == "list"
+        await press(pilot, "tab")  # info: defines four keys, none of them q
+        assert app.mode == "info"
+        await press(pilot, "g")  # a pending prefix must not survive the escape
+        await press(pilot, "escape")
+        assert (app.mode, app.pending) == ("list", ())
+
+
 async def test_sort_reverse_keeps_the_cursor_on_the_document(app):
     async with app.run_test() as pilot:
         await press(pilot, "S")  # unimplemented in v0: logs, does not crash

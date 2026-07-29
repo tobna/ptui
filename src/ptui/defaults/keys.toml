@@ -15,7 +15,9 @@ hint_bar = true                  # persistent context hints, bottom row
 hint_bar_max = 6
 show_keys_in_cmdline = true      # teach bindings via the command line
 
-# Escape precedence, first applicable wins. Note: escape never clears marks.
+# Escape precedence in the list mode, first applicable wins. Note: escape never
+# clears marks. Outside the list mode escape is handled above the keymap and
+# always returns to the list, so no pane can trap the keyboard.
 escape_chain = ["modal", "visual", "narrow"]
 
 [modes.list]
@@ -132,13 +134,12 @@ escape_chain = ["modal", "visual", "narrow"]
 "x"        = { cmd = "files.detach",   desc = "remove from list, keep file" }
 "K"        = { cmd = "files.reorder", args = { to = -1 } }
 "J"        = { cmd = "files.reorder", args = { to =  1 } }
-"escape"   = { cmd = "pane.focus", args = { pane = "list" } }
+# escape needs no binding here: the dispatcher always returns to the list.
 
 [modes.info]
 "j"        = { cmd = "nav.down" }
 "k"        = { cmd = "nav.up" }
 "e"        = { cmd = "doc.edit" }
-"escape"   = { cmd = "pane.focus", args = { pane = "list" } }
 
 # The filter box has focus so that typing filters, so motions cannot be letters.
 [modes.picker]
