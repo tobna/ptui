@@ -85,6 +85,10 @@ Prefixes are namespaces, and hold one to see its menu: `g` go · `f` files ·
 `y` yank · `c` change · `m` marks · `z` layout · `d` delete · `\` admin.
 So `y y` yanks a `\cite{…}`, `f r` files a PDF where it belongs.
 
+**[KEYS.md](KEYS.md) lists every binding** — key, command name and what it does,
+per mode, generated from the shipped keymap. `?` shows the same table inside the
+app, for whichever mode you are in.
+
 ## Development
 
 ```sh
