@@ -100,7 +100,7 @@ per key.
 **v0 is feature-complete** against `SPEC.md` § "v0 scope" — two panes, scope
 query + narrow filter, vim navigation, `doc.open`, `doc.edit_raw`,
 `export.citekey`, marks, the add flow, `files.relocate`, safe-write, log pane,
-`keymap.check`, which-key + hint bar, `help.show`. 50 tests, `uv run pytest`.
+`keymap.check`, which-key + hint bar, `help.show`. 52 tests, `uv run pytest`.
 
 Built:
 
@@ -121,8 +121,15 @@ command line, `doc.notes`, `doc.delete`, state persistence
 "not implemented yet".
 
 First real session produced `TODO.md`. Known-bad right now: Textual's own
-command palette steals `ctrl+p`, the list overflows horizontally, and `/`
+command palette steals `ctrl+p`, and `/` (plus every picker's filter box)
 narrows too loosely. Do not add features before `TODO.md` § A is clear.
+
+`PtuiApp.fit_columns()` sizes the list: configured widths win, the `width = 0`
+column absorbs the rest, and a fixed column that would squeeze it below
+`MIN_FLEX` is dropped instead of scrolling sideways. Cells are cut with
+`library.fit` (rich `cell_len`/`set_cell_size`, so CJK counts double). The
+refit hangs off `ListTable.on_resize` — the app-level resize event fires before
+layout, when widget sizes are still stale.
 
 `PtuiApp.apply_split()` is the only place pane geometry is set: it writes the
 layout direction and *both* dimensions from `app.side_by_side` / `app.split`,

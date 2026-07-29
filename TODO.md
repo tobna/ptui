@@ -6,16 +6,22 @@ understood; they were traced in the code, not guessed.
 
 ## A. Broken — fix first
 
-1. **The list overflows horizontally.** Columns must fit the pane: the flex
-   column absorbs the remainder and cells truncate (with `wcwidth`, per SPEC
-   § "Terminal reality"). No horizontal scrolling.
-
-2. **`/` narrows far too little.** `Nauen` returns obviously unrelated entries —
+1. **`/` narrows far too little.** `Nauen` returns obviously unrelated entries —
    measured on the real library: **695 of 747 documents still shown**. Cause:
    fuzzy narrowing is a subsequence test over *all* narrow fields joined into
    one string, so scattered letters match. Fix: make `substring` the default
    `query.narrow_mode`, and make fuzzy match per field with contiguity
    preferred (rank, don't just filter).
+
+2. **The filter box in every picker does nothing.** Measured with `f o` on a
+   document that has both `… Vision Transformer.pdf` and
+   `… Vision Transformer_note.pdf`: typing `note` still shows both. Cause: the
+   same one as A1 — `ui.Item.matches` runs `library.is_subsequence` over
+   `label + hint + haystack`, and a long file name contains almost any needle
+   as a scattered subsequence (`Locality-Atte*n*ding visi*o*n *T*ransform*e*r`).
+   `o` picks the right file; only the picker's filter is broken.
+   Fix once, in the matcher both layers share: substring by default, fuzzy
+   ranked by contiguity. Then `f o`, `S`, `g l` and `/` all improve together.
 
 ## B. Bound but not implemented (they log "not implemented yet")
 
@@ -58,8 +64,9 @@ understood; they were traced in the code, not guessed.
 - `tags` (and any other list value) renders as a Python list —
   `['vision-transformers']`. Join lists for display, in the info pane and in
   list columns.
-- Column set: no `Tags` column survives at a normal width, and `Title` is cut
-  off mid-word. Related to A1.
+- Column set: `Tags` renders as a Python list and only survives on a wide
+  terminal; below ~110 columns the fit drops it, which is the right call but
+  makes the column pointless in the shipped set. Decide what earns the space.
 
 ## E. New features asked for
 

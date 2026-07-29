@@ -54,6 +54,16 @@ def test_strip_latex_is_display_only():
     assert library.strip_latex("{B}ERT: $\\ell_2$ norms") == "BERT: _2 norms"
 
 
+def test_fit_counts_cells_not_characters():
+    from rich.cells import cell_len
+
+    assert library.fit("short", 10) == "short"
+    assert library.fit("Persönlichkeitsdiagnostik", 10) == "Persönlich…"[:9] + "…"
+    assert cell_len(library.fit("Persönlichkeitsdiagnostik", 10)) == 10
+    assert cell_len(library.fit("日本語のタイトル", 7)) == 7  # two cells per glyph
+    assert library.fit("anything", 0) == ""
+
+
 def test_discover_keys():
     assert library.discover_keys(docs({"year": 1}, {"title": "x", "tags": []})) == [
         "tags",

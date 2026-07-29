@@ -14,7 +14,7 @@ import papis.format
 from loguru import logger
 from papis.document import Document
 from rich.text import Text
-from textual import work
+from textual import events, work
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
 from textual.widgets import DataTable, Input, RichLog, Static
@@ -29,6 +29,21 @@ from ptui import (
 )
 
 PANES = ("list", "info", "log")
+
+MIN_FLEX = 12
+"""Cells the flexible column keeps. Below this a fixed column is dropped instead —
+author plus a stubby title beats a wide title and no idea who wrote it."""
+
+
+class ListTable(DataTable):
+    """The document list. Refits its columns whenever its own size changes.
+
+    The app-level resize handler is too early — widget geometry is only real
+    once layout has run, and that is exactly when this fires.
+    """
+
+    def on_resize(self, _: events.Resize) -> None:
+        self.app.refresh_rows()  # type: ignore[attr-defined]
 
 
 class PtuiApp(App[None]):
@@ -71,6 +86,7 @@ class PtuiApp(App[None]):
         self.prompt_kind = ""
         self.side_by_side = cfg.get("ui.layout", "vertical") == "vertical"
         self.split = cfg.get("ui.split_ratio", 0.6)
+        self._fit: list[tuple[dict[str, Any], int]] = []
         self._which_timer: Any = None
 
     # ── setup ───────────────────────────────────────────────────────────────
@@ -81,7 +97,7 @@ class PtuiApp(App[None]):
         return preset.get("key", "time-added"), preset.get("dir", "desc") == "desc"
 
     def compose(self) -> ComposeResult:
-        table = DataTable(id="list-pane", cursor_type="row", zebra_stripes=False)
+        table = ListTable(id="list-pane", cursor_type="row", zebra_stripes=False)
         table.can_focus = False  # all keys go through our dispatcher
         info = VerticalScroll(Static(id="info"), id="info-pane")
         info.can_focus = False
@@ -95,9 +111,6 @@ class PtuiApp(App[None]):
         yield Input(id="prompt")
 
     def on_mount(self) -> None:
-        table = self.query_one(DataTable)
-        for column in self.cfg.get("list.columns", []):
-            table.add_column(column["title"], width=column["width"] or None)
         self.apply_split()
         self._setup_logging()
         for problem in self.km.unknown_commands:
@@ -211,6 +224,46 @@ class PtuiApp(App[None]):
             (share, "1fr") if self.side_by_side else ("1fr", share)
         )
         info.styles.width = info.styles.height = "1fr"
+        self.call_after_refresh(self.refresh_rows)  # columns refit to the new width
+
+    # ── columns ─────────────────────────────────────────────────────────────
+
+    def fit_columns(self) -> list[tuple[dict[str, Any], int]]:
+        """The columns that fit the pane, with the width each one gets.
+
+        Configured widths are honoured; the `width = 0` column absorbs whatever
+        is left. A fixed column that would starve it is dropped instead — that
+        is how `Tags` disappears on a narrow terminal and comes back on a wide
+        one, rather than the list scrolling sideways.
+        """
+        table = self.query_one(DataTable)
+        spec = self.cfg.get("list.columns", [])
+        pad = table.cell_padding * 2
+        room = table.size.width - 2 - table.scrollbar_size_vertical  # border, scrollbar
+        flex = next((i for i, column in enumerate(spec) if not column["width"]), None)
+        widths: dict[int, int] = {}
+        for index, column in enumerate(spec):
+            if index == flex:
+                continue
+            floor = MIN_FLEX + pad if flex is not None else 0
+            if room - column["width"] - pad < floor:
+                continue
+            room -= column["width"] + pad
+            widths[index] = column["width"]
+        if flex is not None:
+            widths[flex] = max(MIN_FLEX, room - pad)
+        return [(spec[index], widths[index]) for index in sorted(widths)]
+
+    def sync_columns(self) -> None:
+        """Rebuild the table's columns when the fit changed — resize, or `z z`."""
+        fit = self.fit_columns()
+        if fit == self._fit:
+            return
+        self._fit = fit
+        table = self.query_one(DataTable)
+        table.clear(columns=True)
+        for column, width in fit:
+            table.add_column(column["title"], width=width)
 
     def focus_pane(self, pane: str) -> None:
         if pane not in PANES:
@@ -250,19 +303,21 @@ class PtuiApp(App[None]):
         """Rebuild the table, keeping the cursor on the same document."""
         keep = keep or (library.doc_id(self.current) if self.current else None)
         table = self.query_one(DataTable)
+        self.sync_columns()
         table.clear()
         strip = self.cfg.get("list.strip_latex", True)
         icons = self.cfg.get("ui.icons", False)
         for doc in self.rows:
             marked = library.doc_id(doc) in self.marks
             cells = []
-            for index, column in enumerate(self.cfg.get("list.columns", [])):
+            for index, (column, width) in enumerate(self._fit):
                 text = papis.format.format(column["format"], doc, default="")
                 if strip:
                     text = library.strip_latex(text)
                 if index == 0:
                     glyph = ("●" if icons else "*") if marked else " "
                     text = f"{glyph} {text}"
+                text = library.fit(text, width)
                 # ponytail: bold marks the row; per-theme colouring needs Rich
                 # styles that CSS classes cannot reach into DataTable cells.
                 cells.append(Text(text, style="bold" if marked else ""))

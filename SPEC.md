@@ -236,7 +236,10 @@ toast that vanishes.
 - `ui.split_ratio` is the **list pane's** share of whichever axis the split
   currently runs along, and the list keeps the whole window whenever it is the
   only visible pane. Both dimensions are set on every layout change.
-- Use wcwidth for column truncation: CJK and combining characters.
+- Columns must fit the pane — no horizontal scrolling. Fixed widths are
+  honoured, one `width = 0` column absorbs the remainder, and a fixed column
+  that would starve it is dropped until the terminal is wide enough again.
+- Truncate by terminal cells, not characters: CJK and combining marks.
 - Titles may contain LaTeX (`{B}ERT`, `$\ell_2$`). Store verbatim; render
   de-braced per `list.strip_latex`. Citekey yank and bib export always use
   the verbatim stored value.

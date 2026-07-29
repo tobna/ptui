@@ -16,6 +16,8 @@ import os
 import re
 from typing import Any
 
+from rich.cells import cell_len, set_cell_size
+
 # Papis forks a process pool to build its cache. Inside a TUI that copies the
 # whole app and dies on Textual's redirected file descriptors, so ask papis for
 # the sequential path (PAPIS_NP is papis's own switch — a user can override it).
@@ -142,6 +144,19 @@ def discover_keys(docs: list[Document]) -> list[str]:
 # swap in pylatexenc if real macro rendering is ever wanted. Display only — the
 # verbatim value is what gets stored, yanked and exported.
 _LATEX = re.compile(r"[{}$]|\\[a-zA-Z]+")
+
+
+def fit(text: str, width: int) -> str:
+    """Truncate to `width` terminal cells, ellipsis included in the budget.
+
+    Cells, not characters: CJK and emoji are two columns wide, combining marks
+    are zero, and a list that counts characters overflows on a real library.
+    """
+    if width <= 0:
+        return ""
+    if cell_len(text) <= width:
+        return text
+    return set_cell_size(text, width - 1) + "…"
 
 
 def strip_latex(text: str) -> str:
