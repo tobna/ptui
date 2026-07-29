@@ -276,7 +276,11 @@ why `o` feels slow.
    with focused pane and whether marks exist (marks present → surface `d d`,
    `c t`, `y b`).
 3. **`?` help overlay**: grouped by namespace, fuzzy-searchable, showing
-   _effective_ bindings after user overrides. Never a static text blob.
+   _effective_ bindings after user overrides. Never a static text blob. Like
+   `escape`, it is guaranteed in every mode by the dispatcher — it follows
+   whatever `[modes.list]` binds `help.show` to — and it lists the current
+   mode's own table, marking commands that are not implemented yet. Browsing
+   is read-only; running a command by name is layer 4's job.
 4. **`:` command line**: fuzzy completion over command names **with the bound
    key shown beside each entry**. This is the layer that actually teaches the
    keymap — users find `files.relocate` by typing, see `f r` next to it, and

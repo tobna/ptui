@@ -13,7 +13,7 @@ from typing import Any
 from textual.widgets import DataTable
 
 from ptui import clip, library, place, safewrite, ui
-from ptui.commands import command
+from ptui.commands import REGISTRY, command
 
 # ── navigation ──────────────────────────────────────────────────────────────
 
@@ -570,6 +570,29 @@ def app_escape(app: Any) -> None:
             app.refilter("")
             return
     app.pending = ()
+
+
+@command("help.show", "help")
+def help_show(app: Any) -> None:
+    """Discoverability layer 3: the *effective* keymap of the current mode.
+
+    Generated from the keymap, so user overrides show up and a static blob can
+    never drift. Browsing is safe — enter closes, it does not run the command;
+    running things by name is the `:` command line's job.
+    """
+    items = []
+    for binding in sorted(
+        app.km.modes.get(app.mode, {}).values(), key=lambda b: (b.chord[0].casefold(), b.keys)
+    ):
+        args = " ".join(str(value) for value in binding.args.values())
+        note = "" if binding.cmd in REGISTRY else "  (not implemented)"
+        label = f"{binding.keys:<10} {binding.desc or binding.cmd}{f' — {args}' if args else ''}"
+        hint = "" if binding.desc in ("", binding.cmd) else binding.cmd  # no echo of the label
+        items.append(ui.Item(label=label + note, value=binding.cmd, hint=hint))
+    if app.mode != "list":
+        # Guaranteed by the dispatcher, so it is in no mode's table.
+        items = [ui.Item(label=f"{'escape':<10} back to the list", value=""), *items]
+    app.push_screen(ui.SelectList(items, title=f"Keys — {app.mode} mode"))
 
 
 @command("keymap.check", "check keymap conflicts")

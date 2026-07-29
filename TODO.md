@@ -19,7 +19,6 @@ understood; they were traced in the code, not guessed.
 
 ## B. Bound but not implemented (they log "not implemented yet")
 
-- `?` `help.show` — the generated help overlay. SPEC § "Discoverability" layer 3.
 - `:` `cmdline.open` — pressing it does nothing. This is the layer that teaches
   the keymap (fuzzy completion over command names with the bound key beside
   each), so it matters more than the rest of this list.

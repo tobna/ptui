@@ -100,7 +100,7 @@ per key.
 **v0 is feature-complete** against `SPEC.md` § "v0 scope" — two panes, scope
 query + narrow filter, vim navigation, `doc.open`, `doc.edit_raw`,
 `export.citekey`, marks, the add flow, `files.relocate`, safe-write, log pane,
-`keymap.check`, which-key + hint bar. 49 tests, `uv run pytest`.
+`keymap.check`, which-key + hint bar, `help.show`. 50 tests, `uv run pytest`.
 
 Built:
 
@@ -115,7 +115,7 @@ Built:
 
 Not built (deliberately, per SPEC "not in v0"): structured editor, undo, doctor,
 saved searches, themes beyond the built-in one, picker entry point, reading
-status, ratings. Also missing and *not* excluded by SPEC: `help.show`, the `:`
+status, ratings. Also missing and *not* excluded by SPEC: the `:`
 command line, `doc.notes`, `doc.delete`, state persistence
 (`general.persist_state` is read but ignored). Unbound commands log
 "not implemented yet".
@@ -129,10 +129,13 @@ layout direction and *both* dimensions from `app.side_by_side` / `app.split`,
 so `z z`, `z i` and `z +/-` all just mutate that state and call it. The list
 pane cannot be hidden and takes the whole window when it is alone.
 
-`escape` is dispatched above the keymap (`app.on_key`): outside `[modes.list]`
-it drops any pending chord and returns to the list, so a mode with few or no
-bindings can never trap the keyboard. Inside the list mode it resolves through
-`escape_chain` as usual.
+`escape` and the help key are dispatched above the keymap (`app.on_key`):
+outside `[modes.list]` escape drops any pending chord and returns to the list,
+so a mode with few or no bindings can never trap the keyboard; inside the list
+mode it resolves through `escape_chain` as usual. `?` follows whatever
+`[modes.list]` binds `help.show` to and works in every mode unless that mode
+binds the key itself. `help.show` renders the current mode's keymap through
+`SelectList`, so it can never drift from `keys.toml`.
 
 ## Conventions
 

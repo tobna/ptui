@@ -138,6 +138,12 @@ class PtuiApp(App[None]):
             self.pending = ()
             self.focus_pane("list")
             return
+        # Help is guaranteed the same way, and follows its [modes.list] binding:
+        # rebind help.show there and `?` moves in every mode at once.
+        help_key = self.km.for_command("list", "help.show")
+        if not self.pending and key == help_key and self.km.lookup(self.mode, (key,)) is None:
+            self.run_command("help.show")
+            return
         chord = (*self.pending, key)
         binding = self.km.lookup(self.mode, chord)
         if binding is not None:

@@ -79,6 +79,22 @@ async def test_z_chords_resize_the_panes(app):
         assert table.size.width < panes.size.width  # info is back, side by side
 
 
+async def test_help_opens_in_every_mode_and_lists_effective_bindings(app):
+    from ptui import ui
+
+    async with app.run_test() as pilot:
+        await press(pilot, "?")
+        labels = [item.label for item in app.screen.items]
+        assert isinstance(app.screen, ui.SelectList)
+        assert any(label.startswith("f r") and "relocate" in label for label in labels)
+        assert any("(not implemented)" in label for label in labels)  # honest about d d
+        await press(pilot, "escape")
+
+        await press(pilot, "4", "?")  # the log mode binds nothing at all
+        assert isinstance(app.screen, ui.SelectList)
+        assert app.screen.items[0].label.startswith("escape")
+
+
 async def test_sort_reverse_keeps_the_cursor_on_the_document(app):
     async with app.run_test() as pilot:
         await press(pilot, "S")  # unimplemented in v0: logs, does not crash
