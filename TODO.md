@@ -49,6 +49,13 @@ understood; they were traced in the code, not guessed.
    it is no longer valid YAML (papis will have refused to load it). The
    structured editor stays on the roadmap but is not the default.
 2. **`venue` belongs in the info pane** field list.
+3. **`ui.layout` gains `"auto"`, and it becomes the default.** Three values:
+   `vertical` (split `|`, panes side by side), `horizontal` (split `-`, info
+   under the list), and `auto` — pick from the terminal width, side by side
+   only when the list pane would still be wide enough to be worth it, stacked
+   below that. This is the same idea as the unbuilt `ui.narrow_width` collapse
+   in SPEC § "Terminal reality"; fold the two together rather than shipping two
+   thresholds. `z z` keeps overriding by hand for the session.
 3. **`[ui] icons` must actually mean something.** The setting exists and is
    honoured in exactly one place (the mark glyph, `app.py`); every other symbol
    is hardcoded ASCII (`·`/`!` for file present/missing, `↑`/`↓` for sort, `>`
@@ -64,9 +71,36 @@ understood; they were traced in the code, not guessed.
 - `tags` (and any other list value) renders as a Python list —
   `['vision-transformers']`. Join lists for display, in the info pane and in
   list columns.
+- **Size fixed columns to the p90 of the current selection, not to their
+  configured maximum.** Measured over the real library: author family names are
+  5 cells at the median, 9 at p90, 15 at the longest — so the shipped
+  `width = 18` wastes ~9 cells on nearly every row, and sizing to the literal
+  longest name would still let one outlier pay for everyone. Compute over
+  `app.rows` (the whole narrowed set, not the visible window, or the column
+  jitters while scrolling), clamp to the configured width as a ceiling, and let
+  the outliers truncate.
+
+- **Cut titles at a word boundary**, not mid-word: back off to the last space
+  that fits before appending the ellipsis. 45% of titles carry a colon (median
+  head 12 cells), so cutting at the last colon that fits is better still —
+  `Multi-Level Monte Carlo Training…` beats `…Gradient Descen…`.
+
+- **`list.row_height` (lines per document), default 1.** At 2, the title wraps
+  over both lines and tags get room — worth it because titles are 66 cells at
+  the median and 95 at p90, and only 12% fit the ~38 cells the flex column gets
+  in a side-by-side split. Costs half the visible documents, so it stays a
+  setting, not a default.
+
+- **Optional columns must earn their width.** Today a fixed column is dropped
+  only when it would push the flex column below `MIN_FLEX = 12`, which means
+  `Tags` can survive while `Title` is squeezed to 12 cells — the wrong trade.
+  Give the flex column a *target* width (~45) that optional columns are
+  allocated after, so `Tags` appears only once the title is comfortable. A
+  per-column `optional = true` (or a priority) in `[[list.columns]]` is
+  probably the shape.
+
 - Column set: `Tags` renders as a Python list and only survives on a wide
-  terminal; below ~110 columns the fit drops it, which is the right call but
-  makes the column pointless in the shipped set. Decide what earns the space.
+  terminal. Decide what earns the space once the rules above land.
 
 ## E. New features asked for
 
