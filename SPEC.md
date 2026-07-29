@@ -233,6 +233,9 @@ toast that vanishes.
 - Nerd-font glyphs **off by default** (`ui.icons = false`) — this runs over
   SSH to an HPC cluster.
 - Below `ui.narrow_width`, collapse to a single pane with tab switching.
+- `ui.split_ratio` is the **list pane's** share of whichever axis the split
+  currently runs along, and the list keeps the whole window whenever it is the
+  only visible pane. Both dimensions are set on every layout change.
 - Use wcwidth for column truncation: CJK and combining characters.
 - Titles may contain LaTeX (`{B}ERT`, `$\ell_2$`). Store verbatim; render
   de-braced per `list.strip_latex`. Citekey yank and bib export always use
@@ -291,7 +294,7 @@ from this. Adding a command must not require touching four places.
 | `nav.page_down` / `nav.page_up` |                               |                                                  |
 | `pane.focus`                    | `pane:list\|info\|files\|log` | direct focus                                     |
 | `pane.cycle`                    | `back:bool=false`             | tab / shift-tab                                  |
-| `pane.toggle`                   | `pane:str`                    | show/hide info or files pane                     |
+| `pane.toggle`                   | `pane:str`                    | show/hide info or files pane; the list never hides |
 | `pane.toggle_layout`            |                               | horizontal ↔ vertical split                      |
 | `pane.resize`                   | `delta:float`                 | adjust split ratio                               |
 | `query.scope`                   | `q:str?`                      | papis query (DB-backed)                          |

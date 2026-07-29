@@ -78,34 +78,37 @@ def pane_cycle(app: Any, back: bool = False) -> None:
 
 @command("pane.toggle", "show/hide a pane")
 def pane_toggle(app: Any, pane: str) -> None:
+    if pane == "list":
+        app.log_line("[yellow]the list pane cannot be hidden[/]")
+        return
     try:
         widget = app.query_one(f"#{pane}-pane")
     except Exception:
         app.log_line(f"[yellow]no {pane} pane in v0[/]")
         return
     widget.display = not widget.display
+    if not widget.display and app.mode == pane:
+        app.focus_pane("list")
+    app.apply_split()
 
 
 @command("pane.toggle_layout", "horizontal/vertical split")
 def pane_toggle_layout(app: Any) -> None:
-    panes = app.query_one("#panes")
-    horizontal = panes.styles.layout is None or str(panes.styles.layout) == "horizontal"
-    panes.styles.layout = "vertical" if horizontal else "horizontal"
+    app.side_by_side = not app.side_by_side
+    app.apply_split()
 
 
 @command("pane.resize", "adjust the split")
 def pane_resize(app: Any, delta: float) -> None:
-    table = _table(app)
-    ratio = min(0.9, max(0.1, (table.size.width / max(1, app.size.width)) + delta))
-    table.styles.width = f"{int(ratio * 100)}%"
+    app.split = min(0.9, max(0.1, app.split + delta))
+    app.apply_split()
 
 
 @command("app.log", "operation log")
 def app_log(app: Any) -> None:
     pane = app.query_one("#log-pane")
     pane.display = not pane.display
-    if pane.display:
-        app.focus_pane("log")
+    app.focus_pane("log" if pane.display else "list")
 
 
 # ── queries ─────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ confirm_destructive = true
 
 [ui]
 layout = "vertical"           # vertical = side-by-side | horizontal
-split_ratio = 0.45            # width fraction of the list pane
+split_ratio = 0.6             # the list pane's share of the split axis
 narrow_width = 90             # below this, collapse to a single pane
 theme = "ink-crimson"         # themes/<name>.tcss
 icons = false                 # nerd-font glyphs; false is SSH-safe

@@ -16,7 +16,7 @@ from papis.document import Document
 from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Container, VerticalScroll
 from textual.widgets import DataTable, Input, RichLog, Static
 
 from ptui import (
@@ -69,6 +69,8 @@ class PtuiApp(App[None]):
         self.marked_only = False
         self.sort_key, self.sort_reverse = self._default_sort()
         self.prompt_kind = ""
+        self.side_by_side = cfg.get("ui.layout", "vertical") == "vertical"
+        self.split = cfg.get("ui.split_ratio", 0.6)
         self._which_timer: Any = None
 
     # ── setup ───────────────────────────────────────────────────────────────
@@ -79,12 +81,11 @@ class PtuiApp(App[None]):
         return preset.get("key", "time-added"), preset.get("dir", "desc") == "desc"
 
     def compose(self) -> ComposeResult:
-        box = Horizontal if self.cfg.get("ui.layout") == "vertical" else Vertical
         table = DataTable(id="list-pane", cursor_type="row", zebra_stripes=False)
         table.can_focus = False  # all keys go through our dispatcher
         info = VerticalScroll(Static(id="info"), id="info-pane")
         info.can_focus = False
-        with box(id="panes"):
+        with Container(id="panes"):  # apply_split() owns the layout direction
             yield table
             yield info
         yield RichLog(id="log-pane", markup=True, max_lines=self.cfg.get("log.max_entries", 500))
@@ -97,8 +98,7 @@ class PtuiApp(App[None]):
         table = self.query_one(DataTable)
         for column in self.cfg.get("list.columns", []):
             table.add_column(column["title"], width=column["width"] or None)
-        ratio = self.cfg.get("ui.split_ratio", 0.45)
-        table.styles.width = f"{int(ratio * 100)}%"
+        self.apply_split()
         self._setup_logging()
         for problem in self.km.unknown_commands:
             self.log_line(f"[yellow]keys.toml:[/] {problem}")
@@ -189,6 +189,22 @@ class PtuiApp(App[None]):
         self.query_one("#which-key", Static).remove_class("open")
 
     # ── panes ───────────────────────────────────────────────────────────────
+
+    def apply_split(self) -> None:
+        """Size the panes for the current layout. The only place that sets either.
+
+        Both dimensions are set every time: a leftover width from the previous
+        layout is exactly why `z z` used to do nothing visible. The list takes
+        `split` of the axis, or the whole window when it is the only pane left.
+        """
+        self.query_one("#panes").styles.layout = "horizontal" if self.side_by_side else "vertical"
+        table = self.query_one(DataTable)
+        info = self.query_one("#info-pane")
+        share = f"{int(self.split * 100)}%" if info.display else "1fr"
+        table.styles.width, table.styles.height = (
+            (share, "1fr") if self.side_by_side else ("1fr", share)
+        )
+        info.styles.width = info.styles.height = "1fr"
 
     def focus_pane(self, pane: str) -> None:
         if pane not in PANES:

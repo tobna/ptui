@@ -62,6 +62,23 @@ async def test_escape_leaves_any_mode(app):
         assert (app.mode, app.pending) == ("list", ())
 
 
+async def test_z_chords_resize_the_panes(app):
+    async with app.run_test(size=(80, 24)) as pilot:
+        table, info, panes = (
+            app.query_one(f"#{name}") for name in ("list-pane", "info-pane", "panes")
+        )
+        await settle(pilot)
+        assert table.size.width > info.size.width  # the list is the larger pane
+        await press(pilot, "z", "z")  # stacked: the split moves to the other axis
+        assert min(table.size.width, info.size.width) > panes.size.width - 5  # both full width
+        assert table.size.height > info.size.height
+        await press(pilot, "z", "i")  # the only pane left takes the whole window
+        assert not info.display
+        assert table.size.height > panes.size.height - 3  # minus its own border
+        await press(pilot, "z", "z", "z", "i")
+        assert table.size.width < panes.size.width  # info is back, side by side
+
+
 async def test_sort_reverse_keeps_the_cursor_on_the_document(app):
     async with app.run_test() as pilot:
         await press(pilot, "S")  # unimplemented in v0: logs, does not crash

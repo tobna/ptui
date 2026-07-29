@@ -100,7 +100,7 @@ per key.
 **v0 is feature-complete** against `SPEC.md` § "v0 scope" — two panes, scope
 query + narrow filter, vim navigation, `doc.open`, `doc.edit_raw`,
 `export.citekey`, marks, the add flow, `files.relocate`, safe-write, log pane,
-`keymap.check`, which-key + hint bar. 47 tests, `uv run pytest`.
+`keymap.check`, which-key + hint bar. 49 tests, `uv run pytest`.
 
 Built:
 
@@ -121,8 +121,13 @@ command line, `doc.notes`, `doc.delete`, state persistence
 "not implemented yet".
 
 First real session produced `TODO.md`. Known-bad right now: Textual's own
-command palette steals `ctrl+p`, the layout toggle does nothing, and `/` narrows
-too loosely. Do not add features before `TODO.md` § A is clear.
+command palette steals `ctrl+p`, the list overflows horizontally, and `/`
+narrows too loosely. Do not add features before `TODO.md` § A is clear.
+
+`PtuiApp.apply_split()` is the only place pane geometry is set: it writes the
+layout direction and *both* dimensions from `app.side_by_side` / `app.split`,
+so `z z`, `z i` and `z +/-` all just mutate that state and call it. The list
+pane cannot be hidden and takes the whole window when it is alone.
 
 `escape` is dispatched above the keymap (`app.on_key`): outside `[modes.list]`
 it drops any pending chord and returns to the list, so a mode with few or no

@@ -6,19 +6,11 @@ understood; they were traced in the code, not guessed.
 
 ## A. Broken — fix first
 
-1. **`z z` (vertical ↔ horizontal split) does nothing visible.** Cause:
-   `pane.toggle_layout` flips `styles.layout` on `#panes`, but the list pane
-   keeps its explicit `width: 45%`, so the panes stay put. Fix: swap width/height
-   constraints along with the layout.
-
-2. **Hiding the info pane leaves the list at its old width.** The list must
-   expand to the full window when it is the only pane.
-
-3. **The list overflows horizontally.** Columns must fit the pane: the flex
+1. **The list overflows horizontally.** Columns must fit the pane: the flex
    column absorbs the remainder and cells truncate (with `wcwidth`, per SPEC
    § "Terminal reality"). No horizontal scrolling.
 
-4. **`/` narrows far too little.** `Nauen` returns obviously unrelated entries —
+2. **`/` narrows far too little.** `Nauen` returns obviously unrelated entries —
    measured on the real library: **695 of 747 documents still shown**. Cause:
    fuzzy narrowing is a subsequence test over *all* narrow fields joined into
    one string, so scattered letters match. Fix: make `substring` the default
@@ -51,12 +43,8 @@ understood; they were traced in the code, not guessed.
    `$EDITOR` on `info.yaml`. On return, re-parse the file and report clearly if
    it is no longer valid YAML (papis will have refused to load it). The
    structured editor stays on the roadmap but is not the default.
-2. **The list pane is the larger one** in the side-by-side layout —
-   `ui.split_ratio` should favour the list (~0.6+), not 0.45.
-3. **The list pane can never be hidden.** Drop `pane.toggle` for `list`; only
-   the info, files and log panes toggle.
-4. **`venue` belongs in the info pane** field list.
-5. **`[ui] icons` must actually mean something.** The setting exists and is
+2. **`venue` belongs in the info pane** field list.
+3. **`[ui] icons` must actually mean something.** The setting exists and is
    honoured in exactly one place (the mark glyph, `app.py`); every other symbol
    is hardcoded ASCII (`·`/`!` for file present/missing, `↑`/`↓` for sort, `>`
    in the picker, pane borders). Define one glyph table with an ASCII and a
@@ -72,7 +60,7 @@ understood; they were traced in the code, not guessed.
   `['vision-transformers']`. Join lists for display, in the info pane and in
   list columns.
 - Column set: no `Tags` column survives at a normal width, and `Title` is cut
-  off mid-word. Related to A3.
+  off mid-word. Related to A1.
 
 ## E. New features asked for
 
