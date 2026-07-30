@@ -94,6 +94,7 @@ def pane_toggle(app: Any, pane: str) -> None:
 
 @command("pane.toggle_layout", "horizontal/vertical split")
 def pane_toggle_layout(app: Any) -> None:
+    app.layout_auto = False  # an explicit choice wins over `ui.layout = "auto"`
     app.side_by_side = not app.side_by_side
     app.apply_split()
 

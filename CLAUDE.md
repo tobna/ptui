@@ -194,6 +194,16 @@ lists, so `tags` never renders as `['x']`. Column formats go through
 it to `papis.format` — lists of dicts stay indexable, because
 `{doc[author_list][0][family]}` is the shipped `Author` format.
 
+`ui.layout = "auto"` is decided by `PtuiApp.choose_layout()`, from
+`flex_width_if_side_by_side()` — it runs `fit_columns()` against a hypothetical
+pane width, which is how the circularity breaks (layout depends on the fit
+depends on the pane width depends on the layout). Side by side wins while that
+flex width reaches `list.flex_target`. Two traps, both paid for already:
+`App.size` is **stale** inside `App.on_resize`, so the decision reads
+`event.size.width`; and `apply_split()` deliberately does *not* re-decide, or it
+would immediately overwrite that with the stale number. `app.layout_auto` is
+cleared by `pane.toggle_layout` so an explicit `z z` survives every later resize.
+
 `PtuiApp.apply_split()` is the only place pane geometry is set: it writes the
 layout direction and *both* dimensions from `app.side_by_side` / `app.split`,
 so `z z`, `z i` and `z +/-` all just mutate that state and call it. The list

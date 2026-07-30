@@ -58,13 +58,19 @@ understood; they were traced in the code, not guessed.
 2. ~~**`venue` belongs in the info pane** field list.~~ Done — the list is
    `app.INFO_FIELDS`, which also gained `notes`. Every entry needs a matching
    `field.<name>` glyph.
-3. **`ui.layout` gains `"auto"`, and it becomes the default.** Three values:
-   `vertical` (split `|`, panes side by side), `horizontal` (split `-`, info
-   under the list), and `auto` — pick from the terminal width, side by side
-   only when the list pane would still be wide enough to be worth it, stacked
-   below that. This is the same idea as the unbuilt `ui.narrow_width` collapse
-   in SPEC § "Terminal reality"; fold the two together rather than shipping two
-   thresholds. `z z` keeps overriding by hand for the session.
+3. ~~**`ui.layout` gains `"auto"`, and it becomes the default.**~~ Done
+   (2026-07-30). Two states, one threshold, and the threshold is a *column*
+   target rather than a terminal width: `auto` goes side by side only while the
+   flexible column would still reach `list.flex_target` (45) in the narrower
+   pane, so adding a column moves the threshold on its own. On the shipped
+   columns that is ~160 cells. Measured, why 45: titles here are 66 cells at the
+   median, and side by side does not give the title column 66 until the terminal
+   is ~198 wide, while stacked reaches it at ~118.
+   `ui.narrow_width` and its single-pane collapse are **dropped** — the list pane
+   can never be hidden, so the third state added a threshold without adding a
+   capability, and `z i` already hides the info pane. `z z` clears
+   `app.layout_auto` for the session.
+
 3. ~~**`[ui] icons` must actually mean something.**~~ Done: `ui.GLYPHS` is the
    one table (ASCII + nerd font), reached through `ui.glyph()`; mark, file
    present/missing, sort direction and the picker cursor all go through it.

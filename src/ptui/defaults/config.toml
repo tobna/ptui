@@ -11,14 +11,14 @@ track_opens = false           # write `opened_at` on doc.open
 confirm_destructive = true
 
 [ui]
-layout = "vertical"           # vertical = side-by-side | horizontal
+layout = "auto"               # auto | vertical (side-by-side) | horizontal (stacked)
 split_ratio = 0.6             # the list pane's share of the split axis
-narrow_width = 90             # below this, collapse to a single pane
 theme = "ink-crimson"         # themes/<name>.tcss
 icons = true                  # nerd-font glyphs; set false over SSH to a bare tty
 mouse = true
 
 [list]
+flex_target = 45              # cells the width = 0 column wants; drives ui.layout = "auto"
 null_ordering = "last"        # docs missing the sort key
 strip_latex = true            # display only; never affects stored data
 sort_discover_keys = true     # offer arbitrary yaml keys in the sort picker

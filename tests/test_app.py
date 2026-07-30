@@ -63,6 +63,10 @@ async def test_escape_leaves_any_mode(app):
 
 
 async def test_z_chords_resize_the_panes(app):
+    # this is about the manual chords, so pin the layout: at 80 columns `auto`
+    # would choose stacked on its own
+    app.layout_auto = False
+    app.side_by_side = True
     async with app.run_test(size=(80, 24)) as pilot:
         table, info, panes = (
             app.query_one(f"#{name}") for name in ("list-pane", "info-pane", "panes")
@@ -77,6 +81,29 @@ async def test_z_chords_resize_the_panes(app):
         assert table.size.height > panes.size.height - 3  # minus its own border
         await press(pilot, "z", "z", "z", "i")
         assert table.size.width < panes.size.width  # info is back, side by side
+
+
+async def test_auto_layout_stacks_until_the_flex_column_fits(app):
+    assert app.layout_auto  # the shipped ui.layout
+    async with app.run_test(size=(70, 24)) as pilot:
+        await settle(pilot)
+        assert not app.side_by_side  # too narrow: the title would be squeezed
+        assert app.flex_width_if_side_by_side() < app.cfg.get("list.flex_target")
+
+        await pilot.resize_terminal(200, 24)
+        await settle(pilot)
+        assert app.side_by_side  # room for both panes now
+
+        await pilot.resize_terminal(70, 24)
+        await settle(pilot)
+        assert not app.side_by_side  # and back, on its own
+
+        await press(pilot, "z", "z")  # an explicit choice ends automatic layout
+        assert not app.layout_auto
+        assert app.side_by_side
+        await pilot.resize_terminal(60, 24)
+        await settle(pilot)
+        assert app.side_by_side  # a resize must not argue with the user
 
 
 async def test_columns_fit_the_pane_and_drop_when_they_cannot(app):

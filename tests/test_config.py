@@ -3,7 +3,7 @@ from ptui import config
 
 def test_defaults_load():
     cfg = config.load(config.DEFAULTS_DIR / "nonexistent.toml")
-    assert cfg.get("ui.layout") == "vertical"
+    assert cfg.get("ui.layout") == "auto"
     assert cfg.get("list.sort_presets")[0]["key"] == "time-added"
     assert cfg.unknown == ()
 
@@ -14,7 +14,7 @@ def test_user_overrides_merge_per_key(tmp_path):
     )
     cfg = config.load(tmp_path / "config.toml")
     assert cfg.get("ui.theme") == "mine"
-    assert cfg.get("ui.layout") == "vertical"  # untouched sibling survives
+    assert cfg.get("ui.layout") == "auto"  # untouched sibling survives
     assert set(cfg.unknown) == {"nope", "ui.also"}
 
 

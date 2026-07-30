@@ -257,7 +257,16 @@ toast that vanishes.
   names no journal, booktitle or venue reads as `preprint`. Local data only: an
   entry imported from arXiv and never refreshed is indistinguishable from a real
   preprint, and ptui prefers a wrong glyph to a network call while scrolling.
-- Below `ui.narrow_width`, collapse to a single pane with tab switching.
+- `ui.layout` is `auto` | `vertical` (panes side by side) | `horizontal` (info
+  stacked under the list), and **`auto` is the default**. `auto` chooses side by
+  side only while the flexible column would still reach `list.flex_target`
+  cells in the narrower pane it would get — a *column* target, not a terminal
+  width, so adding or widening a column moves the threshold by itself. On the
+  shipped columns that is about 160 terminal cells.
+  A manual `z z` ends automatic choice for the session: once the user has said
+  which layout they want, a resize must not argue. There is no third
+  single-pane state — the list pane can never be hidden anyway, and `z i` hides
+  the info pane on demand.
 - `ui.split_ratio` is the **list pane's** share of whichever axis the split
   currently runs along, and the list keeps the whole window whenever it is the
   only visible pane. Both dimensions are set on every layout change.

@@ -90,7 +90,10 @@ class PtuiApp(App[None]):
         self.marked_only = False
         self.sort_key, self.sort_reverse = self._default_sort()
         self.prompt_kind = ""
-        self.side_by_side = cfg.get("ui.layout", "vertical") == "vertical"
+        layout = cfg.get("ui.layout", "auto")
+        self.layout_auto = layout == "auto"
+        """Cleared by `z z`: an explicit choice outlives any resize."""
+        self.side_by_side = layout != "horizontal"  # `auto` re-decides in choose_layout
         self.split = cfg.get("ui.split_ratio", 0.6)
         self._fit: list[tuple[dict[str, Any], int]] = []
         self._fit_state: tuple[list[tuple[dict[str, Any], int]], list[str]] | None = None
@@ -118,6 +121,7 @@ class PtuiApp(App[None]):
         yield Input(id="prompt")
 
     def on_mount(self) -> None:
+        self.choose_layout()
         self.apply_split()
         self._setup_logging()
         for problem in self.km.unknown_commands:
@@ -216,6 +220,43 @@ class PtuiApp(App[None]):
 
     # ── panes ───────────────────────────────────────────────────────────────
 
+    def on_resize(self, event: events.Resize) -> None:
+        """Re-decide the `auto` layout, from the *event's* width: `App.size` still
+        holds the old one here, which is the same "fires before layout" problem
+        that put the column refit on `ListTable.on_resize` instead.
+
+        Only a changed decision re-applies, or `apply_split` would resize, be
+        told about it, and resize again.
+        """
+        was = self.side_by_side
+        self.choose_layout(event.size.width)
+        if was != self.side_by_side:
+            self.apply_split()
+
+    def flex_width_if_side_by_side(self, total: int | None = None) -> int:
+        """What the flexible column would get with the info pane beside the list.
+
+        Asked before anything is resized, which is the only way to break the
+        circularity: the layout depends on the column fit, which depends on the
+        pane width, which depends on the layout.
+        """
+        total = self.size.width if total is None else total
+        fit = self.fit_columns(int(total * self.split))
+        return next((width for column, width in fit if not column["width"]), 0)
+
+    def choose_layout(self, total: int | None = None) -> None:
+        """`ui.layout = "auto"`: side by side only while the flexible column still
+        reaches `list.flex_target`. Expressed as a column target rather than a
+        terminal width so that adding a column moves the threshold by itself.
+
+        A manual `z z` ends automatic choice for the session — once the user has
+        said which layout they want, a resize must not argue.
+        """
+        if not self.layout_auto:
+            return
+        target = self.cfg.get("list.flex_target", 45)
+        self.side_by_side = self.flex_width_if_side_by_side(total) >= target
+
     def apply_split(self) -> None:
         """Size the panes for the current layout. The only place that sets either.
 
@@ -223,6 +264,9 @@ class PtuiApp(App[None]):
         layout is exactly why `z z` used to do nothing visible. The list takes
         `split` of the axis, or the whole window when it is the only pane left.
         """
+        # Deliberately does not call choose_layout: `App.size` is stale during a
+        # resize, so the decision is made once by the caller that knows the real
+        # width, and applying it must not second-guess that with a worse number.
         self.query_one("#panes").styles.layout = "horizontal" if self.side_by_side else "vertical"
         table = self.query_one(DataTable)
         info = self.query_one("#info-pane")
@@ -272,7 +316,7 @@ class PtuiApp(App[None]):
             wanted += 2  # the mark glyph and its space
         return min(column["width"], max(wanted, cell_len(self.header(column))))
 
-    def fit_columns(self) -> list[tuple[dict[str, Any], int]]:
+    def fit_columns(self, pane_width: int | None = None) -> list[tuple[dict[str, Any], int]]:
         """The columns that fit the pane, with the width each one gets.
 
         Configured widths are a ceiling, not a reservation: a column takes the
@@ -280,11 +324,16 @@ class PtuiApp(App[None]):
         is left. A fixed column that would starve it is dropped instead — that
         is how `Tags` disappears on a narrow terminal and comes back on a wide
         one, rather than the list scrolling sideways.
+
+        `pane_width` asks the hypothetical question the `auto` layout needs —
+        "what would the flex column get in a pane this wide?" — without
+        resizing anything.
         """
         table = self.query_one(DataTable)
         spec = self.cfg.get("list.columns", [])
         pad = table.cell_padding * 2
-        room = table.size.width - 2 - table.scrollbar_size_vertical  # border, scrollbar
+        width = table.size.width if pane_width is None else pane_width
+        room = width - 2 - table.scrollbar_size_vertical  # border, scrollbar
         flex = next((i for i, column in enumerate(spec) if not column["width"]), None)
         widths: dict[int, int] = {}
         for index, column in enumerate(spec):
