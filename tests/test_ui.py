@@ -70,4 +70,10 @@ async def test_picker_marks_the_current_value(app):
         await settle(pilot)
         await press(pilot, "S")
         options = app.screen.query_one(OptionList)
-        assert ">" in str(options.get_option_at_index(options.highlighted).prompt)
+        prompt = str(options.get_option_at_index(options.highlighted).prompt)
+        assert ui.glyph("cursor") in prompt  # the cursor sits on the highlighted row
+
+        await press(pilot, "down")  # and follows it
+        options = app.screen.query_one(OptionList)
+        assert ui.glyph("cursor") not in str(options.get_option_at_index(0).prompt)
+        assert ui.glyph("cursor") in str(options.get_option_at_index(1).prompt)

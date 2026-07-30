@@ -27,14 +27,16 @@ GLYPHS = {
     "mark": ("*", ""),  # nf-fa-check
     "file": ("·", ""),  # nf-fa-file_text
     "file_missing": ("!", ""),  # nf-fa-warning
-    "sort_desc": ("↓", ""),  # nf-fa-long_arrow_down
-    "sort_asc": ("↑", ""),  # nf-fa-long_arrow_up
+    # Same in both columns on purpose: the nerd long-arrows (U+F175/F176) are
+    # no clearer than a plain arrow and fall back badly where they are missing.
+    "sort_desc": ("↓", "↓"),
+    "sort_asc": ("↑", "↑"),
     "cursor": (">", ""),  # nf-fa-chevron_right
 }
 """Every symbol ptui prints, ASCII first and nerd font second. Never emit one
-directly: `ui.icons = false` is the shipped default because this runs over SSH
-to a cluster, and a glyph written inline is a glyph that ignores the setting.
-Both columns are one cell wide, so column arithmetic does not care which is on.
+directly: a glyph written inline is a glyph that ignores `ui.icons`, and the
+ASCII column is what a bare tty over SSH has. Both columns are one cell wide,
+so column arithmetic does not care which is on.
 """
 
 # ponytail: one process, one font — a module global beats threading `ui.icons`
@@ -85,6 +87,7 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
         self.title_text = title
         self.current = current
         self.shown: list[Item] = list(items)
+        self._cursor_at = 0
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -98,14 +101,30 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
         self.query_one(OptionList).highlighted = index
         self.query_one(Input).focus()
 
+    def _prompt(self, item: Item, *, here: bool) -> str:
+        """The cursor points at the row you are on — every picker has one of those,
+        while only some are opened with a `current` value. That one is marked by
+        being bold, not by the cursor, or the two would fight for the same cell."""
+        label = f"[bold]{item.label}[/]" if item.value == self.current else item.label
+        hint = f"  [dim]{item.hint}[/]" if item.hint else ""
+        return f"{glyph('cursor') if here else ' '} {label}{hint}"
+
     def _populate(self) -> None:
         options = self.query_one(OptionList)
         options.clear_options()
-        for item in self.shown:
-            marker = glyph("cursor") if item.value == self.current else " "
-            hint = f"  [dim]{item.hint}[/]" if item.hint else ""
-            options.add_option(f"{marker} {item.label}{hint}")
+        for index, item in enumerate(self.shown):
+            options.add_option(self._prompt(item, here=index == 0))
         options.highlighted = 0 if self.shown else None
+
+    def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted) -> None:
+        """Move the cursor glyph with the highlight — two rows change, not the list."""
+        options = self.query_one(OptionList)
+        for index in {self._cursor_at, event.option_index}:
+            if 0 <= index < len(self.shown):
+                options.replace_option_prompt_at_index(
+                    index, self._prompt(self.shown[index], here=index == event.option_index)
+                )
+        self._cursor_at = event.option_index
 
     def on_input_changed(self, event: Input.Changed) -> None:
         needle = event.value.casefold()

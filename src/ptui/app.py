@@ -386,10 +386,12 @@ class PtuiApp(App[None]):
                 lines.append(f"[dim]{key:>8}[/]  {show(doc[key])}")
         files = doc.get("files", [])
         if files:
-            lines += ["", "[dim]   files[/]"]
+            # The icon belongs to the section, not to every row: repeating it once
+            # per entry says nothing, while a missing file is worth shouting about.
+            lines += ["", f"[dim]   files {ui.glyph('file')}[/]"]
             for entry in files:
                 ok = place.resolve(doc, entry).exists()
-                mark = ui.glyph("file") if ok else f"[red]{ui.glyph('file_missing')}[/]"
+                mark = " " if ok else f"[red]{ui.glyph('file_missing')}[/]"
                 lines.append(f"  {mark} {entry}")
         pane.update("\n".join(lines))
 

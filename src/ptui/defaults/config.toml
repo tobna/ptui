@@ -15,7 +15,7 @@ layout = "vertical"           # vertical = side-by-side | horizontal
 split_ratio = 0.6             # the list pane's share of the split axis
 narrow_width = 90             # below this, collapse to a single pane
 theme = "ink-crimson"         # themes/<name>.tcss
-icons = false                 # nerd-font glyphs; false is SSH-safe
+icons = true                  # nerd-font glyphs; set false over SSH to a bare tty
 mouse = true
 
 [list]

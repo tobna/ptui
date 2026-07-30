@@ -59,11 +59,29 @@ understood; they were traced in the code, not guessed.
 3. ~~**`[ui] icons` must actually mean something.**~~ Done: `ui.GLYPHS` is the
    one table (ASCII + nerd font), reached through `ui.glyph()`; mark, file
    present/missing, sort direction and the picker cursor all go through it.
-   Shipped default stays `false`. `scripts/shot.py --icons` shows either mode.
-   Still hardcoded and *not* in the table: pane borders, which are Textual CSS
-   (`border: round`) and not a font question. Open: the nerd column was chosen
-   from the Font Awesome range without being seen in a real terminal — the
-   maintainer runs `icons = true`, so swap any glyph that reads badly.
+   `scripts/shot.py --icons` shows either mode. Still hardcoded and *not* in the
+   table: pane borders, which are Textual CSS (`border: round`) and not a font
+   question. Open: the nerd column was chosen from the Font Awesome range
+   without being seen in a real terminal — swap any glyph that reads badly.
+   **The shipped default is now `true`** (2026-07-30), against the original SSH
+   argument: the terminal with a patched font is the common case, both columns
+   are one cell wide so a wrong guess costs tofu and not a broken layout, and
+   `icons = false` is one line of config. SPEC updated in the same commit.
+
+4. **`ui.icons = "auto"` — low priority.** Detect at startup whether the
+   terminal can actually render the nerd-font column, and fall back to ASCII
+   instead of drawing tofu. Only worth doing if the detection is honest:
+   - There is no way to *ask* a terminal what its font contains. The one real
+     probe is to print a glyph, query the cursor position (CPR, `ESC[6n`), and
+     see whether it advanced 1 cell or 2 — that catches double-width fallback,
+     but a missing glyph rendered as a 1-cell box passes the test.
+   - It also needs the raw tty before Textual takes it, so it belongs in
+     `cli.py` ahead of `PtuiApp`, not in the app.
+   - Everything cheaper is a guess at the environment (`$TERM_PROGRAM`,
+     `$TERM`, the SSH variables) and will be wrong for someone.
+   So: three values (`true` / `false` / `"auto"`), `auto` runs the CPR probe and
+   loses to ASCII on any doubt, and `config.get("ui.icons")` stops being a bool
+   — `ui.use_icons()` is the only caller, so that stays a one-line change.
 
 ## D. Display polish
 

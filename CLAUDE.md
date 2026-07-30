@@ -146,7 +146,14 @@ layout, when widget sizes are still stale.
 holds the ASCII and nerd-font column for each name; `ui.use_icons()` is called
 once from `PtuiApp.__init__` and sets a module global, so call sites do not
 carry `ui.icons` around. Adding a symbol means adding a row to that table, in
-both columns, one cell wide. `scripts/shot.py --icons` forces it on.
+both columns, one cell wide — but a nerd glyph that is no clearer than the
+ASCII one (the sort arrows) is simply repeated in both columns. Shipped default
+is `icons = true`; `scripts/shot.py --icons` forces it on regardless of config.
+
+In `SelectList` the cursor glyph tracks the **highlighted** row, not the
+`current` value — every picker has a highlight, only some are opened with a
+current value, and that one is marked bold instead. `on_option_list_option_
+highlighted` rewrites the two prompts that changed rather than the whole list.
 
 `library.display()` is the only way a stored value becomes text: it joins
 lists, so `tags` never renders as `['x']`. Column formats go through

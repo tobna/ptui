@@ -230,11 +230,13 @@ toast that vanishes.
 ## Terminal reality
 
 - Truecolor detection with 256-colour fallback.
-- Nerd-font glyphs **off by default** (`ui.icons = false`) — this runs over
-  SSH to an HPC cluster. Every symbol ptui prints comes from one table with an
-  ASCII and a nerd-font column (`ui.GLYPHS`); no glyph is ever written inline,
-  or the setting silently stops meaning anything. Both columns are one cell
-  wide, so turning icons on never changes a layout.
+- Nerd-font glyphs **on by default** (`ui.icons = true`), because the terminal
+  that has them is the common case and the one that does not is a deliberate
+  `icons = false`. Every symbol ptui prints comes from one table with an ASCII
+  and a nerd-font column (`ui.GLYPHS`); no glyph is ever written inline, or the
+  setting silently stops meaning anything. Both columns are one cell wide, so
+  flipping the setting never changes a layout — which is what makes the default
+  safe to get wrong: over SSH to a bare tty you get tofu, not a broken list.
 - Below `ui.narrow_width`, collapse to a single pane with tab switching.
 - `ui.split_ratio` is the **list pane's** share of whichever axis the split
   currently runs along, and the list keeps the whole window whenever it is the

@@ -32,8 +32,9 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **Files that file themselves** — ordered rules decide where a PDF belongs;
   `f r` relocates and renames a whole selection to the scheme, skipping anything
   it does not understand.
-- **SSH-friendly** — no nerd fonts by default, no forked worker pools, collapses
-  to one pane on narrow terminals.
+- **SSH-friendly** — `icons = false` swaps every nerd-font glyph for its ASCII
+  twin at the same width, no forked worker pools, collapses to one pane on
+  narrow terminals.
 
 Not there yet: undo, tagging, delete, doctor integration, saved searches, the
 `?` overlay and the `:` command line. Bindings for them exist and say so when
