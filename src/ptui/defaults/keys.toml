@@ -96,6 +96,8 @@ escape_chain = ["modal", "visual", "narrow"]
 
 # ————— f : files ————————————————————————————
 "f o"      = { cmd = "files.open_pick", desc = "open which file…" }
+"f d"      = { cmd = "view.doctor", args = { current = true }, desc = "doctor: this document" }
+"f f"      = { cmd = "doctor.fix",  args = { current = true }, desc = "doctor fix: this document" }
 "f a"      = { cmd = "files.attach",    desc = "attach file" }
 "f r"      = { cmd = "files.relocate",  desc = "relocate + rename to scheme" }
 "f R"      = { cmd = "files.relocate", args = { force = true }, desc = "relocate (force)" }

@@ -624,10 +624,19 @@ def _checks(app: Any) -> list[str]:
     return doctor.check_names(configured)
 
 
-def _findings(app: Any) -> list[tuple[Any, doctor.Finding]]:
-    """Every finding over the marked set, or the cursor. Read-only."""
+def _doctor_targets(app: Any, current: bool) -> list[Any]:
+    """`current = true` means this document only, ignoring marks — which is the
+    difference between `f d` and `g d`."""
+    if not current:
+        return app.targets
+    doc = app.current
+    return [doc] if doc is not None else []
+
+
+def _findings(app: Any, current: bool = False) -> list[tuple[Any, doctor.Finding]]:
+    """Every finding over the target set. Read-only."""
     checks = _checks(app)
-    return [(doc, f) for doc in app.targets for f in doctor.findings(doc, checks)]
+    return [(doc, f) for doc in _doctor_targets(app, current) for f in doctor.findings(doc, checks)]
 
 
 def _label(doc: Any, finding: doctor.Finding) -> str:
@@ -637,16 +646,16 @@ def _label(doc: Any, finding: doctor.Finding) -> str:
 
 
 @command("doctor.run", "run doctor")
-def doctor_run(app: Any, checks: str = "") -> None:
+def doctor_run(app: Any, checks: str = "", current: bool = False) -> None:
     """Report findings. **Never fixes** — `doctor.fix` does that, on request.
 
     Batch-aware: every mark, or the cursor. `checks` is a space-separated
-    override for `[doctor] checks`.
+    override for `[doctor] checks`; `current` ignores marks.
     """
     names = checks.split() if checks else app.cfg.get("doctor.checks", [])
     for name in doctor.unknown_checks(names):
         app.log_line(f"[yellow]doctor: no such check[/] {name}")
-    targets = app.targets
+    targets = _doctor_targets(app, current)
     found = [(doc, f) for doc in targets for f in doctor.findings(doc, doctor.check_names(names))]
     for doc, finding in found:
         app.log_line(f"[yellow]{finding.name}[/] {_label(doc, finding)}")
@@ -655,15 +664,16 @@ def doctor_run(app: Any, checks: str = "") -> None:
 
 
 @command("view.doctor", "doctor findings")
-def view_doctor(app: Any) -> None:
+def view_doctor(app: Any, current: bool = False) -> None:
     """Browse findings; `enter` applies that one finding's fix, through safe-write.
 
     Nothing is written by opening this — the same rule as `help.show`, except
     that here confirming a row is an explicit request to change the document.
     """
-    found = _findings(app)
+    found = _findings(app, current)
     if not found:
-        app.log_line(f"doctor: nothing to report over {len(app.targets)} document(s)")
+        count = len(_doctor_targets(app, current))
+        app.log_line(f"doctor: nothing to report over {count} document(s)")
         return
     items = [
         ui.Item(label=_label(doc, finding), value=index, hint=finding.name)
@@ -698,7 +708,7 @@ def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
 
 
 @command("doctor.fix", "fix doctor findings")
-def doctor_fix(app: Any) -> None:
+def doctor_fix(app: Any, current: bool = False) -> None:
     """Apply every fixable finding over the target set.
 
     SPEC describes this as "one selected finding", which is what `view.doctor`
@@ -706,7 +716,7 @@ def doctor_fix(app: Any) -> None:
     the command reachable by name is the batch one — the same shape as every
     other verb here.
     """
-    found = _findings(app)
+    found = _findings(app, current)
     fixable = [(doc, f) for doc, f in found if f.fix_action]
     for doc, finding in fixable:
         _apply_one(app, doc, finding)
