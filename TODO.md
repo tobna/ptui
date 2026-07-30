@@ -195,23 +195,26 @@ understood; they were traced in the code, not guessed.
    - no document in this library has a city as its *only* venue-ish field, so
      nothing moved the other way. The guard is for correctness, not a fix.
 
-2. **Merge mode, over the marked documents.** Duplicates are the reason: the same
-   paper arrives twice, once from arXiv and once from the proceedings, and the
-   two records each hold fields the other lacks. Shape to work out before coding:
-   - Trigger from marks (`m`-namespace, or `d`/`c`), on exactly the marked set.
-   - A field-by-field picker: for every key where the marked documents disagree,
-     choose which value survives; identical values need no question. `SelectList`
-     already does one-of-many, so this is a loop over conflicting keys.
-   - `files` **unions** rather than picks — losing an attachment is the one
-     unrecoverable outcome here.
-   - One surviving `papis_id`; the others' folders are left on disk, not deleted,
-     until `doc.delete` exists and is trusted (§ B).
-   - Every write through `safewrite`, and the whole thing dry-runnable, like
-     `place()` already is.
-   - Finding the duplicates is a separate job from merging them: papis has
-     `doctor`'s `duplicated-keys` / `duplicated-values` checks, and a
-     `ref`/`doi`/title-similarity pass would want measuring on the real library
-     before being trusted.
+2. ~~**Merge mode, over the marked documents.**~~ Done (2026-07-30), `m m`,
+   in `merge.py` plus `actions.doc_merge`. The `ref` you keep is the document you
+   keep — one question settles the survivor, its folder and its `papis_id`. Gaps
+   are filled silently, real clashes get a picker each, and every picker offers
+   *keep everything else from this document* to end the questions. `files` is
+   unioned and routed through `place()`; `time-added` becomes the earliest of the
+   group; the folded-in folders go to `undo.trash_dir`.
+   Learned while building it, all now commented in the code:
+   - **Trashing a folder is not enough.** papis keeps its own index and hands the
+     document straight back on reload; `papis.database.delete` has to be called
+     too, which is exactly what `papis rm` does.
+   - A loser's `files` entry may be **relative to the folder about to be
+     trashed**, so it is resolved before the move, not after.
+   - The `app` test fixture now redirects `undo.trash_dir` into `tmp_path`. Until
+     it did, this test quietly filled the real `~/.local/share/ptui/trash`.
+   - **Measured: 0 duplicates in the real library** by title, DOI, eprint or ref,
+     so this is exercised by fixtures rather than by real data.
+   Still open: nothing finds duplicates for you. papis's `duplicated-keys` /
+   `duplicated-values` doctor checks and a title-similarity pass are the
+   candidates, and both want measuring before being trusted.
 
 ## E. New features asked for
 

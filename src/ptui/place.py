@@ -247,3 +247,28 @@ def rollback(result: PlaceResult) -> None:
     if not result.src.exists():
         _reserve(result.dest, result.src)
     result.dest.unlink(missing_ok=True)
+
+
+def trash(folder: Path, trash_dir: Path) -> Path:
+    """Move a document folder out of the library, recoverably.
+
+    SPEC: *files always route through trash*, whatever `undo.strategy` is. A
+    merge removes the folders it folded in, and "removed" here means "no longer
+    in the library and still on disk" — nothing in ptui deletes a folder outright
+    while `doc.delete` and `app.undo` do not exist.
+
+    The destination is suffixed deterministically on collision (`_b`, `_c`, …),
+    like every other name ptui reserves, so trashing the same ref twice is safe.
+    """
+    trash_dir = trash_dir.expanduser()
+    trash_dir.mkdir(parents=True, exist_ok=True)
+    dest = trash_dir / folder.name
+    for suffix in ("", *(f"_{chr(c)}" for c in range(ord("b"), ord("z") + 1))):
+        candidate = trash_dir / f"{folder.name}{suffix}"
+        if not candidate.exists():
+            dest = candidate
+            break
+    else:
+        raise FileExistsError(f"{trash_dir} already holds every name for {folder.name}")
+    shutil.move(str(folder), str(dest))
+    return dest

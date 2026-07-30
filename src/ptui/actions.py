@@ -12,7 +12,7 @@ from typing import Any
 
 from textual.widgets import DataTable
 
-from ptui import clip, doctor, fetch, library, place, safewrite, ui
+from ptui import clip, doctor, fetch, library, merge, place, safewrite, ui
 from ptui.commands import REGISTRY, command
 
 # ── navigation ──────────────────────────────────────────────────────────────
@@ -751,6 +751,151 @@ def config_check(app: Any) -> None:
     for key in app.cfg.unknown:
         app.log_line(f"[yellow]unknown config key:[/] {key}")
     app.log_line(f"config: {len(app.cfg.unknown)} unknown key(s) in {app.cfg.path or 'defaults'}")
+    app.query_one("#log-pane").display = True
+
+
+# ── merge ───────────────────────────────────────────────────────────────────
+
+
+@command("doc.merge", "merge marked documents")
+def doc_merge(app: Any) -> None:
+    """Fold the marked documents into one.
+
+    The `ref` you keep is the document you keep: it holds the folder and the
+    `papis_id`, and the others' folders go to the trash. Keys only the others had
+    are filled in silently; a key two records genuinely disagree on is asked
+    about, one question at a time.
+    """
+    docs = [d for d in app.docs if library.doc_id(d) in app.marks]
+    if len(docs) < 2:
+        app.log_line("[yellow]merge needs at least two marked documents[/]")
+        return
+
+    choices = merge.survivor_choices(docs)
+    if len(choices) == 1:
+        _merge_conflicts(app, choices[0][1], [d for d in docs if d is not choices[0][1]])
+        return
+
+    items = [
+        ui.Item(
+            label=ref,
+            value=index,
+            hint=f"{doc.get('type', '')} {len(doc.get('files') or [])} file(s)".strip(),
+            haystack=library.display(doc.get("title", "")),
+        )
+        for index, (ref, doc) in enumerate(choices)
+    ]
+
+    def picked(index: int, _invert: bool) -> None:
+        survivor = choices[index][1]
+        _merge_conflicts(app, survivor, [d for d in docs if d is not survivor])
+
+    ui.pick(app, items, title=f"Merge {len(docs)} documents — which ref survives?")(picked)
+
+
+def _merge_conflicts(app: Any, survivor: Any, others: list[Any]) -> None:
+    """Ask about each genuine clash, then confirm. Recursive: one modal per key."""
+    plan = merge.plan(survivor, others)
+    group = [survivor, *others]
+    resolved: dict[str, Any] = {}
+
+    def ask(remaining: list[str]) -> None:
+        if not remaining:
+            _merge_apply(app, plan, resolved)
+            return
+        key, rest = remaining[0], remaining[1:]
+        values = plan.clashes[key]
+        items = [
+            ui.Item(label=library.display(value), value=("value", index), hint=key)
+            for index, value in enumerate(values)
+        ]
+        # the shortcut: stop being asked and take this document's side throughout
+        items += [
+            ui.Item(
+                label=f"keep everything else from {doc.get('ref') or doc.get('title', '?')}",
+                value=("all", position),
+                hint="resolves the rest",
+            )
+            for position, doc in enumerate(group)
+        ]
+
+        def chose(choice: tuple[str, int], _invert: bool) -> None:
+            kind, index = choice
+            if kind == "value":
+                resolved[key] = values[index]
+                ask(rest)
+                return
+            winner = group[index]
+            for pending in [key, *rest]:
+                if winner.get(pending) not in (None, "", [], {}):
+                    resolved[pending] = winner.get(pending)
+            _merge_apply(app, plan, resolved)
+
+        ui.pick(app, items, title=f"{key} — {len(remaining)} left")(chose)
+
+    ask(plan.questions)
+
+
+def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
+    data = merge.resolve(plan, resolved)
+    rules = place.Rules.from_config(app.cfg)
+    trash_dir = app.cfg.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
+
+    # Files first, and resolved against the folder they still live in: an entry
+    # may be relative to a folder that is about to be trashed.
+    entries = list(plan.survivor.get("files") or [])
+    for doc in plan.others:
+        for entry in doc.get("files") or []:
+            source = place.resolve(doc, entry)
+            if not source.exists():
+                app.log_line(f"[yellow]missing file, not merged:[/] {entry}")
+                continue
+            result = place.place(plan.survivor, source, rules, previous=None)
+            if result.entry and result.entry not in entries:
+                entries.append(result.entry)
+            elif result.status not in ("ok", "already"):
+                app.log_line(f"[yellow]{result.status}[/] {source.name}: {result.message}")
+    if entries != list(plan.survivor.get("files") or []):
+        data["files"] = entries
+
+    try:
+        safewrite.edit(plan.survivor, lambda info: info.update(data))
+    except safewrite.StaleError:
+        app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
+        return
+    except Exception as exc:
+        app.log_line(f"[red]merge failed:[/] {exc}")
+        return
+
+    # Moving the folder is not enough: papis keeps its own index, and a document
+    # whose folder has gone still comes back from the cache. `papis rm` pairs the
+    # two, so this does too.
+    import papis.database
+
+    database = papis.database.get(app.cfg.get("general.library") or None)
+    trashed = []
+    for doc in plan.others:
+        folder = doc.get_main_folder()
+        if not folder:
+            continue
+        try:
+            trashed.append(place.trash(Path(folder), trash_dir))
+        except Exception as exc:
+            app.log_line(f"[red]could not trash {folder}:[/] {exc}")
+            continue
+        try:
+            database.delete(doc)
+        except Exception as exc:
+            app.log_line(f"[yellow]folder trashed but the index kept it:[/] {exc}")
+
+    app.marks.clear()
+    reload(app)
+    app.log_line(
+        f"merged {len(plan.others) + 1} -> {plan.survivor.get('ref', '')}: "
+        f"{len(data)} field(s), {len(entries)} file(s), {len(trashed)} folder(s) trashed"
+    )
+    for folder in trashed:
+        app.log_line(f"[dim]trashed {folder}[/]")
     app.query_one("#log-pane").display = True
 
 

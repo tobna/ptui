@@ -108,6 +108,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "m i"      = { cmd = "mark.invert",       desc = "invert marks" }
 "m c"      = { cmd = "mark.clear",        desc = "clear marks" }
 "m o"      = { cmd = "mark.show_only",    desc = "toggle marked-only" }
+"m m"      = { cmd = "doc.merge",         desc = "merge marked documents" }
 
 # ————— z : layout ———————————————————————————
 "z z"      = { cmd = "pane.toggle_layout", desc = "horizontal/vertical" }

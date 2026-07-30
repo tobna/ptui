@@ -70,6 +70,7 @@ src/ptui/
   place.py           file placement: atomic, idempotent, no-clobber
   doctor.py          papis doctor bridge: read-only findings, one-at-a-time fix
   fetch.py           metadata from papis importers: arXiv, DOI, ISBN, .bib, URL
+  merge.py           folding duplicates into one: gaps, clashes, survivor choice
   safewrite.py       the only path that writes info.yaml
   defaults/          shipped config.toml, keys.toml, themes/*.tcss
 scripts/
@@ -214,6 +215,23 @@ what `ui.Item.matches` uses: **one matcher for `/` and every picker filter**.
 Fuzzy is opt-in and requires the matched run to fit `FUZZY_SPAN` times the
 needle; plain subsequence matching was the A1/A2 bug and must not come back.
 Narrowing filters and never reorders — the sort is the user's.
+
+`merge.py` holds the merge decisions and writes nothing: `plan()` splits keys
+into *gaps* (only the others had them — filled silently) and *clashes* (a real
+disagreement — one question each), `resolve()` turns answers into the field set,
+`survivor_choices()` maps distinct refs to documents because **the ref you keep
+is the document you keep**. `actions._merge_apply` does the writing, and two
+things there are load-bearing: a loser's `files` entry may be relative to the
+folder about to be trashed, so it is resolved *before* the move and routed
+through `place()`; and trashing a folder is not enough — `papis.database.delete`
+must be called too, or papis's index hands the document straight back on reload.
+`place.trash()` moves the folder to `undo.trash_dir` (SPEC: files always route
+through trash) rather than deleting it.
+
+The `app` test fixture redirects `pdf_root`, `log.file` **and**
+`undo.trash_dir` into `tmp_path`. The last one was added after a merge test
+quietly filled the developer's real `~/.local/share/ptui/trash`; any new command
+that writes outside the library needs the same treatment.
 
 `fetch.py` fronts papis's importer plugins — 13 importers and 23 downloaders,
 listed by `fetch.available()` from `get_available_importers()`, so a new plugin

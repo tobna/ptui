@@ -63,7 +63,10 @@ def papis_lib(tmp_path, monkeypatch):
 def app(papis_lib):
     """The app under test, wired to the throwaway library.
 
-    `osc52` keeps the test run out of the developer's real clipboard.
+    Every path that leaves the library is redirected into `tmp_path`: `osc52`
+    keeps the run out of the developer's real clipboard, and `undo.trash_dir`
+    keeps it out of their real `~/.local/share/ptui/trash` — a merge moves folders
+    there, and a test that used the shipped default silently filled it up.
     """
     from ptui import config, keymap
     from ptui.app import PtuiApp
@@ -73,5 +76,6 @@ def app(papis_lib):
         f'[export]\nclipboard = "osc52"\n\n'
         f'[files]\npdf_root = "{papis_lib / "pdfs"}"\n'
         f'[log]\nfile = ""\n'
+        f'[undo]\ntrash_dir = "{papis_lib / "trash"}"\n'
     )
     return PtuiApp(config.load(ptui_config), keymap.load(papis_lib / "no-keys.toml"))

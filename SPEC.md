@@ -180,6 +180,33 @@ Rules learned by measuring the papis API, all load-bearing:
 - A document with no file is legitimate — `papis.commands.add.run([])` accepts it.
   A `.bib` import attaches nothing; an arXiv import attaches the PDF it fetched.
 
+## Merging duplicates
+
+`doc.merge` folds the marked documents into one. The same paper arrives twice —
+once from arXiv, once from the proceedings — and each record holds fields the
+other lacks, so a merge is mostly union with a question only where two records
+genuinely disagree.
+
+- **The `ref` you keep is the document you keep.** Choosing which citekey
+  survives is the same decision as choosing which folder and `papis_id` survive,
+  so it is one question, asked first. When every ref already agrees there is
+  nothing to ask.
+- Keys only the others had are **filled silently**; there is nothing to choose.
+  A key two records disagree on gets one picker, which also offers *keep
+  everything else from this document* to settle the rest in one answer.
+- **`files` is unioned, never chosen** — losing an attachment is the one outcome
+  a merge cannot undo from metadata. Entries are resolved against the folder they
+  still live in, *before* it is removed, then routed through `place()` like any
+  other file.
+- `time-added` becomes the earliest of the group: the document has existed since
+  whichever copy came first.
+- The folded-in folders are **moved to `undo.trash_dir`**, not deleted, and
+  `papis.database.delete` is called for each — moving a folder is not enough,
+  papis keeps its own index and a document whose folder has gone still comes back
+  from the cache. `papis rm` pairs the two and so does ptui.
+- Finding duplicates is a **separate job** from merging them; ptui merges what
+  you marked and does not go looking.
+
 ## Sorting
 
 - `sort.picker` opens the shared `SelectList` modal (see below).

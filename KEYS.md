@@ -71,6 +71,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `m a` | `mark.all_filtered` | mark all filtered |
 | `m c` | `mark.clear` | clear marks |
 | `m i` | `mark.invert` | invert marks |
+| `m m` | `doc.merge` | merge marked documents |
 | `m o` | `mark.show_only` | toggle marked-only |
 | `O` | `doc.open_folder` | open folder |
 | `o` | `doc.open` | open file |
