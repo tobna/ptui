@@ -27,7 +27,9 @@ on keychain hints and search aliases.
   cannot express. Values papis already owns — library paths, `editor`,
   `opentool`, `use-git`, `add-file-name` — are read from papis config and not
   duplicated; `config.toml` may override per key.
-- **Papis version**: pin a tested minimum in `pyproject.toml`. The internal
+- **Papis version**: pinned `>=0.15.0,<0.16` in `pyproject.toml`. The ceiling is
+  deliberate — papis already warns about API it removes in 0.16. Raise it only
+  after running the suite against a real 0.16. The internal
   API changed between 0.14 and 0.15 and an upstream client/server refactor is
   in progress. Feature-detect (`hasattr`) rather than version-sniff where
   practical; fail loudly with a clear message otherwise.
@@ -282,6 +284,11 @@ toast that vanishes.
 - The sort direction shows in the header of the column the list is sorted by
   (`Year ↓`). A sort key that no column displays changes no header — the status
   bar names the key, and that is the only indicator in that case.
+- `list.row_height` is the number of lines a document gets, default 1. Above 1
+  only the flexible column wraps — it is the one holding a title long enough to
+  need the room — and ptui wraps it itself rather than letting the table guess,
+  so the ellipsis lands where the text actually stops. Every wrapped row is cut
+  to the column width, including a single word wider than the column.
 - Truncate by terminal cells, not characters: CJK and combining marks. Cut at a
   word boundary — the last colon in the budget, else the last space — never
   mid-word, unless the boundary would waste most of the width.

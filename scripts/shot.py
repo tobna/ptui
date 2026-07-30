@@ -31,11 +31,18 @@ CONVERTERS = (
 
 
 async def shoot(
-    keys: list[str], out: Path | None, size: tuple[int, int], settle: float, icons: bool
+    keys: list[str],
+    out: Path | None,
+    size: tuple[int, int],
+    settle: float,
+    icons: bool,
+    rows: int | None = None,
 ) -> str | None:
     cfg = config.load()
     if icons:
         cfg.data["ui"]["icons"] = True
+    if rows:
+        cfg.data["list"]["row_height"] = rows
     app = PtuiApp(cfg, keymap.load())
     async with app.run_test(size=size) as pilot:
         await pilot.pause(settle)
@@ -75,6 +82,7 @@ def main() -> None:
     parser.add_argument("--size", default="140x40", help="terminal size, WxH")
     parser.add_argument("--settle", type=float, default=0.2, help="pause after each key")
     parser.add_argument("--icons", action="store_true", help="force ui.icons = true")
+    parser.add_argument("--rows", type=int, help="force list.row_height")
     args = parser.parse_args()
 
     keys = ([str(args.out)] if args.text and args.out else []) + args.keys
@@ -86,6 +94,7 @@ def main() -> None:
             (int(width), int(height)),
             args.settle,
             args.icons,
+            args.rows,
         )
     )
     if args.text:

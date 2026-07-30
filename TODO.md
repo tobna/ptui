@@ -133,39 +133,16 @@ understood; they were traced in the code, not guessed.
   ideas below — decide the whole cell at once, not one flag at a time.
   Needs `view.doctor` / `doctor.run` from § B to be worth much.
 
-- **`list.row_height` (lines per document), default 1.** At 2, the title wraps
-  over both lines and tags get room — worth it because titles are 66 cells at
-  the median and 95 at p90, and only 12% fit the ~38 cells the flex column gets
-  in a side-by-side split. Costs half the visible documents, so it stays a
-  setting, not a default.
-
-- ~~**A preprint icon.**~~ Done: `library.kind()` returns `preprint` for an
-  article whose only DOI is arXiv's and which names no journal, booktitle or
-  venue. Local data only, by decision. On the real library that is **181 of
-  754** documents. Known limits, all measured (2026-07-30):
-  - It flags *Sanity Checks for Saliency Maps*, NeurIPS 2018 — the entry was
-    imported from arXiv and never refreshed, and no local field distinguishes
-    that from a genuine preprint. The year histogram shows the shape of the
-    error: 44 of the 181 are from 2013-2022 and are mostly stale, 107 are from
-    2024-2026 and are mostly right.
-  - 25 further docs have **no DOI at all** and no venue. The rule requires an
-    arXiv DOI, so they stay `article`. Loosening it to "arXiv DOI *or* none"
-    would take the count to 206; not done, because absence of a DOI is much
-    weaker evidence than arXiv having minted one.
-  - An **age guard** would be the cheapest accuracy win and needs no network:
-    only call it a preprint within a year or two of `year`.
-  - Settling it properly needs a network lookup, and only one source works.
-    arXiv's own `journal_ref` is **empty** for that NeurIPS paper (authors
-    rarely update it), and `papis.arxiv.get_data(id_list=...)` discards
-    `journal_ref` and `doi` anyway — it returns only what `arxiv_to_papis` maps.
-    OpenAlex answers it: `api.openalex.org/works?filter=doi:<doi>` returns
-    `locations[].source.display_name`, which for that paper is
-    `[arXiv, arXiv, Neural Information Processing Systems]`. Preprint-only means
-    every location is a preprint server. Free, no key, wants a `mailto`. Use
-    `locations` and **not** the top-level `type`, which says `preprint` even
-    there because it describes the record queried. The 181 local hits are the
-    only ones worth asking about, and the answers belong in the same
-    `papis_id`-keyed side cache the doctor glyph needs — build one, not two.
+- ~~**`list.row_height` (lines per document), default 1.**~~ Done (2026-07-30).
+  At 2 the **flexible column wraps** and every other column stays on line 1, so
+  `Tags` keeps its own column beside a two-line title. `library.fit_lines` does
+  the wrap itself — greedy, by cells, newline-joined — rather than handing a long
+  string to the widget: a `width * lines` budget fits more than a word-wrap can,
+  so the ellipsis would have lied. Every row is cut to the column width, which a
+  single word wider than the column turned out to need.
+  Still not the default: it halves the visible documents, and the `auto` layout
+  now gives the title 66+ cells on most terminals, which was the original
+  argument for wrapping. `scripts/shot.py --rows 2` shows it.
 
 - ~~**Optional columns must earn their width.**~~ Done (2026-07-30).
   `fit_columns` allocates in two passes: required columns first, kept above

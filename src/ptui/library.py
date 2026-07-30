@@ -289,6 +289,43 @@ def fit(text: str, width: int) -> str:
     return head + "…"
 
 
+def wrap_cells(text: str, width: int) -> list[str]:
+    """Greedy word wrap by terminal cells. A word wider than `width` gets its own
+    row and is cut by the caller — splitting inside a word reads as corruption."""
+    rows: list[str] = []
+    row = ""
+    for word in text.split():
+        candidate = f"{row} {word}" if row else word
+        if cell_len(candidate) <= width:
+            row = candidate
+            continue
+        if row:
+            rows.append(row)
+        row = word
+    if row:
+        rows.append(row)
+    return rows
+
+
+def fit_lines(text: str, width: int, lines: int) -> str:
+    """`fit`, but over `lines` rows: the result is newline-joined and every row is
+    within `width` cells, so the table never has to guess where to wrap.
+
+    Wrapping ourselves rather than letting the widget do it is what keeps the
+    ellipsis honest — a greedy wrap fits fewer cells than `width * lines`, and a
+    budget computed from the product silently loses the last words instead.
+    """
+    if lines <= 1 or width <= 0:
+        return fit(text, width)
+    rows = wrap_cells(text, width)
+    # Every row is cut, not just the last: a single word wider than the column
+    # gets a row of its own and would otherwise overflow the cell unclipped.
+    if len(rows) <= lines:
+        return "\n".join(fit(row, width) for row in rows)
+    kept = [fit(row, width) for row in rows[: lines - 1]]
+    return "\n".join([*kept, fit(" ".join(rows[lines - 1 :]), width)])
+
+
 def display(value: Any) -> str:
     """Display text for a stored value. Papis keeps `tags` as a list and `str()`
     would show the Python repr."""

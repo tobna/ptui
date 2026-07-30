@@ -19,6 +19,7 @@ mouse = true
 
 [list]
 flex_target = 45              # cells the width = 0 column wants; drives ui.layout = "auto"
+row_height = 1                # lines per document; 2 wraps the flex column, halves the rows
 null_ordering = "last"        # docs missing the sort key
 strip_latex = true            # display only; never affects stored data
 sort_discover_keys = true     # offer arbitrary yaml keys in the sort picker

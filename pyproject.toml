@@ -9,7 +9,12 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "loguru>=0.7.3",
-    "papis>=0.15.0",
+    # Upper bound on purpose: the internal API moved between 0.14 and 0.15, an
+    # upstream client/server refactor is in progress, and papis already warns
+    # about things it removes in 0.16 (`rename_document_files(allow_remote=...)`,
+    # reached through `papis.commands.add`). Tested against 0.15.0 only — raise
+    # the ceiling after running the suite against a real 0.16, not before.
+    "papis>=0.15.0,<0.16",
     "python-slugify>=8.0.4",
     "ruamel-yaml>=0.19.1",
     "textual>=8.2.8",

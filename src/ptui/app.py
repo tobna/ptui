@@ -432,6 +432,7 @@ class PtuiApp(App[None]):
             for term in library.parse_query(self.narrow_query, self.cfg.get("query.aliases", {}))
             if not term.negate and not term.field
         ]
+        height = max(1, self.cfg.get("list.row_height", 1))
         for doc in self.rows:
             marked = library.doc_id(doc) in self.marks
             cells = []
@@ -439,14 +440,20 @@ class PtuiApp(App[None]):
                 text = self.cell_text(doc, column)
                 if index == 0:
                     text = f"{ui.glyph('mark') if marked else ' '} {text}"
-                text = library.fit(text, width)
+                # Only the flexible column wraps: it is the one holding a title
+                # long enough to need a second line, and giving every column the
+                # extra rows would just pad the table out.
+                if height > 1 and not column["width"]:
+                    text = library.fit_lines(text, width, height)
+                else:
+                    text = library.fit(text, width)
                 # ponytail: bold marks the row; per-theme colouring needs Rich
                 # styles that CSS classes cannot reach into DataTable cells.
                 cell = Text(text, style="bold" if marked else "")
                 if lit:
                     cell.highlight_words(lit, "reverse", case_sensitive=False)
                 cells.append(cell)
-            table.add_row(*cells)
+            table.add_row(*cells, height=height)
         if keep is not None:
             row = next((i for i, d in enumerate(self.rows) if library.doc_id(d) == keep), 0)
             table.move_cursor(row=row)

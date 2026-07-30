@@ -505,7 +505,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "loguru", specifier = ">=0.7.3" },
-    { name = "papis", specifier = ">=0.15.0" },
+    { name = "papis", specifier = ">=0.15.0,<0.16" },
     { name = "python-slugify", specifier = ">=8.0.4" },
     { name = "ruamel-yaml", specifier = ">=0.19.1" },
     { name = "textual", specifier = ">=8.2.8" },

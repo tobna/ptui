@@ -75,6 +75,21 @@ def test_fit_backs_off_to_a_word_boundary():
     assert library.fit("Just Leaf It: Accelerating Diffusion Models", 20) == "Just Leaf It…"
 
 
+def test_fit_lines_wraps_on_words_and_ellipsises_only_the_last_row():
+    from rich.cells import cell_len
+
+    title = "Multilevel Stochastic Gradient Descent for Neural Networks"
+    assert library.fit_lines(title, 20, 1) == library.fit(title, 20)  # one line is just fit
+    rows = library.fit_lines(title, 20, 3).split("\n")
+    assert rows == ["Multilevel", "Stochastic Gradient", "Descent for Neural…"]
+    assert all(cell_len(row) <= 20 for row in rows)
+    assert "\n" not in library.fit_lines("short", 20, 2)  # no padding to the full height
+    # a budget of width * lines would have kept text that cannot actually wrap in
+    assert library.fit_lines(title, 20, 2).endswith("…")
+    # a single word wider than the column is cut rather than split mid-word
+    assert library.fit_lines("Persönlichkeitsdiagnostik", 10, 2) == "Persönlic…"
+
+
 def test_display_joins_lists_and_flatten_keeps_author_list_indexable():
     assert library.display(["a", "b"]) == "a, b"
     assert library.display(2017) == "2017"

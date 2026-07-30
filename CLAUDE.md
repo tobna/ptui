@@ -177,6 +177,12 @@ In `SelectList` the cursor glyph tracks the **highlighted** row, not the
 current value, and that one is marked bold instead. `on_option_list_option_
 highlighted` rewrites the two prompts that changed rather than the whole list.
 
+`list.row_height` above 1 wraps **only** the flexible column, through
+`library.fit_lines` — a greedy cell-accurate wrap that returns newline-joined
+rows, so the table never guesses where to break. Budgeting `width * lines`
+instead would silently drop the last words, because a word-wrap fits fewer cells
+than the product. `scripts/shot.py --rows 2` renders it.
+
 `library.parse_query()` is the whole narrow grammar: whitespace-separated
 terms, ANDed by `match_doc`, so typing more always narrows. A term may be bare,
 `-negated`, `"quoted"`, `field:value` (dotted paths work — `resolve` handles
