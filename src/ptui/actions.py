@@ -193,7 +193,8 @@ def sort_picker(app: Any) -> None:
     presets = app.cfg.get("list.sort_presets", [])
     items = [
         ui.Item(
-            label=f"{p.get('label', p['key'])} {'↓' if p.get('dir') == 'desc' else '↑'}",
+            label=f"{p.get('label', p['key'])} "
+            f"{ui.glyph('sort_desc' if p.get('dir') == 'desc' else 'sort_asc')}",
             value=p["key"],
             hint=p["key"],
         )

@@ -56,15 +56,14 @@ understood; they were traced in the code, not guessed.
    below that. This is the same idea as the unbuilt `ui.narrow_width` collapse
    in SPEC § "Terminal reality"; fold the two together rather than shipping two
    thresholds. `z z` keeps overriding by hand for the session.
-3. **`[ui] icons` must actually mean something.** The setting exists and is
-   honoured in exactly one place (the mark glyph, `app.py`); every other symbol
-   is hardcoded ASCII (`·`/`!` for file present/missing, `↑`/`↓` for sort, `>`
-   in the picker, pane borders). Define one glyph table with an ASCII and a
-   nerd-font column, look every symbol up through it, and never emit a glyph
-   directly. Shipped default stays `false` — the HPC/SSH case in SPEC
-   § "Terminal reality" is real — but the maintainer runs `icons = true`, so
-   the nerd-font column is the one that has to look good, not an afterthought.
-   Worth a screenshot in both modes (§ G) once it lands.
+3. ~~**`[ui] icons` must actually mean something.**~~ Done: `ui.GLYPHS` is the
+   one table (ASCII + nerd font), reached through `ui.glyph()`; mark, file
+   present/missing, sort direction and the picker cursor all go through it.
+   Shipped default stays `false`. `scripts/shot.py --icons` shows either mode.
+   Still hardcoded and *not* in the table: pane borders, which are Textual CSS
+   (`border: round`) and not a font question. Open: the nerd column was chosen
+   from the Font Awesome range without being seen in a real terminal — the
+   maintainer runs `icons = true`, so swap any glyph that reads badly.
 
 ## D. Display polish
 

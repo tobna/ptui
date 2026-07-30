@@ -231,7 +231,10 @@ toast that vanishes.
 
 - Truecolor detection with 256-colour fallback.
 - Nerd-font glyphs **off by default** (`ui.icons = false`) — this runs over
-  SSH to an HPC cluster.
+  SSH to an HPC cluster. Every symbol ptui prints comes from one table with an
+  ASCII and a nerd-font column (`ui.GLYPHS`); no glyph is ever written inline,
+  or the setting silently stops meaning anything. Both columns are one cell
+  wide, so turning icons on never changes a layout.
 - Below `ui.narrow_width`, collapse to a single pane with tab switching.
 - `ui.split_ratio` is the **list pane's** share of whichever axis the split
   currently runs along, and the list keeps the whole window whenever it is the

@@ -31,9 +31,12 @@ CONVERTERS = (
 
 
 async def shoot(
-    keys: list[str], out: Path | None, size: tuple[int, int], settle: float
+    keys: list[str], out: Path | None, size: tuple[int, int], settle: float, icons: bool
 ) -> str | None:
-    app = PtuiApp(config.load(), keymap.load())
+    cfg = config.load()
+    if icons:
+        cfg.data["ui"]["icons"] = True
+    app = PtuiApp(cfg, keymap.load())
     async with app.run_test(size=size) as pilot:
         await pilot.pause(settle)
         for key in keys:
@@ -71,12 +74,19 @@ def main() -> None:
     )
     parser.add_argument("--size", default="140x40", help="terminal size, WxH")
     parser.add_argument("--settle", type=float, default=0.2, help="pause after each key")
+    parser.add_argument("--icons", action="store_true", help="force ui.icons = true")
     args = parser.parse_args()
 
     keys = ([str(args.out)] if args.text and args.out else []) + args.keys
     width, _, height = args.size.partition("x")
     screen = asyncio.run(
-        shoot(keys, None if args.text else args.out, (int(width), int(height)), args.settle)
+        shoot(
+            keys,
+            None if args.text else args.out,
+            (int(width), int(height)),
+            args.settle,
+            args.icons,
+        )
     )
     if args.text:
         print(screen)

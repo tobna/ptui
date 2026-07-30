@@ -26,6 +26,7 @@ from ptui import (
     keymap,
     library,
     place,
+    ui,
 )
 
 PANES = ("list", "info", "log")
@@ -74,6 +75,7 @@ class PtuiApp(App[None]):
         super().__init__(css_path=css)
         self.cfg = cfg
         self.km = km
+        ui.use_icons(cfg.get("ui.icons", False))  # every glyph goes through ui.glyph
         self.mode = "list"
         self.pending: keymap.Chord = ()
         self.docs: list[Document] = []  # the scoped set
@@ -324,15 +326,13 @@ class PtuiApp(App[None]):
         table = self.query_one(DataTable)
         self.sync_columns()
         table.clear()
-        icons = self.cfg.get("ui.icons", False)
         for doc in self.rows:
             marked = library.doc_id(doc) in self.marks
             cells = []
             for index, (column, width) in enumerate(self._fit):
                 text = self.cell_text(doc, column)
                 if index == 0:
-                    glyph = ("●" if icons else "*") if marked else " "
-                    text = f"{glyph} {text}"
+                    text = f"{ui.glyph('mark') if marked else ' '} {text}"
                 text = library.fit(text, width)
                 # ponytail: bold marks the row; per-theme colouring needs Rich
                 # styles that CSS classes cannot reach into DataTable cells.
@@ -389,7 +389,8 @@ class PtuiApp(App[None]):
             lines += ["", "[dim]   files[/]"]
             for entry in files:
                 ok = place.resolve(doc, entry).exists()
-                lines.append(f"  {'·' if ok else '[red]![/]'} {entry}")
+                mark = ui.glyph("file") if ok else f"[red]{ui.glyph('file_missing')}[/]"
+                lines.append(f"  {mark} {entry}")
         pane.update("\n".join(lines))
 
     def refresh_status(self) -> None:
@@ -397,7 +398,7 @@ class PtuiApp(App[None]):
         parts = [
             f"scope: {self.scope_query or '*'}",
             f"narrow: {self.narrow_query or '-'}",
-            f"sort: {self.sort_key} {'↓' if self.sort_reverse else '↑'}",
+            f"sort: {self.sort_key} {ui.glyph('sort_desc' if self.sort_reverse else 'sort_asc')}",
             f"{len(self.marks)} marked ({visible_marks} visible) / {len(self.rows)} shown / {len(self.docs)} total",
         ]
         if self.pending:

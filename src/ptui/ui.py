@@ -22,6 +22,34 @@ from textual.widgets import Input, OptionList, Static
 
 from ptui import keymap, library
 
+GLYPHS = {
+    #  name             ASCII   nerd font
+    "mark": ("*", ""),  # nf-fa-check
+    "file": ("·", ""),  # nf-fa-file_text
+    "file_missing": ("!", ""),  # nf-fa-warning
+    "sort_desc": ("↓", ""),  # nf-fa-long_arrow_down
+    "sort_asc": ("↑", ""),  # nf-fa-long_arrow_up
+    "cursor": (">", ""),  # nf-fa-chevron_right
+}
+"""Every symbol ptui prints, ASCII first and nerd font second. Never emit one
+directly: `ui.icons = false` is the shipped default because this runs over SSH
+to a cluster, and a glyph written inline is a glyph that ignores the setting.
+Both columns are one cell wide, so column arithmetic does not care which is on.
+"""
+
+# ponytail: one process, one font — a module global beats threading `ui.icons`
+# through every call site. `use_icons` is called once, from `PtuiApp.__init__`.
+_ICONS = False
+
+
+def use_icons(enabled: bool) -> None:
+    global _ICONS
+    _ICONS = enabled
+
+
+def glyph(name: str) -> str:
+    return GLYPHS[name][_ICONS]
+
 
 @dataclass(frozen=True, slots=True)
 class Item:
@@ -74,7 +102,7 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
         options = self.query_one(OptionList)
         options.clear_options()
         for item in self.shown:
-            marker = ">" if item.value == self.current else " "
+            marker = glyph("cursor") if item.value == self.current else " "
             hint = f"  [dim]{item.hint}[/]" if item.hint else ""
             options.add_option(f"{marker} {item.label}{hint}")
         options.highlighted = 0 if self.shown else None

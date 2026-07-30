@@ -12,6 +12,33 @@ def test_item_filtering_is_fuzzy_over_label_and_hint():
     assert not item.matches("zzz")
 
 
+def test_glyphs_switch_with_the_setting_and_stay_one_cell():
+    from rich.cells import cell_len
+
+    try:
+        ui.use_icons(False)
+        assert ui.glyph("mark") == "*"
+        ui.use_icons(True)
+        assert ui.glyph("mark") == ""
+        # column arithmetic assumes it: a two-cell nerd glyph would overflow rows
+        assert all(cell_len(ascii_) == cell_len(nerd) == 1 for ascii_, nerd in ui.GLYPHS.values())
+    finally:
+        ui.use_icons(False)
+
+
+async def test_icons_setting_reaches_the_list_and_the_status_bar(app):
+    from textual.widgets import Static
+
+    app.cfg.data["ui"]["icons"] = True
+    async with app.run_test() as pilot:  # __init__ already ran, so set it by hand
+        ui.use_icons(True)
+        await press(pilot, "space")  # mark the first row
+        await settle(pilot)
+        assert ui.glyph("sort_desc") in str(app.query_one("#status-bar", Static).content)
+        assert ui.glyph("mark") in str(app.query_one("ListTable").get_row_at(0)[0])
+    ui.use_icons(False)
+
+
 async def test_sort_picker_applies_the_keys_own_direction(app):
     async with app.run_test() as pilot:
         await settle(pilot)

@@ -40,6 +40,7 @@ uv run python scripts/keydoc.py    # regenerate KEYS.md after a keymap change
 
 # look at the UI without a terminal — writes a PNG you can open
 uv run python scripts/shot.py /tmp/shot.png --size 160x30 slash n a u e n
+uv run python scripts/shot.py --text --icons          # same, with nerd-font glyphs
 ```
 
 **Look at the screenshot before claiming a visual bug is fixed.** Pilot presses
@@ -59,7 +60,7 @@ src/ptui/
   keymap.py          keys.toml -> chords, prefix-conflict check, which-key data
   config.py          shipped defaults + per-key user overrides
   library.py         scope query, in-memory narrow, sorting, display text
-  ui.py              SelectList — the one shared modal picker
+  ui.py              SelectList — the one shared modal picker; the glyph table
   clip.py            clipboard: local tool, else OSC52
   place.py           file placement: atomic, idempotent, no-clobber
   safewrite.py       the only path that writes info.yaml
@@ -140,6 +141,12 @@ cut with `library.fit` (rich `cell_len`/`set_cell_size`, so CJK counts double;
 backs off to the last colon or space rather than cutting mid-word). The refit
 hangs off `ListTable.on_resize` — the app-level resize event fires before
 layout, when widget sizes are still stale.
+
+`ui.glyph("mark")` is the only way a symbol reaches the screen. `ui.GLYPHS`
+holds the ASCII and nerd-font column for each name; `ui.use_icons()` is called
+once from `PtuiApp.__init__` and sets a module global, so call sites do not
+carry `ui.icons` around. Adding a symbol means adding a row to that table, in
+both columns, one cell wide. `scripts/shot.py --icons` forces it on.
 
 `library.display()` is the only way a stored value becomes text: it joins
 lists, so `tags` never renders as `['x']`. Column formats go through
