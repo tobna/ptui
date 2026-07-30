@@ -215,13 +215,22 @@ understood; they were traced in the code, not guessed.
 
 ## E. New features asked for
 
-1. **More add sources**, in priority order:
-   - from a `.bib` file (import entries, attach nothing)
-   - from an arXiv ID or URL
-   - from a DOI
-   Each fills the same metadata form, so `[add] fetch_metadata` /
-   `confirm_metadata` finally mean something. papis already has the fetchers
-   (`papis.crossref`, `papis.arxiv`, `papis.bibtex`) — do not write new ones.
+1. ~~**More add sources.**~~ Done (2026-07-30), and generically: `a` lists every
+   source instead of prompting for a path, and the importer rows come from
+   `papis.importer.get_available_importers()`, so this covers **13 importers and
+   23 publisher downloaders** rather than the three the entry asked for — arXiv,
+   DOI, ISBN, PubMed, DBLP, Zenodo, Crossref, `.bib`, `.yaml`, an existing papis
+   folder, another library, and DOI/arXiv id read out of a PDF. `i` still goes
+   straight to the inbox. `[add] fetch_metadata` / `confirm_metadata` now mean
+   something: the form opens prefilled and the unshown keys ride along.
+   arXiv adds attach the PDF automatically, because importers download it
+   themselves; a `.bib` attaches nothing, per the original note.
+   Still open here:
+   - **bulk `.bib` import.** A multi-entry `.bib` currently asks which single
+     entry to add. Importing all of them wants a confirm-once-then-batch flow,
+     which is a different shape from the one-document form.
+   - the fetch is a thread worker with no visible spinner — just a log line.
+
 2. **"Add to"** — attach a file to an *existing* document (`files.attach`,
    already in the registry and bound to `f a`), routed through `place()`.
 

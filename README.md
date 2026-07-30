@@ -31,6 +31,10 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **Safe by construction** — every write re-checks `info.yaml`'s mtime, writes
   atomically, and leaves unknown keys and comments untouched. Files move via
   `os.link`, never a clobbering `mv`.
+- **Add from anywhere papis can reach** — `a` lists the sources: a file, the
+  inbox, an arXiv id, a DOI, an ISBN, a `.bib`, a publisher URL, or a PDF to read
+  an id out of. arXiv adds fetch the paper too. The list comes from papis's own
+  importer plugins, so installing one adds a row.
 - **Files that file themselves** — ordered rules decide where a PDF belongs;
   `f r` relocates and renames a whole selection to the scheme, skipping anything
   it does not understand.
@@ -41,8 +45,8 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   journal article, thesis, or an arXiv-only `preprint` worked out from the
   metadata. Nerd-font glyphs by default, ASCII on request.
 
-Not there yet: undo, tagging, delete, doctor integration, saved searches, visual
-mode and the `:` command line. Bindings for them exist and say so when pressed —
+Not there yet: undo, tagging, delete, saved searches, visual mode and the `:`
+command line. Bindings for them exist and say so when pressed —
 see [`TODO.md`](TODO.md).
 
 ## Install

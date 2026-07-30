@@ -50,3 +50,48 @@ async def test_add_form_escape_writes_nothing(app, papis_lib):
         await settle(pilot)
         assert len(app.docs) == 3
     assert not (papis_lib / "pdfs").exists()
+
+
+async def test_add_from_a_bib_entry_creates_a_document_with_no_file(app, tmp_path):
+    """The metadata-only path: an importer found a record but there is no PDF."""
+    from conftest import press
+
+    from ptui import actions, ui
+
+    bib = tmp_path / "refs.bib"
+    bib.write_text(
+        "@inproceedings{he2016deep, title={Deep Residual Learning v2}, "
+        "author={He, Kaiming and Zhang, Xiangyu}, year={2016}, booktitle={CVPR}}\n"
+    )
+    async with app.run_test() as pilot:
+        await press(pilot, "escape")
+        actions.prompt_result(app, "import:bib", str(bib))
+        await pilot.pause(0.3)
+        assert isinstance(app.screen, ui.AddForm)
+        assert app.screen.source is None  # nothing to attach
+        assert app.screen.query_one("#add-title").value == "Deep Residual Learning v2"
+        assert app.screen.query_one("#add-year").value == "2016"
+        assert "no file" in str(app.screen.query_one("#add-preview").content)
+
+        await press(pilot, "enter")
+        await pilot.pause(0.6)
+        added = next((d for d in app.docs if d["title"] == "Deep Residual Learning v2"), None)
+        assert added is not None
+        assert list(added.get("files") or []) == []
+        # a key the form never showed still has to survive the round trip
+        assert added["booktitle"] == "CVPR"
+
+
+async def test_a_bib_with_several_entries_asks_which_one(app, tmp_path):
+    from ptui import actions, ui
+
+    bib = tmp_path / "many.bib"
+    bib.write_text(
+        "@article{a1, title={First One}, author={A, B}, year={2020}, journal={J}}\n"
+        "@article{a2, title={Second One}, author={C, D}, year={2021}, journal={J}}\n"
+    )
+    async with app.run_test() as pilot:
+        actions.prompt_result(app, "import:bib", str(bib))
+        await pilot.pause(0.3)
+        assert isinstance(app.screen, ui.SelectList)
+        assert [item.label for item in app.screen.items] == ["First One", "Second One"]

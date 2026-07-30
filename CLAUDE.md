@@ -69,6 +69,7 @@ src/ptui/
   clip.py            clipboard: local tool, else OSC52
   place.py           file placement: atomic, idempotent, no-clobber
   doctor.py          papis doctor bridge: read-only findings, one-at-a-time fix
+  fetch.py           metadata from papis importers: arXiv, DOI, ISBN, .bib, URL
   safewrite.py       the only path that writes info.yaml
   defaults/          shipped config.toml, keys.toml, themes/*.tcss
 scripts/
@@ -213,6 +214,22 @@ what `ui.Item.matches` uses: **one matcher for `/` and every picker filter**.
 Fuzzy is opt-in and requires the matched run to fit `FUZZY_SPAN` times the
 needle; plain subsequence matching was the A1/A2 bug and must not come back.
 Narrowing filters and never reorders — the sort is the user's.
+
+`fetch.py` fronts papis's importer plugins — 13 importers and 23 downloaders,
+listed by `fetch.available()` from `get_available_importers()`, so a new plugin
+shows up in the `a` picker for free. Three traps, all measured, all commented in
+the module: **matching hits the network** (the `doi` importer's `match()` GETs
+doi.org for any string and raises on a file path, so never call
+`get_matching_importers_by_uri` on arbitrary input — pick by name); the
+`fallback` downloader matches anything, so URL dispatch is http(s) only;
+constructors differ per importer, so `cls.match(uri)` is the only generic way in.
+Importers download PDFs themselves (`ctx.files`), which is why there is no
+downloader here. The fetch runs in a **thread worker** — some of them take
+seconds and pull a PDF.
+
+`add_form(app, path, fetched)` takes `path=None` for a metadata-only document;
+`papis.commands.add.run([])` accepts that. `_KEEP_FETCHED` carries the keys the
+form has no box for (abstract, eprint, venue…) into the document.
 
 `doctor.py` never calls `papis.commands.doctor.run()` — that takes `fix=True`
 by **default** and mutates the document as a side effect of looking at it.

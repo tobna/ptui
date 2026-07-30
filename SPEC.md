@@ -155,6 +155,31 @@ forbidden. Narrowing **filters and never reorders** — sorting stays the user's
 The same matcher serves every picker's filter box. One implementation, or they
 drift and only one of them gets fixed.
 
+## Adding — sources come from papis
+
+`doc.add` with no argument lists every source: a file, the inbox, a publisher
+URL, a `.bib`, and one row per **papis importer** that ptui has a label for.
+The list is built from `papis.importer.get_available_importers()`, so a new papis
+plugin appears without a change here.
+
+Rules learned by measuring the papis API, all load-bearing:
+
+- **Never call `get_matching_importers_by_uri` on arbitrary input.** Matching
+  itself hits the network — the `doi` importer's `match()` HTTP-GETs doi.org for
+  *any* string, a local path included, and raises rather than declining. The
+  importer is chosen by name from what the user picked.
+- URL dispatch is `http(s)` **only**, because the `fallback` downloader matches
+  anything and would try to GET a filesystem path.
+- Constructors differ per importer (`ArxivImporter` takes `arxivid`, not `uri`),
+  so `cls.match(uri)` is the only generic way to build one.
+- Importers fetch **files** as well as metadata: `ctx.files` is a PDF papis has
+  already downloaded. `place()` then files it by the normal rules.
+- A fetched record carries keys the form does not show (abstract, eprint, venue,
+  pages). They ride along into the document; dropping them would make importing
+  worse than typing it in.
+- A document with no file is legitimate — `papis.commands.add.run([])` accepts it.
+  A `.bib` import attaches nothing; an arXiv import attaches the PDF it fetched.
+
 ## Sorting
 
 - `sort.picker` opens the shared `SelectList` modal (see below).

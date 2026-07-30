@@ -12,7 +12,7 @@ from typing import Any
 
 from textual.widgets import DataTable
 
-from ptui import clip, doctor, library, place, safewrite, ui
+from ptui import clip, doctor, fetch, library, place, safewrite, ui
 from ptui.commands import REGISTRY, command
 
 # ── navigation ──────────────────────────────────────────────────────────────
@@ -135,8 +135,66 @@ def prompt_result(app: Any, kind: str, value: str) -> None:
     """Dispatch a prompt whose result is not a query."""
     if kind == "add":
         add_form(app, Path(value).expanduser())
+    elif kind.startswith("import:"):
+        _import(app, kind.removeprefix("import:"), value)
     else:
         app.log_line(f"[yellow]unhandled prompt {kind!r}: {value}[/]")
+
+
+def _import(app: Any, source: str, uri: str) -> None:
+    """Fetch metadata off the UI thread, then open the form with what came back.
+
+    A thread worker, not a blocking call: an importer is an HTTP round trip and
+    some of them download a PDF, which would freeze the whole app for seconds
+    with no way to tell it had not simply hung.
+    """
+    if not uri.strip():
+        return
+    if source == "bib":
+        _bib_pick(app, Path(uri).expanduser())
+        return
+    app.log_line(f"[dim]fetching from {source}…[/]")
+
+    def job() -> None:
+        try:
+            data, files = fetch.from_url(uri) if source == "url" else fetch.fetch(source, uri)
+        except Exception as exc:
+            app.call_from_thread(app.log_line, f"[red]{source} failed:[/] {exc}")
+            return
+        app.call_from_thread(_fetched, app, source, data, files)
+
+    app.run_worker(job, thread=True, group="import")
+
+
+def _fetched(app: Any, source: str, data: dict[str, Any], files: list[Path]) -> None:
+    got = ", ".join(k for k in ("title", "author", "year", "doi") if data.get(k))
+    app.log_line(f"{source}: {got or 'metadata'}" + (f" + {len(files)} file(s)" if files else ""))
+    # papis downloads to a temp file; `place()` moves it where the rules say.
+    add_form(app, files[0] if files else None, data)
+
+
+def _bib_pick(app: Any, path: Path) -> None:
+    """A `.bib` usually holds many entries, so choose one rather than importing
+    the file. Bulk import is a different feature — see TODO E."""
+    try:
+        entries = fetch.bib_entries(path)
+    except Exception as exc:
+        app.log_line(f"[red].bib failed:[/] {exc}")
+        return
+    if len(entries) == 1:
+        add_form(app, None, entries[0])
+        return
+    items = [
+        ui.Item(
+            label=library.display(entry.get("title", "<untitled>")),
+            value=index,
+            hint=str(entry.get("ref") or entry.get("year") or ""),
+        )
+        for index, entry in enumerate(entries)
+    ]
+    ui.pick(app, items, title=f"{len(entries)} entries in {path.name}")(
+        lambda index, _i: add_form(app, None, entries[index])
+    )
 
 
 @command("query.scope", "search (papis query)")
@@ -376,8 +434,44 @@ def doc_edit_raw(app: Any) -> None:
 
 @command("doc.add", "add document")
 def doc_add(app: Any, source: str | None = None) -> None:
-    """Pick a source file, confirm the metadata, preview where the file lands."""
-    if source == "inbox":
+    """Pick where the document comes from, confirm the metadata, then add it.
+
+    With no `source` this lists every source papis can serve — a file, the inbox,
+    a URL, and each registered importer — so a new papis plugin appears without a
+    change here. `source` names one directly, which is how `i` reaches the inbox.
+    """
+    if source is None:
+        _add_source_picker(app)
+    elif source == "url":
+        app.open_prompt("import:url", "a publisher URL")
+    elif source == "bib":
+        app.open_prompt("import:bib", "path to a .bib")
+    elif source in fetch.SOURCES:
+        app.open_prompt(f"import:{source}", fetch.SOURCES[source][1])
+    else:
+        _add_from_file(app, source)
+
+
+def _add_source_picker(app: Any) -> None:
+    inbox = app.cfg.as_path("files.inbox")
+    items = [
+        ui.Item(label="a file on disk…", value="", hint="path"),
+        ui.Item(label=f"the inbox ({inbox})", value="inbox", hint="newest first"),
+        ui.Item(label="a URL from any publisher…", value="url", hint="23 downloaders"),
+        ui.Item(label="a .bib file…", value="bib", hint="choose an entry"),
+    ]
+    items += [
+        ui.Item(label=f"{fetch.SOURCES[name][0]}…", value=name, hint=name)
+        for name in fetch.available()
+        if name != "bibtex"  # the .bib row above lists entries instead of taking the first
+    ]
+    ui.pick(app, items, title="Add from")(lambda source, _i: doc_add(app, source or "prompt"))
+
+
+def _add_from_file(app: Any, source: str) -> None:
+    if source == "prompt":
+        app.open_prompt("add", "path to a file")
+    elif source == "inbox":
         inbox = app.cfg.as_path("files.inbox")
         if inbox is None or not inbox.is_dir():
             app.log_line(f"[yellow]inbox not found:[/] {inbox}")
@@ -389,10 +483,8 @@ def doc_add(app: Any, source: str | None = None) -> None:
         )
         items = [ui.Item(label=p.name, value=str(p), hint=_age(p)) for p in entries]
         ui.pick(app, items, title=f"Add from {inbox}")(lambda path, _i: add_form(app, Path(path)))
-    elif source:
-        add_form(app, Path(source).expanduser())
     else:
-        app.open_prompt("add", "path to a file")
+        add_form(app, Path(source).expanduser())
 
 
 def _age(path: Path) -> str:
@@ -414,17 +506,58 @@ def _expand(data: dict[str, str]) -> dict[str, Any]:
     return out
 
 
-def add_form(app: Any, path: Path) -> None:
-    if not path.is_file():
+#: Metadata keys the add form does not show but must not lose. A fetched record
+#: carries the abstract, the arXiv id, the venue — dropping them because there is
+#: no text box for them would make importing worse than typing it in by hand.
+_KEEP_FETCHED = (
+    "abstract",
+    "author_list",
+    "booktitle",
+    "journal",
+    "journaltitle",
+    "publisher",
+    "eprint",
+    "eprinttype",
+    "eprintclass",
+    "url",
+    "doc_url",
+    "month",
+    "pages",
+    "volume",
+    "number",
+    "issn",
+    "isbn",
+    "language",
+    "venue",
+    "type",
+)
+
+
+def add_form(app: Any, path: Path | None, fetched: dict[str, Any] | None = None) -> None:
+    """The one metadata form, for a file, a fetched record, or both.
+
+    `path` may be None: an importer that found metadata but no PDF still deserves
+    a document. `fetched` prefills the fields and its unshown keys ride along.
+    """
+    if path is not None and not path.is_file():
         app.log_line(f"[red]no such file:[/] {path}")
         return
 
     rules = place.Rules.from_config(app.cfg)
+    fetched = fetched or {}
+    initial = {
+        field: library.display(fetched.get(field, ""))
+        for field in ui.ADD_FIELDS
+        if fetched.get(field)
+    }
+    initial.setdefault("title", path.stem if path else "")
 
     def preview(data: dict[str, str]) -> str:
         """Where the file would end up. Pure: `place.target` touches nothing."""
         import papis.document
 
+        if path is None:
+            return "no file — metadata only"
         doc = papis.document.from_data({**_expand(data), "files": [path.name]})
         rule = rules.first_match(path)
         if rule.op == "in-place" or not rule.dest:
@@ -440,20 +573,25 @@ def add_form(app: Any, path: Path) -> None:
 
     def confirm(data: dict[str, str] | None) -> None:
         if data is not None:
-            _add_document(app, path, data)
+            extra = {k: v for k, v in fetched.items() if k in _KEEP_FETCHED and v}
+            _add_document(app, path, data, extra)
 
-    app.push_screen(ui.AddForm(path, {"title": path.stem}, preview), confirm)
+    app.push_screen(ui.AddForm(path, initial, preview), confirm)
 
 
-def _add_document(app: Any, path: Path, data: dict[str, str]) -> None:
+def _add_document(
+    app: Any, path: Path | None, data: dict[str, str], extra: dict[str, Any] | None = None
+) -> None:
     import papis.commands.add
 
-    data = _expand(data)
+    # The form wins over the fetched record: the user just looked at both.
+    data = {**(extra or {}), **_expand(data)}
     try:
         # ponytail: papis copies the source in; the original stays in the inbox
-        # rather than being deleted behind the user's back.
+        # rather than being deleted behind the user's back. An empty path list is
+        # a metadata-only document, which papis accepts.
         papis.commands.add.run(
-            [str(path)],
+            [str(path)] if path else [],
             data=dict(data),
             auto_doctor=app.cfg.get("add.auto_doctor", False),
             git=bool(app.cfg.papis("edit.use_git", "use-git")),
@@ -466,8 +604,10 @@ def _add_document(app: Any, path: Path, data: dict[str, str]) -> None:
     added = next((d for d in app.docs if d.get("title") == data.get("title")), None)
     if added is not None:
         app.refresh_rows(keep=library.doc_id(added))
-        files_relocate(app)
-    app.log_line(f"added {data.get('title', path.name)} (source left at {path})")
+        if path is not None:
+            files_relocate(app)
+    where = f" (source left at {path})" if path else " (no file)"
+    app.log_line(f"added {data.get('title', path.name if path else '?')}{where}")
 
 
 # ── export ──────────────────────────────────────────────────────────────────

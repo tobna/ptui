@@ -1,108 +1,112 @@
-"""Metadata from an arXiv id, a DOI, or a `.bib` file — plus the arXiv PDF.
+"""Metadata from wherever papis can already get it.
 
-All three fetchers are papis's own (`papis.arxiv`, `papis.crossref`,
-`papis.bibtex`); nothing here parses a response. What it adds is deciding *which*
-fetcher an arbitrary string wants, and downloading the arXiv PDF, which papis
-exposes as a URL but does not retrieve.
+papis ships an importer plugin system — 13 importers and 23 downloaders here —
+and this module is a thin front for it. Nothing parses a response, nothing
+downloads a PDF: `Importer.fetch()` already fills `ctx.data` and, for arXiv and
+the publisher downloaders, `ctx.files` with a PDF it retrieved itself.
 
-Everything here touches the network except `from_bibtex` and `guess`. Callers run
-them off the UI thread.
+Two traps, both found by measurement and both the reason this does not simply
+call `papis.importer.get_matching_importers_by_uri`:
+
+* **Matching hits the network.** The `doi` importer's `match()` calls
+  `validate_doi`, which HTTP-GETs doi.org — for *any* string, including a local
+  file path — and raises `InvalidURL` rather than declining. So the importer is
+  chosen by name from what the user picked, never by asking all of them.
+* **The `fallback` downloader will try to GET a filesystem path.** URL dispatch
+  is therefore restricted to `http://` and `https://`.
+
+Everything here except `available` and `bib_entries` touches the network.
 """
 
 from __future__ import annotations
 
-import re
-import urllib.request
 from pathlib import Path
 from typing import Any
 
-USER_AGENT = "ptui (+https://github.com/papis/papis)"
-"""arXiv asks for a real agent string and throttles the default one."""
+SOURCES: dict[str, tuple[str, str]] = {
+    # importer name: (what to call it, what to ask for)
+    "arxiv": ("an arXiv id or URL", "2509.26092, arXiv:2509.26092 or an abs/pdf URL"),
+    "doi": ("a DOI", "10.1109/CVPR52688.2022.01167"),
+    "isbn": ("an ISBN", "978-0262035613"),
+    "pmid": ("a PubMed id", "31452104"),
+    "dblp": ("a DBLP key or URL", "conf/cvpr/HeZRS16"),
+    "zenodo": ("a Zenodo id or URL", "record id or URL"),
+    "crossref": ("a Crossref search", "title, author, anything"),
+    "bibtex": ("a .bib file", "path to a .bib"),
+    "yaml": ("a papis .yaml file", "path to an info.yaml"),
+    "folder": ("an existing papis folder", "path to a document folder"),
+    "lib": ("another papis library", "a query in that library"),
+    "pdf2doi": ("a PDF, read its DOI", "path to a PDF"),
+    "pdf2arxivid": ("a PDF, read its arXiv id", "path to a PDF"),
+}
+"""Importers worth offering, in the order they should appear.
 
-_DOI = re.compile(r"\b(10\.\d{4,9}/[^\s\"'<>]+)", re.I)
+Deliberately a curated table rather than the raw plugin list: `fallback` and
+`get` exist to serve URL dispatch and mean nothing as a menu entry, and an
+importer nobody can describe is not a source a user can choose. An importer papis
+does not have is skipped, so this degrades rather than breaking.
+"""
 
 
-def guess(text: str) -> str:
-    """Which source a pasted string is: `arxiv`, `doi`, `bib`, or `""`.
+def available() -> list[str]:
+    """The `SOURCES` papis actually registers, so a new plugin appears for free."""
+    import papis.importer
 
-    Order matters. An arXiv DOI (`10.48550/arXiv.2509.26092`) is both, and the
-    arXiv fetcher gives more back — including the PDF — so it wins.
+    known = set(papis.importer.get_available_importers())
+    return [name for name in SOURCES if name in known]
+
+
+def fetch(name: str, uri: str) -> tuple[dict[str, Any], list[Path]]:
+    """Run one named importer. Returns its metadata and any file it downloaded.
+
+    `match()` is what constructs the importer — constructors differ per plugin
+    (`ArxivImporter` wants `arxivid`, not `uri`), so it is the only generic way in.
     """
-    import papis.arxiv
+    import papis.importer
 
-    text = text.strip()
-    if not text:
-        return ""
-    if text.lower().endswith(".bib") or Path(text).expanduser().suffix == ".bib":
-        return "bib"
-    if papis.arxiv.is_arxivid(text) or papis.arxiv.find_arxivid_in_text(text):
-        return "arxiv"
-    return "doi" if _DOI.search(text) else ""
-
-
-def arxiv_id(text: str) -> str:
-    """The bare id out of `2509.26092`, `arXiv:2509.26092` or an abs/pdf URL."""
-    import papis.arxiv
-
-    text = text.strip()
-    found = papis.arxiv.find_arxivid_in_text(text)
-    if found:
-        return found
-    return text if papis.arxiv.is_arxivid(text) else ""
-
-
-def from_arxiv(text: str) -> dict[str, Any]:
-    import papis.arxiv
-
-    identifier = arxiv_id(text)
-    if not identifier:
-        raise ValueError(f"not an arXiv id: {text!r}")
-    results = papis.arxiv.get_data(id_list=identifier, max_results=1)
-    if not results:
-        raise ValueError(f"arXiv returned nothing for {identifier!r}")
-    return dict(results[0])
-
-
-def from_doi(text: str) -> dict[str, Any]:
-    import papis.crossref
-
-    found = _DOI.search(text.strip())
-    doi = found.group(1) if found else text.strip()
-    data = papis.crossref.doi_to_data(doi)
+    importer = papis.importer.get_importer_by_name(name).match(uri.strip())
+    if importer is None:
+        raise ValueError(f"{SOURCES.get(name, (name,))[0]} does not match {uri!r}")
+    importer.fetch()
+    data = dict(importer.ctx.data or {})
     if not data:
-        raise ValueError(f"crossref returned nothing for {doi!r}")
-    return dict(data)
+        raise ValueError(f"{name} found nothing for {uri!r}")
+    return data, [Path(f) for f in importer.ctx.files or []]
 
 
-def from_bibtex(path: Path) -> list[dict[str, Any]]:
+def from_url(url: str) -> tuple[dict[str, Any], list[Path]]:
+    """Let papis pick a downloader for a publisher URL — 23 of them ship with it.
+
+    `http(s)` only: `fallback` matches anything and would try to GET a path.
+    """
+    import papis.importer
+
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise ValueError("a URL has to start with http:// or https://")
+    matched = papis.importer.get_matching_importers_by_uri(url, include_downloaders=True)
+    errors = []
+    for importer in matched:
+        try:
+            importer.fetch()
+        except Exception as exc:  # a downloader that cannot parse this page
+            errors.append(f"{importer.name}: {exc}")
+            continue
+        if importer.ctx.data:
+            return dict(importer.ctx.data), [Path(f) for f in importer.ctx.files or []]
+    detail = "; ".join(errors[:3]) or "no importer matched"
+    raise ValueError(f"nothing could read {url} ({detail})")
+
+
+def bib_entries(path: Path) -> list[dict[str, Any]]:
+    """Every entry in a `.bib`, so the user can choose which one to add.
+
+    The `bibtex` importer returns only the first entry in `ctx.data`; this is the
+    same parser underneath, kept whole.
+    """
     import papis.bibtex
 
     entries = papis.bibtex.bibtex_to_dict(path.expanduser().read_text(encoding="utf-8"))
     if not entries:
         raise ValueError(f"no entries in {path}")
     return [dict(entry) for entry in entries]
-
-
-def download(url: str, dest: Path) -> Path:
-    """Fetch `url` to `dest`, refusing anything that is not a PDF.
-
-    The check is the file's own magic, not the content type: arXiv has served
-    HTML error pages with a PDF content type, and a 12-byte "PDF" that papis then
-    files away as the paper is worse than a failed add.
-    """
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        blob = response.read()
-    if not blob.startswith(b"%PDF"):
-        raise ValueError(f"{url} did not return a PDF")
-    dest.write_bytes(blob)
-    return dest
-
-
-def arxiv_pdf(data: dict[str, Any], into: Path) -> Path | None:
-    """Download the PDF an arXiv record points at. `None` when there is no URL."""
-    url = str(data.get("doc_url") or "")
-    if not url.startswith("https://"):
-        return None
-    name = f"{arxiv_id(str(data.get('eprint') or '')) or 'arxiv'}.pdf".replace("/", "_")
-    return download(url, into / name)

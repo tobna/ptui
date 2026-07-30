@@ -223,15 +223,19 @@ class AddForm(ModalScreen[dict[str, str] | None]):
     AddForm #add-preview { padding: 1 0 0 0; }
     """
 
-    def __init__(self, source: Path, data: dict[str, str], preview: Callable[[dict], str]) -> None:
+    def __init__(
+        self, source: Path | None, data: dict[str, str], preview: Callable[[dict], str]
+    ) -> None:
         super().__init__()
         self.source = source
+        """None for a metadata-only add — an importer that found no PDF."""
         self.data = data
         self.preview = preview
 
     def compose(self) -> ComposeResult:
         with Vertical():
-            yield Static(f"Add [bold]{self.source.name}[/]", id="picker-title")
+            what = self.source.name if self.source else "from metadata"
+            yield Static(f"Add [bold]{what}[/]", id="picker-title")
             for field_name in ADD_FIELDS:
                 yield Static(field_name, classes="field-label")
                 yield Input(value=str(self.data.get(field_name, "")), id=f"add-{field_name}")
