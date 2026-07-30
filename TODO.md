@@ -36,7 +36,13 @@ understood; they were traced in the code, not guessed.
 - `c t` / `c T` / `c s` / `c r` / `c f` — `doc.tag`, `doc.untag`, `doc.status`,
   `doc.rating`, `doc.set`. None of the `c` namespace exists yet.
 - `d d` `doc.delete` — and therefore `u` `app.undo` cannot be tested at all.
-- `g d` / `\ d` `view.doctor`, `doctor.run`, `doctor.fix`.
+- `g d` / `\ d` `view.doctor`, `doctor.run`, `doctor.fix`. **`doctor.run` must
+  never fix anything** — it reports, and `doctor.fix` applies one finding that
+  the user selected. papis makes this easy to get wrong: `papis.commands.doctor.
+  run(doc, checks)` takes `fix=True` *by default* and mutates the document, so
+  our `doctor.run` must call `REGISTERED_CHECKS[name].operate(doc)` per check
+  instead, and any fix must land through `safewrite` like every other write.
+  Same rule for `add.auto_doctor` (`actions.py:457`, already defaults to false).
 - `g n` `doc.notes`, `g s` `view.saved`, `\ s` `query.save`, `\ t` `theme.picker`.
 - `f a` `files.attach`, `f n` `files.normalize`, and the `[modes.files]` verbs
   (`files.rename`, `files.repoint`, `files.detach`, `files.reorder`) — there is
@@ -100,8 +106,9 @@ understood; they were traced in the code, not guessed.
   the title cell, so a broken document is visible without running anything.
   Verified against the installed papis (0.15):
   - The read-only entry point is `doctor.REGISTERED_CHECKS[name].operate(doc)`,
-    which yields errors. **Not `doctor.run()`** — that defaults to `fix=True`
-    and mutates the document, which would drive straight through golden rule 4.
+    which yields errors. **Never `doctor.run()`** — it defaults to `fix=True`
+    and mutates the document, straight through golden rule 4. Drawing a warning
+    glyph must not be able to change a single byte on disk; see § B.
   - 14 registered checks. All of them over the real library take **~1.7 s for
     754 documents**, so this cannot run inside `refresh_rows`. It needs a
     background pass that caches findings by `papis_id` and is invalidated by
