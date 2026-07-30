@@ -68,22 +68,12 @@ understood; they were traced in the code, not guessed.
 
 ## D. Display polish
 
-- `tags` (and any other list value) renders as a Python list —
-  `['vision-transformers']`. Join lists for display, in the info pane and in
-  list columns.
-- **Size fixed columns to the p90 of the current selection, not to their
-  configured maximum.** Measured over the real library: author family names are
-  5 cells at the median, 9 at p90, 15 at the longest — so the shipped
-  `width = 18` wastes ~9 cells on nearly every row, and sizing to the literal
-  longest name would still let one outlier pay for everyone. Compute over
-  `app.rows` (the whole narrowed set, not the visible window, or the column
-  jitters while scrolling), clamp to the configured width as a ceiling, and let
-  the outliers truncate.
-
-- **Cut titles at a word boundary**, not mid-word: back off to the last space
-  that fits before appending the ellipsis. 45% of titles carry a colon (median
-  head 12 cells), so cutting at the last colon that fits is better still —
-  `Multi-Level Monte Carlo Training…` beats `…Gradient Descen…`.
+- ~~`tags` renders as a Python list~~ — done: `library.display` joins lists and
+  `library.flatten` runs before every column format.
+- ~~Size fixed columns to the p90 of the current selection~~ — done:
+  `PtuiApp.natural_width`. `Author` went 18 → 9 cells on the real library.
+- ~~Cut titles at a word boundary~~ — done: `library.fit` backs off to the last
+  colon, else the last space, unless that wastes over 40% of the budget.
 
 - **`list.row_height` (lines per document), default 1.** At 2, the title wraps
   over both lines and tags get room — worth it because titles are 66 cells at

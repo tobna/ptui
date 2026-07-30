@@ -129,12 +129,23 @@ First real session produced `TODO.md`. Known-bad right now: Textual's own
 command palette steals `ctrl+p`, and `/` (plus every picker's filter box)
 narrows too loosely. Do not add features before `TODO.md` § A is clear.
 
-`PtuiApp.fit_columns()` sizes the list: configured widths win, the `width = 0`
-column absorbs the rest, and a fixed column that would squeeze it below
-`MIN_FLEX` is dropped instead of scrolling sideways. Cells are cut with
-`library.fit` (rich `cell_len`/`set_cell_size`, so CJK counts double). The
-refit hangs off `ListTable.on_resize` — the app-level resize event fires before
+`PtuiApp.fit_columns()` sizes the list: a configured width is a ceiling, and
+each fixed column asks for `PtuiApp.natural_width()` — `library.p90` of what it
+renders over `app.rows` (the whole narrowed set, or the column jitters while
+scrolling), floored at its header. The `width = 0` column absorbs the rest, and
+a fixed column that would squeeze it below `MIN_FLEX` is dropped instead of
+scrolling sideways. Cells come from `PtuiApp.cell_text()` — the one place a
+column is rendered, used by both the sizing pass and the row build — and are
+cut with `library.fit` (rich `cell_len`/`set_cell_size`, so CJK counts double;
+backs off to the last colon or space rather than cutting mid-word). The refit
+hangs off `ListTable.on_resize` — the app-level resize event fires before
 layout, when widget sizes are still stale.
+
+`library.display()` is the only way a stored value becomes text: it joins
+lists, so `tags` never renders as `['x']`. Column formats go through
+`library.flatten()`, which joins *scalar* lists in the document before handing
+it to `papis.format` — lists of dicts stay indexable, because
+`{doc[author_list][0][family]}` is the shipped `Author` format.
 
 `PtuiApp.apply_split()` is the only place pane geometry is set: it writes the
 layout direction and *both* dimensions from `app.side_by_side` / `app.split`,

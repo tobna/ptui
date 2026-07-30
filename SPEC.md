@@ -236,10 +236,17 @@ toast that vanishes.
 - `ui.split_ratio` is the **list pane's** share of whichever axis the split
   currently runs along, and the list keeps the whole window whenever it is the
   only visible pane. Both dimensions are set on every layout change.
-- Columns must fit the pane — no horizontal scrolling. Fixed widths are
-  honoured, one `width = 0` column absorbs the remainder, and a fixed column
-  that would starve it is dropped until the terminal is wide enough again.
-- Truncate by terminal cells, not characters: CJK and combining marks.
+- Columns must fit the pane — no horizontal scrolling. A configured width is a
+  **ceiling**, not a reservation: a fixed column takes the p90 of what it
+  actually holds over the narrowed set, so an 18-cell `Author` shrinks to the 9
+  cells real surnames need. One `width = 0` column absorbs the remainder, and a
+  fixed column that would starve it is dropped until the terminal is wide
+  enough again.
+- Truncate by terminal cells, not characters: CJK and combining marks. Cut at a
+  word boundary — the last colon in the budget, else the last space — never
+  mid-word, unless the boundary would waste most of the width.
+- List values (`tags`) are joined for display, never shown as a Python repr.
+  This applies wherever a stored value is rendered: list columns and info pane.
 - Titles may contain LaTeX (`{B}ERT`, `$\ell_2$`). Store verbatim; render
   de-braced per `list.strip_latex`. Citekey yank and bib export always use
   the verbatim stored value.

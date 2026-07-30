@@ -228,10 +228,28 @@ class PtuiApp(App[None]):
 
     # ── columns ─────────────────────────────────────────────────────────────
 
+    def cell_text(self, doc: Document, column: dict[str, Any]) -> str:
+        """What a column renders for a document, before it is cut to width."""
+        text = papis.format.format(column["format"], library.flatten(doc), default="")
+        return library.strip_latex(text) if self.cfg.get("list.strip_latex", True) else text
+
+    def natural_width(self, index: int, column: dict[str, Any]) -> int:
+        """What a fixed column asks for: its p90 over the whole narrowed set,
+        capped by the configured width and never narrower than its header.
+
+        Computed over `app.rows`, not the visible window — sizing to what is on
+        screen makes the column jitter while scrolling.
+        """
+        wanted = library.p90([self.cell_text(doc, column) for doc in self.rows])
+        if index == 0:
+            wanted += 2  # the mark glyph and its space
+        return min(column["width"], max(wanted, len(column["title"])))
+
     def fit_columns(self) -> list[tuple[dict[str, Any], int]]:
         """The columns that fit the pane, with the width each one gets.
 
-        Configured widths are honoured; the `width = 0` column absorbs whatever
+        Configured widths are a ceiling, not a reservation: a column takes the
+        p90 of what it actually holds. The `width = 0` column absorbs whatever
         is left. A fixed column that would starve it is dropped instead — that
         is how `Tags` disappears on a narrow terminal and comes back on a wide
         one, rather than the list scrolling sideways.
@@ -245,11 +263,12 @@ class PtuiApp(App[None]):
         for index, column in enumerate(spec):
             if index == flex:
                 continue
+            want = self.natural_width(index, column)
             floor = MIN_FLEX + pad if flex is not None else 0
-            if room - column["width"] - pad < floor:
+            if room - want - pad < floor:
                 continue
-            room -= column["width"] + pad
-            widths[index] = column["width"]
+            room -= want + pad
+            widths[index] = want
         if flex is not None:
             widths[flex] = max(MIN_FLEX, room - pad)
         return [(spec[index], widths[index]) for index in sorted(widths)]
@@ -305,15 +324,12 @@ class PtuiApp(App[None]):
         table = self.query_one(DataTable)
         self.sync_columns()
         table.clear()
-        strip = self.cfg.get("list.strip_latex", True)
         icons = self.cfg.get("ui.icons", False)
         for doc in self.rows:
             marked = library.doc_id(doc) in self.marks
             cells = []
             for index, (column, width) in enumerate(self._fit):
-                text = papis.format.format(column["format"], doc, default="")
-                if strip:
-                    text = library.strip_latex(text)
+                text = self.cell_text(doc, column)
                 if index == 0:
                     glyph = ("●" if icons else "*") if marked else " "
                     text = f"{glyph} {text}"
@@ -361,7 +377,7 @@ class PtuiApp(App[None]):
         strip = self.cfg.get("list.strip_latex", True)
 
         def show(value: Any) -> str:
-            text = str(value)
+            text = library.display(value)
             return library.strip_latex(text) if strip else text
 
         lines = [f"[bold]{show(doc.get('title', '<untitled>'))}[/]", ""]

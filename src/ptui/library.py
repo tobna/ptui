@@ -12,6 +12,7 @@ Sorting applies to the scoped set and is independent of narrowing.
 
 from __future__ import annotations
 
+import math
 import os
 import re
 from typing import Any
@@ -151,12 +152,50 @@ def fit(text: str, width: int) -> str:
 
     Cells, not characters: CJK and emoji are two columns wide, combining marks
     are zero, and a list that counts characters overflows on a real library.
+
+    The cut backs off to a word boundary — mid-word reads as a typo — and
+    prefers the last colon, since a title's head is the informative part.
+    Only when that boundary keeps most of the budget; otherwise the cut wins.
     """
     if width <= 0:
         return ""
     if cell_len(text) <= width:
         return text
-    return set_cell_size(text, width - 1) + "…"
+    head = set_cell_size(text, width - 1)
+    for sep in (":", " "):
+        cut = head.rfind(sep)
+        if cut > 0 and cell_len(head[:cut]) >= (width - 1) * 0.6:
+            return head[:cut].rstrip() + "…"
+    return head + "…"
+
+
+def display(value: Any) -> str:
+    """Display text for a stored value. Papis keeps `tags` as a list and `str()`
+    would show the Python repr."""
+    if isinstance(value, (list, tuple)):
+        return ", ".join(display(item) for item in value)
+    return str(value)
+
+
+def flatten(doc: Document) -> Document:
+    """The document with scalar lists joined, for `papis.format`. Lists of
+    dicts stay as they are — `{doc[author_list][0][family]}` still has to index."""
+    return Document(
+        data={
+            key: display(value)
+            if isinstance(value, list)
+            and all(isinstance(item, (str, int, float)) for item in value)
+            else value
+            for key, value in doc.items()
+        }
+    )
+
+
+def p90(texts: list[str]) -> int:
+    """Width the 90th-percentile cell needs. Sizing a column to its longest value
+    lets one outlier tax every row; sizing to the median truncates too much."""
+    widths = sorted(cell_len(text) for text in texts)
+    return widths[math.ceil(0.9 * len(widths)) - 1] if widths else 0  # nearest rank
 
 
 def strip_latex(text: str) -> str:
