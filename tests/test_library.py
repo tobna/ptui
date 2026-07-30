@@ -98,6 +98,16 @@ def test_display_joins_lists_and_flatten_keeps_author_list_indexable():
     assert flat["author_list"][0]["family"] == "He"
 
 
+def test_flatten_leaves_files_alone():
+    """Regression: `files` was joined like any other list, so every
+    `for entry in doc["files"]` walked the path one character at a time."""
+    doc = docs({"files": ["../a.pdf", "b.pdf"], "tags": ["x", "y"]})[0]
+    flat = library.flatten(doc)
+    assert flat["files"] == ["../a.pdf", "b.pdf"]  # a list, still
+    assert list(flat["files"])[0] == "../a.pdf"  # not "."
+    assert flat["tags"] == "x, y"  # ordinary lists are still joined
+
+
 def test_parse_query_grammar():
     assert library.parse_query("  ") == ()
     parsed = library.parse_query("vision -survey a:nauen", {"a": "author:"})

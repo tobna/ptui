@@ -374,13 +374,24 @@ def kind(doc: Document) -> str:
     return "preprint" if doi.startswith(ARXIV_DOI) else "article"
 
 
+STRUCTURAL = frozenset({"files"})
+"""Keys that are data, not display text, and must survive `flatten` intact.
+
+`files` is a list of paths that callers iterate. Joining it produced a string,
+and every `for entry in doc["files"]` then walked it one character at a time —
+which is exactly what the info pane did until this existed.
+"""
+
+
 def flatten(doc: Document) -> Document:
     """The document with scalar lists joined, plus the derived `kind`, for
     `papis.format`. Lists of dicts stay as they are —
     `{doc[author_list][0][family]}` still has to index."""
     data = {
         key: display(value)
-        if isinstance(value, list) and all(isinstance(item, (str, int, float)) for item in value)
+        if key not in STRUCTURAL
+        and isinstance(value, list)
+        and all(isinstance(item, (str, int, float)) for item in value)
         else value
         for key, value in doc.items()
     }
