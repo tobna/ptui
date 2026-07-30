@@ -213,6 +213,14 @@ Fuzzy is opt-in and requires the matched run to fit `FUZZY_SPAN` times the
 needle; plain subsequence matching was the A1/A2 bug and must not come back.
 Narrowing filters and never reorders — the sort is the user's.
 
+`library.venue()` is the conference or journal **name**: first non-empty of
+`booktitle`, `journal`, `journaltitle`. It deliberately ignores the `venue` key —
+that holds the host city (`New Orleans, Louisiana, USA`). `library.kind()` uses
+it, so a city can never read as evidence of publication, and `flatten()` injects
+the name under `venue` so display paths get the name and never the city.
+`refresh_info` therefore renders the **flattened** document — but `place.resolve`
+still gets `self.current`, because the flattened copy has no main folder.
+
 `library.display()` is the only way a stored value becomes text: it joins
 lists, so `tags` never renders as `['x']`. Column formats go through
 `library.flatten()`, which joins *scalar* lists in the document before handing

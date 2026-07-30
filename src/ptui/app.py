@@ -486,11 +486,13 @@ class PtuiApp(App[None]):
     # ── chrome ──────────────────────────────────────────────────────────────
 
     def refresh_info(self) -> None:
-        doc = self.current
         pane = self.query_one("#info", Static)
-        if doc is None:
+        if self.current is None:
             pane.update("[dim]no document[/]")
             return
+        # The flattened view, so `venue` is the conference or journal name rather
+        # than the city the stored key actually holds, and `kind` is available.
+        doc = library.flatten(self.current)
         strip = self.cfg.get("list.strip_latex", True)
 
         def show(value: Any) -> str:
@@ -509,7 +511,9 @@ class PtuiApp(App[None]):
             # per entry says nothing, while a missing file is worth shouting about.
             lines += ["", f"[dim]{ui.glyph('field.files')}    files[/]"]
             for entry in files:
-                ok = place.resolve(doc, entry).exists()
+                # the real document, not the flattened copy: resolve() needs the
+                # main folder to turn a relative `files` entry into a path
+                ok = place.resolve(self.current, entry).exists()
                 mark = " " if ok else f"[red]{ui.glyph('warning')}[/]"
                 lines.append(f"  {mark} {entry}")
         pane.update("\n".join(lines))

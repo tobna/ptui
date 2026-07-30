@@ -254,6 +254,11 @@ toast that vanishes.
   safe to get wrong: over SSH to a bare tty you get tofu, not a broken list.
   A slot with no sensible ASCII equivalent — an info-pane field label, whose
   name is written out beside it — uses a space in the ASCII column.
+- **`venue` is a name, never a place.** The conference or journal name is read
+  from `booktitle`, `journal`, `journaltitle`, in that order. The `venue` key is
+  *not* consulted for it: real libraries store the host city there
+  (`Sydney, Australia`), and treating that as a publication name puts a city
+  where the journal belongs and tells `kind()` a preprint was published.
 - The list carries a one-cell **document kind** column, from `library.kind()`:
   the `type` field, except that an article whose only DOI is arXiv's and which
   names no journal, booktitle or venue reads as `preprint`. Local data only: an

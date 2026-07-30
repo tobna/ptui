@@ -177,17 +177,20 @@ understood; they were traced in the code, not guessed.
 
 ## D2. Data model — wrong assumptions to correct
 
-1. **`venue` is not a place.** It is the *name* of the conference or journal —
-   `booktitle` / `journal` / `journaltitle` — never the city it was held in.
-   Fix everywhere the word is used:
-   - `app.INFO_FIELDS` shows the raw `venue` key. It should show the venue *name*,
-     resolved from the first of `booktitle`, `journal`, `journaltitle`, `venue`
-     that is set. Coverage on the real library: `booktitle` 371, `journal` 136,
-     `venue` 237 — so reading only `venue` misses most published documents.
-   - `library.kind()` already checks all three for its preprint test; that part
-     is right and must stay in step with whatever helper this becomes.
-   - `field.venue` keeps its fa-university glyph, which fits a venue *name* fine.
-   Probably one `library.venue(doc)` helper, used by the info pane and by `kind`.
+1. ~~**`venue` is not a place.**~~ Done (2026-07-30). `library.venue()` returns
+   the first non-empty of `booktitle`, `journal`, `journaltitle`; the `venue` key
+   is never read for it, because measured values are `New Orleans, Louisiana,
+   USA`, `Sydney, Australia`, `Vancouver, BC, Canada`. `kind()` uses the helper,
+   and `flatten()` injects the name under `venue` so every display path gets it.
+   Measured effect on the real library:
+   - documents showing a venue **name**: 237 -> **524**. The old code read the
+     raw key, so a third of what it displayed was a city and most published
+     documents showed nothing at all.
+   - `kind()` moved **10** documents from `preprint` to `article` — all of them
+     genuinely published (`ICML 2024`, `JMLR`, `ICLR 2019`, `TMLR`) and only
+     recorded in `journaltitle`, which the old three-key check never consulted.
+   - no document in this library has a city as its *only* venue-ish field, so
+     nothing moved the other way. The guard is for correctness, not a fix.
 
 2. **Merge mode, over the marked documents.** Duplicates are the reason: the same
    paper arrives twice, once from arXiv and once from the proceedings, and the

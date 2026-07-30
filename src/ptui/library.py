@@ -338,6 +338,23 @@ ARXIV_DOI = "10.48550"
 """arXiv mints its own DOIs under this prefix. A DOI under any other prefix was
 assigned by a publisher, which is the strongest local evidence of publication."""
 
+VENUE_KEYS = ("booktitle", "journal", "journaltitle")
+"""Where the *name* of a conference or journal lives, in preference order.
+
+**Not `venue`.** Despite the word, that key holds the place a conference was
+held — measured on a real library, its values are `New Orleans, Louisiana, USA`,
+`Sydney, Australia`, `Vancouver, BC, Canada`. Reading it as a publication name
+puts a city where the journal should be, and makes `kind()` call a preprint
+published because somebody recorded a hotel.
+"""
+
+
+def venue(doc: Document) -> str:
+    """The conference or journal name, or empty. A city is not a name."""
+    return next(
+        (str(doc[key]).strip() for key in VENUE_KEYS if str(doc.get(key) or "").strip()), ""
+    )
+
 
 def kind(doc: Document) -> str:
     """`type`, except that an arXiv-only article reads as `preprint`.
@@ -351,7 +368,7 @@ def kind(doc: Document) -> str:
     """
     if doc.get("type") != "article":
         return str(doc.get("type", ""))
-    if any(str(doc.get(k) or "").strip() for k in ("journal", "booktitle", "venue")):
+    if venue(doc):
         return "article"
     doi = str(doc.get("doi") or "").casefold()
     return "preprint" if doi.startswith(ARXIV_DOI) else "article"
@@ -368,6 +385,7 @@ def flatten(doc: Document) -> Document:
         for key, value in doc.items()
     }
     data["kind"] = kind(doc)  # derived, and wins over a stored `kind` for display
+    data["venue"] = venue(doc)  # the *name*; the stored `venue` is a city, see VENUE_KEYS
     return Document(data=data)
 
 

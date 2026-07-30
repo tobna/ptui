@@ -157,6 +157,23 @@ def test_fuzzy_match_needs_the_run_to_stay_tight():
     assert library.fuzzy_match("", "anything")
 
 
+def test_venue_is_the_name_not_the_place():
+    def v(**fields):
+        return library.venue(docs(fields)[0])
+
+    assert v(booktitle="NeurIPS") == "NeurIPS"
+    assert v(journal="TPAMI") == "TPAMI"
+    assert v(journaltitle="TMLR") == "TMLR"
+    assert v(booktitle="CVPR", journal="ignored") == "CVPR"  # preference order
+    assert v(journal="  ") == ""  # blank is not a name
+    # the whole point: the `venue` key holds a city, and a city is not a venue name
+    assert v(venue="New Orleans, Louisiana, USA") == ""
+    assert v(venue="Sydney, Australia", booktitle="ICCV") == "ICCV"
+    # and the flattened view a display path reads shows the name, never the city
+    flat = library.flatten(docs({"venue": "Sydney, Australia", "booktitle": "ICCV"})[0])
+    assert flat["venue"] == "ICCV"
+
+
 def test_kind_calls_an_arxiv_only_article_a_preprint():
     def k(**fields):
         return library.kind(docs(fields)[0])
@@ -169,7 +186,9 @@ def test_kind_calls_an_arxiv_only_article_a_preprint():
     assert k(type="article", doi="10.1109/CVPR.2024.1") == "article"  # a publisher minted it
     assert k(type="article", doi=arxiv, journal="TPAMI") == "article"
     assert k(type="article", doi=arxiv, booktitle="NeurIPS") == "article"
-    assert k(type="article", doi=arxiv, venue="ICML") == "article"
+    # `venue` holds the *city*, so it is not evidence of publication
+    assert k(type="article", doi=arxiv, venue="Vancouver, BC, Canada") == "preprint"
+    assert k(type="article", doi=arxiv, journaltitle="TMLR") == "article"
     assert k(type="article", doi=arxiv, journal="  ") == "preprint"  # blank is not a venue
     assert k(type="inproceedings", doi=arxiv) == "inproceedings"  # only articles can be preprints
     assert library.flatten(docs({"type": "article", "doi": arxiv})[0])["kind"] == "preprint"
