@@ -37,13 +37,16 @@ understood; they were traced in the code, not guessed.
 - `c t` / `c T` / `c s` / `c r` / `c f` — `doc.tag`, `doc.untag`, `doc.status`,
   `doc.rating`, `doc.set`. None of the `c` namespace exists yet.
 - `d d` `doc.delete` — and therefore `u` `app.undo` cannot be tested at all.
-- `g d` / `\ d` `view.doctor`, `doctor.run`, `doctor.fix`. **`doctor.run` must
-  never fix anything** — it reports, and `doctor.fix` applies one finding that
-  the user selected. papis makes this easy to get wrong: `papis.commands.doctor.
-  run(doc, checks)` takes `fix=True` *by default* and mutates the document, so
-  our `doctor.run` must call `REGISTERED_CHECKS[name].operate(doc)` per check
-  instead, and any fix must land through `safewrite` like every other write.
-  Same rule for `add.auto_doctor` (`actions.py:457`, already defaults to false).
+- ~~`g d` / `\ d` `view.doctor`, `doctor.run`, `doctor.fix`.~~ Done
+  (2026-07-30), in `doctor.py`. `\ d` reports into the log, `g d` browses
+  findings and `enter` fixes that one, `\ D` fixes every fixable finding on the
+  target set. Nothing writes unless asked. `doctor.run` never calls papis's
+  `doctor.run` — that defaults to `fix=True`. `[doctor] checks = []` = all.
+  **Measured: 0 findings across all 14 checks over all 754 documents**, so the
+  UI is exercised by a deliberately broken fixture document, not by the library.
+  `doctor.fix` deviates from SPEC's "one selected finding": a `Finding` cannot
+  travel through a `keys.toml` argument, so the by-name command is the batch one
+  and the single-finding path is `view.doctor`'s `enter`. SPEC updated to match.
 - `g n` `doc.notes`, `g s` `view.saved`, `\ s` `query.save`, `\ t` `theme.picker`.
 - `f a` `files.attach`, `f n` `files.normalize`, and the `[modes.files]` verbs
   (`files.rename`, `files.repoint`, `files.detach`, `files.reorder`) — there is

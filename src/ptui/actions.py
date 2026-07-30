@@ -12,7 +12,7 @@ from typing import Any
 
 from textual.widgets import DataTable
 
-from ptui import clip, library, place, safewrite, ui
+from ptui import clip, doctor, library, place, safewrite, ui
 from ptui.commands import REGISTRY, command
 
 # ── navigation ──────────────────────────────────────────────────────────────
@@ -612,6 +612,112 @@ def config_check(app: Any) -> None:
         app.log_line(f"[yellow]unknown config key:[/] {key}")
     app.log_line(f"config: {len(app.cfg.unknown)} unknown key(s) in {app.cfg.path or 'defaults'}")
     app.query_one("#log-pane").display = True
+
+
+# ── doctor ──────────────────────────────────────────────────────────────────
+
+
+def _checks(app: Any) -> list[str]:
+    configured = app.cfg.get("doctor.checks", [])
+    for name in doctor.unknown_checks(configured):
+        app.log_line(f"[yellow]doctor: no such check[/] {name}")
+    return doctor.check_names(configured)
+
+
+def _findings(app: Any) -> list[tuple[Any, doctor.Finding]]:
+    """Every finding over the marked set, or the cursor. Read-only."""
+    checks = _checks(app)
+    return [(doc, f) for doc in app.targets for f in doctor.findings(doc, checks)]
+
+
+def _label(doc: Any, finding: doctor.Finding) -> str:
+    ref = doc.get("ref") or library.doc_id(doc)
+    fixable = "" if finding.fix_action else "  (no automatic fix)"
+    return f"{ref}  {finding.msg}{fixable}"
+
+
+@command("doctor.run", "run doctor")
+def doctor_run(app: Any, checks: str = "") -> None:
+    """Report findings. **Never fixes** — `doctor.fix` does that, on request.
+
+    Batch-aware: every mark, or the cursor. `checks` is a space-separated
+    override for `[doctor] checks`.
+    """
+    names = checks.split() if checks else app.cfg.get("doctor.checks", [])
+    for name in doctor.unknown_checks(names):
+        app.log_line(f"[yellow]doctor: no such check[/] {name}")
+    targets = app.targets
+    found = [(doc, f) for doc in targets for f in doctor.findings(doc, doctor.check_names(names))]
+    for doc, finding in found:
+        app.log_line(f"[yellow]{finding.name}[/] {_label(doc, finding)}")
+    app.log_line(f"doctor: {len(found)} finding(s) over {len(targets)} document(s)")
+    app.query_one("#log-pane").display = True
+
+
+@command("view.doctor", "doctor findings")
+def view_doctor(app: Any) -> None:
+    """Browse findings; `enter` applies that one finding's fix, through safe-write.
+
+    Nothing is written by opening this — the same rule as `help.show`, except
+    that here confirming a row is an explicit request to change the document.
+    """
+    found = _findings(app)
+    if not found:
+        app.log_line(f"doctor: nothing to report over {len(app.targets)} document(s)")
+        return
+    items = [
+        ui.Item(label=_label(doc, finding), value=index, hint=finding.name)
+        for index, (doc, finding) in enumerate(found)
+    ]
+
+    def apply(index: int, _invert: bool) -> None:
+        _apply_one(app, *found[index])
+
+    ui.pick(app, items, title="Doctor findings")(apply)
+
+
+def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
+    if finding.fix_action is None:
+        app.log_line(f"[yellow]no automatic fix for[/] {finding.name}: {finding.msg}")
+        if finding.suggestion_cmd:
+            app.log_line(f"[dim]papis suggests:[/] {finding.suggestion_cmd}")
+        return False
+    try:
+        changed = doctor.fix(doc, finding)
+    except safewrite.StaleError:
+        app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
+        return False
+    except Exception as exc:
+        app.log_line(f"[red]fix failed:[/] {exc}")
+        return False
+    app.log_line(
+        f"fixed {finding.name} on {doc.get('ref', '')}: {', '.join(changed) or 'no change'}"
+    )
+    app.refresh_rows()
+    return True
+
+
+@command("doctor.fix", "fix doctor findings")
+def doctor_fix(app: Any) -> None:
+    """Apply every fixable finding over the target set.
+
+    SPEC describes this as "one selected finding", which is what `view.doctor`
+    does on `enter`. A finding cannot travel through a `keys.toml` argument, so
+    the command reachable by name is the batch one — the same shape as every
+    other verb here.
+    """
+    found = _findings(app)
+    fixable = [(doc, f) for doc, f in found if f.fix_action]
+    for doc, finding in fixable:
+        _apply_one(app, doc, finding)
+    skipped = len(found) - len(fixable)
+    app.log_line(
+        f"doctor: fixed {len(fixable)}, {skipped} with no automatic fix"
+        if found
+        else "doctor: nothing to fix"
+    )
+    if skipped:
+        app.query_one("#log-pane").display = True
 
 
 @command("app.quit", "quit")

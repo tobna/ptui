@@ -25,8 +25,9 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `4` | `pane.focus` pane=log | focus a pane |
 | `:` | `cmdline.open` | — *(not implemented)* |
 | `?` | `help.show` | help |
+| `\ D` | `doctor.fix` | fix doctor findings |
 | `\ c` | `app.config_check` | check config |
-| `\ d` | `doctor.run` | run doctor *(not implemented)* |
+| `\ d` | `doctor.run` | run doctor |
 | `\ k` | `keymap.check` | check keymap conflicts |
 | `\ s` | `query.save` | save current search *(not implemented)* |
 | `\ t` | `theme.picker` | theme *(not implemented)* |
@@ -55,7 +56,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `f o` | `files.open_pick` | open which file… |
 | `f r` | `files.relocate` | relocate + rename to scheme |
 | `G` | `nav.bottom` | last document |
-| `g d` | `view.doctor` | doctor findings *(not implemented)* |
+| `g d` | `view.doctor` | doctor findings |
 | `g g` | `nav.top` | top |
 | `g l` | `lib.switch` | switch library |
 | `g m` | `view.marked` | marked only *(not implemented)* |

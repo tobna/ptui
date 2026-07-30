@@ -154,6 +154,10 @@ confirm_metadata = true       # edit metadata BEFORE the name is computed
 preview_destination = true    # show resolved path; nothing touches disk first
 auto_doctor = true            # run papis doctor on the new document
 
+# papis doctor. ptui only ever *reports* unless you ask for a fix.
+[doctor]
+checks = []                   # empty = every check papis registers
+
 [delete]
 ask_files = true
 default_check_managed_only = true

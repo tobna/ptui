@@ -68,6 +68,7 @@ src/ptui/
   ui.py              SelectList — the one shared modal picker; the glyph table
   clip.py            clipboard: local tool, else OSC52
   place.py           file placement: atomic, idempotent, no-clobber
+  doctor.py          papis doctor bridge: read-only findings, one-at-a-time fix
   safewrite.py       the only path that writes info.yaml
   defaults/          shipped config.toml, keys.toml, themes/*.tcss
 scripts/
@@ -212,6 +213,15 @@ what `ui.Item.matches` uses: **one matcher for `/` and every picker filter**.
 Fuzzy is opt-in and requires the matched run to fit `FUZZY_SPAN` times the
 needle; plain subsequence matching was the A1/A2 bug and must not come back.
 Narrowing filters and never reorders — the sort is the user's.
+
+`doctor.py` never calls `papis.commands.doctor.run()` — that takes `fix=True`
+by **default** and mutates the document as a side effect of looking at it.
+Findings come from `REGISTERED_CHECKS[name].operate(doc)`, which is read-only.
+A fix runs the check's own `fix_action` (which mutates the in-memory `Document`),
+diffs the keys it touched, and writes only those through `safewrite`; on any
+failure the document is reloaded, or it would keep an edit that never landed.
+`[doctor] checks = []` means every registered check — a shipped list would rot
+against whatever a papis release registers.
 
 `library.venue()` is the conference or journal **name**: first non-empty of
 `booktitle`, `journal`, `journaltitle`. It deliberately ignores the `venue` key —

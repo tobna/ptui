@@ -123,6 +123,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "\\ c"     = { cmd = "app.config_check",  desc = "check config" }
 "\\ k"     = { cmd = "keymap.check",      desc = "check keymap conflicts" }
 "\\ d"     = { cmd = "doctor.run",        desc = "run doctor" }
+"\\ D"     = { cmd = "doctor.fix",        desc = "fix doctor findings" }
 
 [modes.files]
 "j"        = { cmd = "nav.down" }

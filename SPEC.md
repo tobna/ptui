@@ -402,10 +402,10 @@ from this. Adding a command must not require touching four places.
 | `export.citekey`                |                               | per `export.citekey_format`                      |
 | `export.path`                   |                               | absolute path of main file                       |
 | `export.url`                    |                               | DOI/URL                                          |
-| `view.doctor`                   |                               | doctor findings view                             |
+| `view.doctor`                   |                               | findings picker; `enter` fixes that one finding   |
 | `view.saved`                    |                               | saved searches view                              |
-| `doctor.run`                    | `checks:str?`                 | filterable results; **reports only, never fixes** |
-| `doctor.fix`                    |                               | apply fix for one selected finding, via safe-write |
+| `doctor.run`                    | `checks:str?`                 | reports into the log; **never fixes**            |
+| `doctor.fix`                    |                               | every fixable finding on the targets, via safe-write |
 | `lib.switch`                    | `name:str?`                   | SelectList over libraries                        |
 | `theme.picker`                  |                               | SelectList over `themes/*.tcss`                  |
 | `help.show`                     | `filter:str?`                 | generated help overlay                           |
