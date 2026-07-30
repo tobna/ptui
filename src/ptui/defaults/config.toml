@@ -58,6 +58,12 @@ dir = "asc"
 
 # Columns are papis format strings. width = 0 means flex.
 [[list.columns]]
+title = ""
+format = "{doc[kind]}"        # `type`, but an arXiv-only article reads as preprint
+glyph = "type"                # render the value through the `type.*` glyph family
+width = 3                     # one cell for the glyph, two for the mark in column 0
+
+[[list.columns]]
 title = "Year"
 format = "{doc[year]}"
 width = 6

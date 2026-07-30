@@ -86,7 +86,8 @@ async def test_columns_fit_the_pane_and_drop_when_they_cannot(app):
         await settle(pilot)
         table = app.query_one(DataTable)
         widths = {column["title"]: width for column, width in app._fit}
-        assert list(widths) == ["Year", "Author", "Title", "Tags"]  # all four fit when wide
+        # the first column has no title: it is the type glyph, and the mark sits in it
+        assert list(widths) == ["", "Year", "Author", "Title", "Tags"]
         assert widths["Author"] == 7  # p90 of Vaswani/He/Bengio, not the configured 18
         used = sum(width + table.cell_padding * 2 for _, width in app._fit)
         assert used <= table.size.width - 2  # never wider than the pane

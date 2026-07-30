@@ -177,18 +177,41 @@ def display(value: Any) -> str:
     return str(value)
 
 
+ARXIV_DOI = "10.48550"
+"""arXiv mints its own DOIs under this prefix. A DOI under any other prefix was
+assigned by a publisher, which is the strongest local evidence of publication."""
+
+
+def kind(doc: Document) -> str:
+    """`type`, except that an arXiv-only article reads as `preprint`.
+
+    Local data only, deliberately: an `article` whose only DOI is arXiv's and
+    which names no journal, booktitle or venue has nothing to say it was ever
+    published. That is evidence of absence, not absence of publication — an
+    entry imported from arXiv and never refreshed looks identical, so a paper
+    that did appear at a conference is flagged until its metadata is updated.
+    Settling it properly needs a network lookup; see TODO § D.
+    """
+    if doc.get("type") != "article":
+        return str(doc.get("type", ""))
+    if any(str(doc.get(k) or "").strip() for k in ("journal", "booktitle", "venue")):
+        return "article"
+    doi = str(doc.get("doi") or "").casefold()
+    return "preprint" if doi.startswith(ARXIV_DOI) else "article"
+
+
 def flatten(doc: Document) -> Document:
-    """The document with scalar lists joined, for `papis.format`. Lists of
-    dicts stay as they are — `{doc[author_list][0][family]}` still has to index."""
-    return Document(
-        data={
-            key: display(value)
-            if isinstance(value, list)
-            and all(isinstance(item, (str, int, float)) for item in value)
-            else value
-            for key, value in doc.items()
-        }
-    )
+    """The document with scalar lists joined, plus the derived `kind`, for
+    `papis.format`. Lists of dicts stay as they are —
+    `{doc[author_list][0][family]}` still has to index."""
+    data = {
+        key: display(value)
+        if isinstance(value, list) and all(isinstance(item, (str, int, float)) for item in value)
+        else value
+        for key, value in doc.items()
+    }
+    data["kind"] = kind(doc)  # derived, and wins over a stored `kind` for display
+    return Document(data=data)
 
 
 def p90(texts: list[str]) -> int:

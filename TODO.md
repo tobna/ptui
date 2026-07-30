@@ -54,7 +54,9 @@ understood; they were traced in the code, not guessed.
    `$EDITOR` on `info.yaml`. On return, re-parse the file and report clearly if
    it is no longer valid YAML (papis will have refused to load it). The
    structured editor stays on the roadmap but is not the default.
-2. **`venue` belongs in the info pane** field list.
+2. ~~**`venue` belongs in the info pane** field list.~~ Done — the list is
+   `app.INFO_FIELDS`, which also gained `notes`. Every entry needs a matching
+   `field.<name>` glyph.
 3. **`ui.layout` gains `"auto"`, and it becomes the default.** Three values:
    `vertical` (split `|`, panes side by side), `horizontal` (split `-`, info
    under the list), and `auto` — pick from the terminal width, side by side
@@ -130,32 +132,33 @@ understood; they were traced in the code, not guessed.
   in a side-by-side split. Costs half the visible documents, so it stays a
   setting, not a default.
 
-- **A preprint icon, for documents that are *only* preprints.** Measured and
-  probed on the real library (2026-07-30); the conclusion is that local metadata
-  cannot answer this on its own:
-  - 499 of 754 docs carry an arXiv id. 221 of those have no local evidence of
-    publication (no `booktitle`/`journal`/`venue`, no non-arXiv DOI, `publisher`
-    either absent or literally `arXiv`, `type` not inproceedings/book/thesis).
-  - That set is **wrong**: it contains *Sanity Checks for Saliency Maps*, NeurIPS
-    2018. The false positives are entries imported from arXiv and never
-    refreshed, so the heuristic really measures "stale metadata", not "preprint".
-  - **arXiv's own API does not help.** `journal_ref` is empty for that NeurIPS
-    paper — authors rarely update it, so absence proves nothing. Worse,
-    `papis.arxiv.get_data(id_list=...)` discards `journal_ref` and `doi`
-    entirely; it returns only the fields `arxiv_to_papis` maps. The `comment`
-    field often says "Accepted at CVPR 2024" but it is free text.
-  - **OpenAlex answers it.** `api.openalex.org/works?filter=doi:<doi>` returns
-    `locations[].source.display_name`; for the 2018 paper that list is
+- ~~**A preprint icon.**~~ Done: `library.kind()` returns `preprint` for an
+  article whose only DOI is arXiv's and which names no journal, booktitle or
+  venue. Local data only, by decision. On the real library that is **181 of
+  754** documents. Known limits, all measured (2026-07-30):
+  - It flags *Sanity Checks for Saliency Maps*, NeurIPS 2018 — the entry was
+    imported from arXiv and never refreshed, and no local field distinguishes
+    that from a genuine preprint. The year histogram shows the shape of the
+    error: 44 of the 181 are from 2013-2022 and are mostly stale, 107 are from
+    2024-2026 and are mostly right.
+  - 25 further docs have **no DOI at all** and no venue. The rule requires an
+    arXiv DOI, so they stay `article`. Loosening it to "arXiv DOI *or* none"
+    would take the count to 206; not done, because absence of a DOI is much
+    weaker evidence than arXiv having minted one.
+  - An **age guard** would be the cheapest accuracy win and needs no network:
+    only call it a preprint within a year or two of `year`.
+  - Settling it properly needs a network lookup, and only one source works.
+    arXiv's own `journal_ref` is **empty** for that NeurIPS paper (authors
+    rarely update it), and `papis.arxiv.get_data(id_list=...)` discards
+    `journal_ref` and `doi` anyway — it returns only what `arxiv_to_papis` maps.
+    OpenAlex answers it: `api.openalex.org/works?filter=doi:<doi>` returns
+    `locations[].source.display_name`, which for that paper is
     `[arXiv, arXiv, Neural Information Processing Systems]`. Preprint-only means
-    every location is a preprint server. Free, no key, wants a `mailto`. Note
-    the top-level `type` field says `preprint` even for that paper, because it
-    describes the record queried — use `locations`, not `type`.
-  So: the local heuristic decides *who to ask* (221 docs, not 754), one cached
-  OpenAlex lookup settles each, and the icon is instant afterwards. The cache
-  wants to be the same side-cache keyed by `papis_id` that the doctor glyph
-  above needs — build one, not two. A pure-offline fallback is the age guard:
-  an arXiv-only paper from 2018 is stale metadata, one from this year probably
-  is a preprint (79 of the 221 are 2025–2026).
+    every location is a preprint server. Free, no key, wants a `mailto`. Use
+    `locations` and **not** the top-level `type`, which says `preprint` even
+    there because it describes the record queried. The 181 local hits are the
+    only ones worth asking about, and the answers belong in the same
+    `papis_id`-keyed side cache the doctor glyph needs — build one, not two.
 
 - **Optional columns must earn their width.** Today a fixed column is dropped
   only when it would push the flex column below `MIN_FLEX = 12`, which means

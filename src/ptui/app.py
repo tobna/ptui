@@ -36,6 +36,9 @@ MIN_FLEX = 12
 """Cells the flexible column keeps. Below this a fixed column is dropped instead —
 author plus a stubby title beats a wide title and no idea who wrote it."""
 
+INFO_FIELDS = ("author", "year", "venue", "ref", "doi", "url", "tags", "notes", "reading_status")
+"""Info-pane fields, in order. Each needs a `field.<name>` entry in `ui.GLYPHS`."""
+
 
 class ListTable(DataTable):
     """The document list. Refits its columns whenever its own size changes.
@@ -233,8 +236,14 @@ class PtuiApp(App[None]):
     # ── columns ─────────────────────────────────────────────────────────────
 
     def cell_text(self, doc: Document, column: dict[str, Any]) -> str:
-        """What a column renders for a document, before it is cut to width."""
+        """What a column renders for a document, before it is cut to width.
+
+        A column with `glyph = "type"` renders its value through the `type.*`
+        family instead of printing it, so `inproceedings` becomes one cell.
+        """
         text = papis.format.format(column["format"], library.flatten(doc), default="")
+        if family := column.get("glyph"):
+            return ui.glyph(f"{family}.{text.strip().casefold()}", f"{family}.misc")
         return library.strip_latex(text) if self.cfg.get("list.strip_latex", True) else text
 
     @property
@@ -399,25 +408,27 @@ class PtuiApp(App[None]):
             text = library.display(value)
             return library.strip_latex(text) if strip else text
 
+        # The icon sits left of the right-aligned label, so the icons line up in
+        # their own column instead of drifting with the length of each field name.
         lines = [f"[bold]{show(doc.get('title', '<untitled>'))}[/]", ""]
-        for key in ("author", "year", "ref", "doi", "url", "tags", "reading_status"):
+        for key in INFO_FIELDS:
             if doc.get(key):
-                lines.append(f"[dim]{key:>8}[/]  {show(doc[key])}")
+                lines.append(f"[dim]{ui.glyph(f'field.{key}')} {key:>8}[/]  {show(doc[key])}")
         files = doc.get("files", [])
         if files:
             # The icon belongs to the section, not to every row: repeating it once
             # per entry says nothing, while a missing file is worth shouting about.
-            lines += ["", f"[dim]   files {ui.glyph('file')}[/]"]
+            lines += ["", f"[dim]{ui.glyph('field.files')}    files[/]"]
             for entry in files:
                 ok = place.resolve(doc, entry).exists()
-                mark = " " if ok else f"[red]{ui.glyph('file_missing')}[/]"
+                mark = " " if ok else f"[red]{ui.glyph('warning')}[/]"
                 lines.append(f"  {mark} {entry}")
         pane.update("\n".join(lines))
 
     def refresh_status(self) -> None:
         visible_marks = sum(1 for d in self.rows if library.doc_id(d) in self.marks)
         parts = [
-            f"scope: {self.scope_query or '*'}",
+            f"{ui.glyph('scope')} scope: {self.scope_query or '*'}",
             f"narrow: {self.narrow_query or '-'}",
             f"sort: {self.sort_key} {ui.glyph('sort_desc' if self.sort_reverse else 'sort_asc')}",
             f"{len(self.marks)} marked ({visible_marks} visible) / {len(self.rows)} shown / {len(self.docs)} total",

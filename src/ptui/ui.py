@@ -26,17 +26,42 @@ GLYPHS = {
     #  name             ASCII   nerd font
     "mark": ("*", ""),  # nf-fa-check
     "file": ("·", ""),  # nf-fa-file_text
-    "file_missing": ("!", ""),  # nf-fa-warning
+    "warning": ("!", ""),  # nf-fa-warning — every warning, everywhere
     # Same in both columns on purpose: the nerd long-arrows (U+F175/F176) are
     # no clearer than a plain arrow and fall back badly where they are missing.
     "sort_desc": ("↓", "↓"),
     "sort_asc": ("↑", "↑"),
     "cursor": (">", ""),  # nf-fa-chevron_right
+    "scope": (" ", ""),  # nf-fa-search
+    # Document kinds, keyed by `library.kind` - the `type` field, except that an
+    # arXiv-only article reads as `preprint`. `type.misc` is the fallback for
+    # anything unrecognised, so a library with `incollection` still renders.
+    "type.inproceedings": ("C", ""),  # nf-fa-users
+    "type.preprint": ("P", ""),  # nf-fa-paper_plane - sent out, not landed
+    "type.article": ("A", ""),  # nf-fa-file_text_o
+    "type.book": ("B", ""),  # nf-fa-book
+    "type.thesis": ("T", ""),  # nf-fa-graduation_cap
+    "type.online": ("W", ""),  # nf-fa-globe
+    "type.report": ("R", ""),  # nf-fa-file_text
+    "type.misc": ("?", ""),  # nf-fa-question
+    # Info-pane field labels. The ASCII column is a space: the field name is
+    # written out beside it, so there is nothing for a substitute to say.
+    "field.author": (" ", ""),  # nf-fa-user
+    "field.year": (" ", ""),  # nf-fa-calendar
+    "field.ref": (" ", ""),  # nf-fa-key
+    "field.doi": (" ", ""),  # nf-fa-link
+    "field.url": (" ", ""),  # nf-fa-globe
+    "field.tags": (" ", ""),  # nf-fa-tags
+    "field.venue": (" ", ""),  # nf-fa-university
+    "field.notes": (" ", ""),  # nf-fa-pencil
+    "field.reading_status": (" ", ""),  # nf-fa-bookmark
+    "field.files": (" ", ""),  # nf-fa-file_text
 }
 """Every symbol ptui prints, ASCII first and nerd font second. Never emit one
 directly: a glyph written inline is a glyph that ignores `ui.icons`, and the
 ASCII column is what a bare tty over SSH has. Both columns are one cell wide,
-so column arithmetic does not care which is on.
+so column arithmetic does not care which is on — a slot with no sensible ASCII
+twin uses a space rather than a two-character abbreviation.
 """
 
 # ponytail: one process, one font — a module global beats threading `ui.icons`
@@ -49,8 +74,11 @@ def use_icons(enabled: bool) -> None:
     _ICONS = enabled
 
 
-def glyph(name: str) -> str:
-    return GLYPHS[name][_ICONS]
+def glyph(name: str, fallback: str = "") -> str:
+    """`fallback` is the name of another glyph, for families keyed by data:
+    `glyph(f"type.{doc['type']}", "type.misc")` survives an unexpected type.
+    Without one a missing name raises, which is what a typo deserves."""
+    return GLYPHS[name if name in GLYPHS or not fallback else fallback][_ICONS]
 
 
 @dataclass(frozen=True, slots=True)

@@ -154,9 +154,21 @@ sort key would not redraw them.
 holds the ASCII and nerd-font column for each name; `ui.use_icons()` is called
 once from `PtuiApp.__init__` and sets a module global, so call sites do not
 carry `ui.icons` around. Adding a symbol means adding a row to that table, in
-both columns, one cell wide — but a nerd glyph that is no clearer than the
-ASCII one (the sort arrows) is simply repeated in both columns. Shipped default
-is `icons = true`; `scripts/shot.py --icons` forces it on regardless of config.
+both columns, one cell wide; a slot with no sensible ASCII twin uses a space,
+and a nerd glyph no clearer than the ASCII one (the sort arrows) is simply
+repeated in both columns. `glyph(name, fallback)` takes a second glyph *name*
+for families keyed by data — `glyph(f"type.{kind}", "type.misc")`.
+Shipped default is `icons = true`; `scripts/shot.py --icons` forces it on
+regardless of config, and `scripts/glyphs.py` prints the table plus the
+still-undecided candidates so a real terminal can choose.
+
+A `[[list.columns]]` entry with `glyph = "type"` renders its formatted value
+through the `type.*` family instead of printing it — that is the one-cell
+document-kind column. Its value comes from `{doc[kind]}`, which `library.kind()`
+derives: the `type` field, except that an article whose only DOI is arXiv's and
+which names no journal/booktitle/venue reads as `preprint`. Local data only, so
+a stale entry for a paper that did get published stays flagged; `library.flatten`
+injects `kind` and it wins over any stored key of that name.
 
 In `SelectList` the cursor glyph tracks the **highlighted** row, not the
 `current` value — every picker has a highlight, only some are opened with a

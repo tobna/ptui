@@ -237,6 +237,13 @@ toast that vanishes.
   setting silently stops meaning anything. Both columns are one cell wide, so
   flipping the setting never changes a layout — which is what makes the default
   safe to get wrong: over SSH to a bare tty you get tofu, not a broken list.
+  A slot with no sensible ASCII equivalent — an info-pane field label, whose
+  name is written out beside it — uses a space in the ASCII column.
+- The list carries a one-cell **document kind** column, from `library.kind()`:
+  the `type` field, except that an article whose only DOI is arXiv's and which
+  names no journal, booktitle or venue reads as `preprint`. Local data only: an
+  entry imported from arXiv and never refreshed is indistinguishable from a real
+  preprint, and ptui prefers a wrong glyph to a network call while scrolling.
 - Below `ui.narrow_width`, collapse to a single pane with tab switching.
 - `ui.split_ratio` is the **list pane's** share of whichever axis the split
   currently runs along, and the list keeps the whole window whenever it is the

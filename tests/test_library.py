@@ -83,6 +83,24 @@ def test_display_joins_lists_and_flatten_keeps_author_list_indexable():
     assert flat["author_list"][0]["family"] == "He"
 
 
+def test_kind_calls_an_arxiv_only_article_a_preprint():
+    def k(**fields):
+        return library.kind(docs(fields)[0])
+
+    arxiv = "10.48550/arXiv.2509.26092"
+    assert k(type="article", doi=arxiv) == "preprint"
+    # an arXiv DOI is required, not merely the absence of a publisher one: 25 docs
+    # in the real library have no DOI at all and stay `article` because of this
+    assert k(type="article") == "article"
+    assert k(type="article", doi="10.1109/CVPR.2024.1") == "article"  # a publisher minted it
+    assert k(type="article", doi=arxiv, journal="TPAMI") == "article"
+    assert k(type="article", doi=arxiv, booktitle="NeurIPS") == "article"
+    assert k(type="article", doi=arxiv, venue="ICML") == "article"
+    assert k(type="article", doi=arxiv, journal="  ") == "preprint"  # blank is not a venue
+    assert k(type="inproceedings", doi=arxiv) == "inproceedings"  # only articles can be preprints
+    assert library.flatten(docs({"type": "article", "doi": arxiv})[0])["kind"] == "preprint"
+
+
 def test_p90_ignores_the_one_long_outlier():
     assert library.p90(["x" * 5] * 9 + ["x" * 40]) == 5
     assert library.p90([]) == 0
