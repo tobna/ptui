@@ -4,38 +4,18 @@ Feedback from the first session with a real library (2026-07-28). Ordered
 roughly by how much it hurts. Root causes are noted where they are already
 understood; they were traced in the code, not guessed.
 
-## A. Broken — fix first
-
-1. ~~**`/` narrows far too little.**~~ Done (2026-07-30). `library.parse_query`
-   splits the query into whitespace-separated terms and `match_doc` ANDs them, so
-   typing more always narrows. `nauen` went from **702 of 754** to **18**;
-   `coreset` from 496 to 25. Substring is the shipped `narrow_mode`; fuzzy is
-   opt-in and now requires the matched run to stay within `FUZZY_SPAN` times the
-   needle, which is what killed the old whole-query subsequence test. Grammar:
-   bare terms, `-negation`, `"quoted phrases"`, `field:value` through the same
-   `[query.aliases]` the scope prompt uses, and `year:>2023` / `year:2020..2024`
-   ranges. 2 ms per keystroke over the whole library.
-   Deliberately **not** ranked: with terms ANDed the result set is already small,
-   and re-ordering would override the sort the user picked, which SPEC keeps
-   independent of narrowing.
-
-2. ~~**The filter box in every picker does nothing.**~~ Done, by the same change:
-   `ui.Item.matches` now calls `library.match_text` with `library.parse_query`,
-   so `f o`, `S`, `g l`, `?` and `/` share one matcher. `note` no longer matches
-   `Locality-Attending Vision Transformer.pdf`; there is a test for exactly that.
-
 ## B. Bound but not implemented (they log "not implemented yet")
 
 - `:` `cmdline.open` — pressing it does nothing. This is the layer that teaches
   the keymap (fuzzy completion over command names with the bound key beside
   each), so it matters more than the rest of this list.
-  Only once ours works: `ctrl+p` currently opens *Textual's* built-in command
+  Only once ours works: `ctrl+p` currently opens _Textual's_ built-in command
   palette (a system binding that runs before `App.on_key`), whose "show keys and
   help panel" item opens an unstyled side pane with no obvious way out. Turn it
   off with `ENABLE_COMMAND_PALETTE = False` when ours replaces it — not before.
 - `e` `doc.edit` — see C1; `E` (`doc.edit_raw`) works.
 - `c t` / `c T` / `c s` / `c r` / `c f` — `doc.tag`, `doc.untag`, `doc.status`,
-  `doc.rating`, `doc.set`. None of the `c` namespace exists yet.
+  `doc.rating`, `doc.set`. None of the `c` namespace exists yet. ct and cT should probably be one operation to just edit the tags...
 - `d d` `doc.delete` — and therefore `u` `app.undo` cannot be tested at all.
 - ~~`g d` / `\ d` `view.doctor`, `doctor.run`, `doctor.fix`.~~ Done
   (2026-07-30), in `doctor.py`. `\ d` reports into the log, `g d` browses
@@ -52,6 +32,53 @@ understood; they were traced in the code, not guessed.
   (`files.rename`, `files.repoint`, `files.detach`, `files.reorder`) — there is
   no files pane yet.
 
+## B2. Doctor is shipped broken — fix before trusting it
+
+Reported from real use (2026-07-30): `papis doctor --all` reports nothing on this
+library, but `g d` / repeated `f d` show findings. All of the following are ptui
+bugs, not papis ones.
+
+1. **Findings appear on the second run and every run after.** Reproduced: run
+   `doctor.findings(doc)` four times on the same untouched document — run 1 gives
+   0, runs 2+ give 2 × `duplicated-keys`. Nothing in the document changes.
+   Cause: `duplicated_keys_check` accumulates into a module-level
+   `DUPLICATED_KEYS_SEEN`, so the second look at the same document sees its own
+   values from the first. `duplicated-values` is built the same way.
+   These are **library-wide** checks — they only mean anything run once across a
+   whole query — and ptui runs every registered check per document, repeatedly.
+   Fix: split the checks into per-document and whole-library sets. Per-document
+   ones run on `g d` / `f d`; the library-wide ones belong in a separate pass
+   that runs once over the scoped set and resets papis's global state first.
+   `[doctor] checks = []` meaning "all" is what dragged them in.
+
+2. **The "0 findings over 754 documents" measurement is therefore worthless.**
+   It was taken with one pass over each document, which is the one case where
+   these checks behave. Re-measure per-check after (1), and separately for the
+   library-wide ones.
+
+3. **Findings are shown in a `SelectList`, which is the wrong shape.** A picker
+   says "choose one of these", but findings are a _report_ — you want to see all
+   of them at once, for one document or for the whole library, and then act.
+   SPEC calls `view.doctor` a "findings view" and a picker is not a view.
+   Making the reader dismiss a modal to see the next finding is backwards.
+
+   Why it ended up this way, so the same mistake is not repeated: `SelectList`
+   was the only list widget available and `enter`-to-fix was wanted, so the
+   interaction was built around the widget that existed rather than around what
+   findings are. That is the actual bug — the picker is a symptom.
+
+   What it should become: findings go to the **log pane**, which already exists
+   and is already where `doctor.run` writes, or to a dedicated findings pane if
+   that turns out too cramped. Fixing becomes an **explicit verb on a selected
+   finding**, not the side effect of confirming a chooser. `doctor.fix` stops
+   being reachable only by pressing `enter` in a modal.
+
+4. **Consequence of (1) for `doctor.fix`.** `\ D` and `f f` fix "every fixable
+   finding", computed from the same repeated-run list. A duplicated-keys finding
+   has no `fix_action`, so nothing was written — but the count reported to the
+   user is wrong, and any check with the same statefulness that _does_ have a fix
+   would write on a phantom finding. Do not trust `doctor.fix` until (1) is done.
+
 ## C. Decisions that change the defaults (and so SPEC)
 
 1. **`edit.mode = "editor"` becomes the default**, i.e. `e` and `E` both open
@@ -61,35 +88,11 @@ understood; they were traced in the code, not guessed.
 2. ~~**`venue` belongs in the info pane** field list.~~ Done — the list is
    `app.INFO_FIELDS`, which also gained `notes`. Every entry needs a matching
    `field.<name>` glyph.
-3. ~~**`ui.layout` gains `"auto"`, and it becomes the default.**~~ Done
-   (2026-07-30). Two states, one threshold, and the threshold is a *column*
-   target rather than a terminal width: `auto` goes side by side only while the
-   flexible column would still reach `list.flex_target` (45) in the narrower
-   pane, so adding a column moves the threshold on its own. On the shipped
-   columns that is ~160 cells. Measured, why 45: titles here are 66 cells at the
-   median, and side by side does not give the title column 66 until the terminal
-   is ~198 wide, while stacked reaches it at ~118.
-   `ui.narrow_width` and its single-pane collapse are **dropped** — the list pane
-   can never be hidden, so the third state added a threshold without adding a
-   capability, and `z i` already hides the info pane. `z z` clears
-   `app.layout_auto` for the session.
 
-3. ~~**`[ui] icons` must actually mean something.**~~ Done: `ui.GLYPHS` is the
-   one table (ASCII + nerd font), reached through `ui.glyph()`; mark, file
-   present/missing, sort direction and the picker cursor all go through it.
-   `scripts/shot.py --icons` shows either mode. Still hardcoded and *not* in the
-   table: pane borders, which are Textual CSS (`border: round`) and not a font
-   question. Open: the nerd column was chosen from the Font Awesome range
-   without being seen in a real terminal — swap any glyph that reads badly.
-   **The shipped default is now `true`** (2026-07-30), against the original SSH
-   argument: the terminal with a patched font is the common case, both columns
-   are one cell wide so a wrong guess costs tofu and not a broken layout, and
-   `icons = false` is one line of config. SPEC updated in the same commit.
-
-4. **`ui.icons = "auto"` — low priority.** Detect at startup whether the
+3. **`ui.icons = "auto"` — low priority.** Detect at startup whether the
    terminal can actually render the nerd-font column, and fall back to ASCII
    instead of drawing tofu. Only worth doing if the detection is honest:
-   - There is no way to *ask* a terminal what its font contains. The one real
+   - There is no way to _ask_ a terminal what its font contains. The one real
      probe is to print a glyph, query the cursor position (CPR, `ESC[6n`), and
      see whether it advanced 1 cell or 2 — that catches double-width fallback,
      but a missing glyph rendered as a 1-cell box passes the test.
@@ -97,24 +100,15 @@ understood; they were traced in the code, not guessed.
      `cli.py` ahead of `PtuiApp`, not in the app.
    - Everything cheaper is a guess at the environment (`$TERM_PROGRAM`,
      `$TERM`, the SSH variables) and will be wrong for someone.
-   So: three values (`true` / `false` / `"auto"`), `auto` runs the CPR probe and
-   loses to ASCII on any doubt, and `config.get("ui.icons")` stops being a bool
-   — `ui.use_icons()` is the only caller, so that stays a one-line change.
+     So: three values (`true` / `false` / `"auto"`), `auto` runs the CPR probe and
+     loses to ASCII on any doubt, and `config.get("ui.icons")` stops being a bool
+     — `ui.use_icons()` is the only caller, so that stays a one-line change.
 
 ## D. Display polish
 
-- ~~`tags` renders as a Python list~~ — done: `library.display` joins lists and
-  `library.flatten` runs before every column format.
-- ~~Size fixed columns to the p90 of the current selection~~ — done:
-  `PtuiApp.natural_width`. `Author` went 18 → 9 cells on the real library.
-- ~~Cut titles at a word boundary~~ — done: `library.fit` backs off to the last
-  colon, else the last space, unless that wastes over 40% of the budget.
-- ~~Sort direction in the column header~~ — done: `PtuiApp.header` shows `Year ↓`
-  on whichever column's `format` matches the sort key, and nothing when the key
-  is not a column (`time-added`). The status bar keeps the key name, which is
-  the only indicator in that case.
-
-- **Warning glyph on documents with doctor findings**, as the first "letter" of
+- **Warning glyph on documents with doctor findings** — **blocked on § B2**, a
+  glyph driven by findings that appear on a second look would be worse than none.
+  As the first "letter" of
   the title cell, so a broken document is visible without running anything.
   Verified against the installed papis (0.15):
   - The read-only entry point is `doctor.REGISTERED_CHECKS[name].operate(doc)`,
@@ -132,9 +126,9 @@ understood; they were traced in the code, not guessed.
     synthetic doc is not a valid test of it.
   - Which checks run should be configurable (`[doctor] checks`), because
     `keys-missing` on a personal library is opinionated.
-  This shares the exception-marker cell with the missing-file and multi-file
-  ideas below — decide the whole cell at once, not one flag at a time.
-  Needs `view.doctor` / `doctor.run` from § B to be worth much.
+    This shares the exception-marker cell with the missing-file and multi-file
+    ideas below — decide the whole cell at once, not one flag at a time.
+    Needs `view.doctor` / `doctor.run` from § B to be worth much.
 
 - ~~**`list.row_height` (lines per document), default 1.**~~ Done (2026-07-30).
   At 2 the **flexible column wraps** and every other column stays on line 1, so
@@ -147,31 +141,13 @@ understood; they were traced in the code, not guessed.
   now gives the title 66+ cells on most terminals, which was the original
   argument for wrapping. `scripts/shot.py --rows 2` shows it.
 
-- ~~**Optional columns must earn their width.**~~ Done (2026-07-30).
-  `fit_columns` allocates in two passes: required columns first, kept above
-  `MIN_FLEX`, then `optional = true` columns, kept above `list.flex_target`
-  (45) — the same knob the `auto` layout uses. `Tags` is the one optional column
-  today. Forced side by side at 110 cells it used to survive on a 14-cell
-  `Title`; now it is dropped and `Title` gets 36. On the shipped columns `Tags`
-  reappears around 180 cells side by side, or 100 stacked.
-  Deliberately no priority number: with one optional column, config order is
-  the ordering, and a second one can have it if it ever needs a different rank.
-  Found while measuring this: the layout decision ran in `on_mount` *before*
-  `actions.reload`, so column widths came from an empty list and every column
-  looked ~3 cells narrower than reality, flipping the layout wrongly on a
-  borderline width. It now re-decides after the load and again from
-  `ListTable.on_resize`, where the scrollbar and widget widths are real. Also
-  fixed a crash that only appeared at the flip width: a `RowHighlighted` queued
-  by the column rebuild is delivered after teardown, and `refresh_info` raised
-  `NoMatches` on the way out.
-
 - **Column set — the last open layout decision.** The rules it was waiting on
   have landed, and they took most of the problem with them: `Tags` renders
   joined (not a Python list), is `optional = true` so it never squeezes `Title`,
   and the `auto` layout keeps the list pane wide enough that it usually fits.
   Measured on the shipped columns, `Tags` now appears at ~100 cells stacked and
   ~180 side by side, and is dropped in between.
-  What is still undecided is only whether a 20-cell column of *joined tag names*
+  What is still undecided is only whether a 20-cell column of _joined tag names_
   is the best use of that width. Alternatives already mocked up against the real
   library, and still open: 2-3 char codes derived from the tag vocabulary (23
   distinct tags, so they are learnable), one curated glyph per tag, or dropping
@@ -180,26 +156,11 @@ understood; they were traced in the code, not guessed.
 
 ## D2. Data model — wrong assumptions to correct
 
-1. ~~**`venue` is not a place.**~~ Done (2026-07-30). `library.venue()` returns
-   the first non-empty of `booktitle`, `journal`, `journaltitle`; the `venue` key
-   is never read for it, because measured values are `New Orleans, Louisiana,
-   USA`, `Sydney, Australia`, `Vancouver, BC, Canada`. `kind()` uses the helper,
-   and `flatten()` injects the name under `venue` so every display path gets it.
-   Measured effect on the real library:
-   - documents showing a venue **name**: 237 -> **524**. The old code read the
-     raw key, so a third of what it displayed was a city and most published
-     documents showed nothing at all.
-   - `kind()` moved **10** documents from `preprint` to `article` — all of them
-     genuinely published (`ICML 2024`, `JMLR`, `ICLR 2019`, `TMLR`) and only
-     recorded in `journaltitle`, which the old three-key check never consulted.
-   - no document in this library has a city as its *only* venue-ish field, so
-     nothing moved the other way. The guard is for correctness, not a fix.
-
-2. ~~**Merge mode, over the marked documents.**~~ Done (2026-07-30), `m m`,
+1. ~~**Merge mode, over the marked documents.**~~ Done (2026-07-30), `m m`,
    in `merge.py` plus `actions.doc_merge`. The `ref` you keep is the document you
    keep — one question settles the survivor, its folder and its `papis_id`. Gaps
    are filled silently, real clashes get a picker each, and every picker offers
-   *keep everything else from this document* to end the questions. `files` is
+   _keep everything else from this document_ to end the questions. `files` is
    unioned and routed through `place()`; `time-added` becomes the earliest of the
    group; the folded-in folders go to `undo.trash_dir`.
    Learned while building it, all now commented in the code:
@@ -212,29 +173,21 @@ understood; they were traced in the code, not guessed.
      it did, this test quietly filled the real `~/.local/share/ptui/trash`.
    - **Measured: 0 duplicates in the real library** by title, DOI, eprint or ref,
      so this is exercised by fixtures rather than by real data.
-   Still open: nothing finds duplicates for you. papis's `duplicated-keys` /
-   `duplicated-values` doctor checks and a title-similarity pass are the
-   candidates, and both want measuring before being trusted.
+     Still open: nothing finds duplicates for you. papis's `duplicated-keys` /
+     `duplicated-values` doctor checks and a title-similarity pass are the
+     candidates, and both want measuring before being trusted.
+
+2. **`preprint` misses arXiv entries that have no DOI at all.** `library.kind()`
+   only asks whether `doi` starts with `10.48550/arxiv`, so an arXiv import that
+   never recorded a DOI reads as `article`. Widen it: arXiv DOI, **or** — only
+   when the document has no `doi` — an arxiv.org `url` (`eprint` too, if it is
+   as common). A non-arXiv DOI still means published, so the URL fallback must
+   never override a real DOI. Measure both counts against the real library
+   before changing the default.
 
 ## E. New features asked for
 
-1. ~~**More add sources.**~~ Done (2026-07-30), and generically: `a` lists every
-   source instead of prompting for a path, and the importer rows come from
-   `papis.importer.get_available_importers()`, so this covers **13 importers and
-   23 publisher downloaders** rather than the three the entry asked for — arXiv,
-   DOI, ISBN, PubMed, DBLP, Zenodo, Crossref, `.bib`, `.yaml`, an existing papis
-   folder, another library, and DOI/arXiv id read out of a PDF. `i` still goes
-   straight to the inbox. `[add] fetch_metadata` / `confirm_metadata` now mean
-   something: the form opens prefilled and the unshown keys ride along.
-   arXiv adds attach the PDF automatically, because importers download it
-   themselves; a `.bib` attaches nothing, per the original note.
-   Still open here:
-   - **bulk `.bib` import.** A multi-entry `.bib` currently asks which single
-     entry to add. Importing all of them wants a confirm-once-then-batch flow,
-     which is a different shape from the one-document form.
-   - the fetch is a thread worker with no visible spinner — just a log line.
-
-2. **"Add to"** — attach a file to an *existing* document (`files.attach`,
+1. **"Add to"** — attach a file to an _existing_ document (`files.attach`,
    already in the registry and bound to `f a`), routed through `place()`.
 
 ## F. Packaging

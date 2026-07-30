@@ -146,7 +146,11 @@ The clusters: the `:` command line (`cmdline.open`), the whole `c` namespace
 `theme.picker`, visual mode (`v`/`V`), and the files pane with its
 `[modes.files]` verbs. Also read but ignored: `general.persist_state`.
 
-Known-bad right now: Textual's own command palette steals `ctrl+p` and its
+Known-bad right now: **doctor is shipped broken** — `duplicated-keys` and
+`duplicated-values` keep module-level state in papis, so a second look at the
+same document invents findings, and ptui runs every registered check per
+document. See `TODO.md` § B2 before touching or trusting anything doctor-shaped.
+Also: Textual's own command palette steals `ctrl+p` and its
 "show keys and help panel" item opens an unstyled pane with no obvious exit.
 Turn it off with `ENABLE_COMMAND_PALETTE = False` **only once `cmdline.open`
 replaces it** — not before.
