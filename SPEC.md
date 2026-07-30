@@ -275,7 +275,10 @@ toast that vanishes.
   actually holds over the narrowed set, so an 18-cell `Author` shrinks to the 9
   cells real surnames need. One `width = 0` column absorbs the remainder, and a
   fixed column that would starve it is dropped until the terminal is wide
-  enough again.
+  enough again. A column marked `optional = true` is allocated only after every
+  required column, and only while the flex column keeps `list.flex_target` cells
+  — `Tags` surviving on a 14-cell `Title` is the wrong trade, because the
+  required columns are the ones that identify a document.
 - The sort direction shows in the header of the column the list is sorted by
   (`Year ↓`). A sort key that no column displays changes no header — the status
   bar names the key, and that is the only indicator in that case.

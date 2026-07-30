@@ -136,7 +136,9 @@ each fixed column asks for `PtuiApp.natural_width()` — `library.p90` of what i
 renders over `app.rows` (the whole narrowed set, or the column jitters while
 scrolling), floored at its header. The `width = 0` column absorbs the rest, and
 a fixed column that would squeeze it below `MIN_FLEX` is dropped instead of
-scrolling sideways. Cells come from `PtuiApp.cell_text()` — the one place a
+scrolling sideways. `fit_columns` allocates in two passes — required columns
+first against `MIN_FLEX`, then `optional = true` ones against the larger
+`list.flex_target` — so an optional column can never outbid a required one. Cells come from `PtuiApp.cell_text()` — the one place a
 column is rendered, used by both the sizing pass and the row build — and are
 cut with `library.fit` (rich `cell_len`/`set_cell_size`, so CJK counts double;
 backs off to the last colon or space rather than cutting mid-word). The refit

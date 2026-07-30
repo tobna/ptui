@@ -125,6 +125,24 @@ async def test_columns_fit_the_pane_and_drop_when_they_cannot(app):
         assert app._fit[-1][1] >= 12  # the flex column keeps at least MIN_FLEX
 
 
+async def test_an_optional_column_yields_to_the_flex_target(app):
+    app.layout_auto = False  # forcing side by side is how the squeeze happens
+    app.side_by_side = True
+    target = app.cfg.get("list.flex_target")
+    async with app.run_test(size=(110, 24)) as pilot:
+        await settle(pilot)
+        widths = {column["title"]: width for column, width in app._fit}
+        assert "Tags" not in widths  # optional, and the title would have been starved
+        assert widths["Title"] < target  # it did not even reach the target itself
+        assert "Author" in widths  # a required column is never given up for it
+
+        await pilot.resize_terminal(220, 24)
+        await settle(pilot)
+        widths = {column["title"]: width for column, width in app._fit}
+        assert "Tags" in widths  # earned its width now
+        assert widths["Title"] >= target
+
+
 async def test_sort_direction_shows_in_the_header_of_the_sorted_column(app):
     from textual.widgets import DataTable
 

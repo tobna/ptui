@@ -49,6 +49,7 @@ class ListTable(DataTable):
 
     def on_resize(self, _: events.Resize) -> None:
         self.app.refresh_rows()  # type: ignore[attr-defined]
+        self.app.relayout()  # type: ignore[attr-defined]  # now the widths are real
 
 
 class PtuiApp(App[None]):
@@ -121,13 +122,24 @@ class PtuiApp(App[None]):
         yield Input(id="prompt")
 
     def on_mount(self) -> None:
-        self.choose_layout()
         self.apply_split()
         self._setup_logging()
         for problem in self.km.unknown_commands:
             self.log_line(f"[yellow]keys.toml:[/] {problem}")
         actions.reload(self)
+        # After the library is loaded, not before: column widths come from the
+        # p90 of real values, and an empty list makes every column look narrower
+        # than it is — which decided the layout wrongly on a borderline width.
+        self.relayout()
         self.focus_pane("list")
+
+    def relayout(self) -> None:
+        """Re-decide the `auto` layout and apply it only if it changed. Applying
+        unconditionally would resize, be told about the resize, and resize again."""
+        was = self.side_by_side
+        self.choose_layout()
+        if was != self.side_by_side:
+            self.apply_split()
 
     def _setup_logging(self) -> None:
         logger.remove()
@@ -223,10 +235,9 @@ class PtuiApp(App[None]):
     def on_resize(self, event: events.Resize) -> None:
         """Re-decide the `auto` layout, from the *event's* width: `App.size` still
         holds the old one here, which is the same "fires before layout" problem
-        that put the column refit on `ListTable.on_resize` instead.
-
-        Only a changed decision re-applies, or `apply_split` would resize, be
-        told about it, and resize again.
+        that put the column refit on `ListTable.on_resize` instead. That handler
+        calls `relayout()` afterwards, once the scrollbar and widget widths are
+        real, which is what settles a borderline width.
         """
         was = self.side_by_side
         self.choose_layout(event.size.width)
@@ -325,6 +336,11 @@ class PtuiApp(App[None]):
         is how `Tags` disappears on a narrow terminal and comes back on a wide
         one, rather than the list scrolling sideways.
 
+        A column marked `optional = true` is allocated only after every required
+        one, and only while the flex column stays at `list.flex_target`. Without
+        that, `Tags` could survive on a 20-cell `Title` — the wrong trade, since
+        the required columns are the ones that identify a document.
+
         `pane_width` asks the hypothetical question the `auto` layout needs —
         "what would the flex column get in a pane this wide?" — without
         resizing anything.
@@ -336,15 +352,20 @@ class PtuiApp(App[None]):
         room = width - 2 - table.scrollbar_size_vertical  # border, scrollbar
         flex = next((i for i, column in enumerate(spec) if not column["width"]), None)
         widths: dict[int, int] = {}
-        for index, column in enumerate(spec):
-            if index == flex:
-                continue
-            want = self.natural_width(index, column)
-            floor = MIN_FLEX + pad if flex is not None else 0
-            if room - want - pad < floor:
-                continue
-            room -= want + pad
-            widths[index] = want
+        # Required columns first, so an optional one can never outbid them. Each
+        # pass keeps the flex column above its own floor: bare survival for the
+        # required ones, comfort for the optional ones.
+        for optional in (False, True):
+            reserve = self.cfg.get("list.flex_target", 45) if optional else MIN_FLEX
+            floor = reserve + pad if flex is not None else 0
+            for index, column in enumerate(spec):
+                if index == flex or bool(column.get("optional")) is not optional:
+                    continue
+                want = self.natural_width(index, column)
+                if room - want - pad < floor:
+                    continue
+                room -= want + pad
+                widths[index] = want
         if flex is not None:
             widths[flex] = max(MIN_FLEX, room - pad)
         return [(spec[index], widths[index]) for index in sorted(widths)]
@@ -550,4 +571,8 @@ class PtuiApp(App[None]):
             actions.prompt_result(self, kind, value)
 
     def on_data_table_row_highlighted(self, _: Any) -> None:
-        self.refresh_info()
+        # A highlight queued before teardown still gets delivered after the
+        # widgets are gone, and `refresh_info` would raise NoMatches on the way
+        # out. Rebuilding the columns during a layout flip is what queues it.
+        if self.query(DataTable):
+            self.refresh_info()

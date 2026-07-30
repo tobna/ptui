@@ -82,6 +82,7 @@ width = 0
 title = "Tags"
 format = "{doc[tags]}"
 width = 20
+optional = true               # only once the flex column has its flex_target
 
 [query]
 narrow_mode = "substring"     # substring | fuzzy | regex; terms are ANDed either way

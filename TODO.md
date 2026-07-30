@@ -167,13 +167,23 @@ understood; they were traced in the code, not guessed.
     only ones worth asking about, and the answers belong in the same
     `papis_id`-keyed side cache the doctor glyph needs — build one, not two.
 
-- **Optional columns must earn their width.** Today a fixed column is dropped
-  only when it would push the flex column below `MIN_FLEX = 12`, which means
-  `Tags` can survive while `Title` is squeezed to 12 cells — the wrong trade.
-  Give the flex column a *target* width (~45) that optional columns are
-  allocated after, so `Tags` appears only once the title is comfortable. A
-  per-column `optional = true` (or a priority) in `[[list.columns]]` is
-  probably the shape.
+- ~~**Optional columns must earn their width.**~~ Done (2026-07-30).
+  `fit_columns` allocates in two passes: required columns first, kept above
+  `MIN_FLEX`, then `optional = true` columns, kept above `list.flex_target`
+  (45) — the same knob the `auto` layout uses. `Tags` is the one optional column
+  today. Forced side by side at 110 cells it used to survive on a 14-cell
+  `Title`; now it is dropped and `Title` gets 36. On the shipped columns `Tags`
+  reappears around 180 cells side by side, or 100 stacked.
+  Deliberately no priority number: with one optional column, config order is
+  the ordering, and a second one can have it if it ever needs a different rank.
+  Found while measuring this: the layout decision ran in `on_mount` *before*
+  `actions.reload`, so column widths came from an empty list and every column
+  looked ~3 cells narrower than reality, flipping the layout wrongly on a
+  borderline width. It now re-decides after the load and again from
+  `ListTable.on_resize`, where the scrollbar and widget widths are real. Also
+  fixed a crash that only appeared at the flip width: a `RowHighlighted` queued
+  by the column rebuild is delivered after teardown, and `refresh_info` raised
+  `NoMatches` on the way out.
 
 - Column set: `Tags` renders as a Python list and only survives on a wide
   terminal. Decide what earns the space once the rules above land.
