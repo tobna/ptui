@@ -13,6 +13,7 @@ from typing import Any
 import papis.format
 from loguru import logger
 from papis.document import Document
+from rich.cells import cell_len
 from rich.text import Text
 from textual import events, work
 from textual.app import App, ComposeResult
@@ -89,6 +90,7 @@ class PtuiApp(App[None]):
         self.side_by_side = cfg.get("ui.layout", "vertical") == "vertical"
         self.split = cfg.get("ui.split_ratio", 0.6)
         self._fit: list[tuple[dict[str, Any], int]] = []
+        self._fit_state: tuple[list[tuple[dict[str, Any], int]], list[str]] | None = None
         self._which_timer: Any = None
 
     # ── setup ───────────────────────────────────────────────────────────────
@@ -235,6 +237,20 @@ class PtuiApp(App[None]):
         text = papis.format.format(column["format"], library.flatten(doc), default="")
         return library.strip_latex(text) if self.cfg.get("list.strip_latex", True) else text
 
+    @property
+    def sort_format(self) -> str:
+        """The sort key written the way a column writes it:
+        `author_list.0.family` -> `{doc[author_list][0][family]}`. That makes
+        "is the list sorted by this column?" a string comparison, and a sort key
+        no column shows (`time-added`) simply matches nothing."""
+        return "{doc[" + "][".join(self.sort_key.split(".")) + "]}"
+
+    def header(self, column: dict[str, Any]) -> str:
+        """`Year ↓` when the list is sorted on that column's own field."""
+        if column["format"].strip() != self.sort_format:
+            return column["title"]
+        return f"{column['title']} {ui.glyph('sort_desc' if self.sort_reverse else 'sort_asc')}"
+
     def natural_width(self, index: int, column: dict[str, Any]) -> int:
         """What a fixed column asks for: its p90 over the whole narrowed set,
         capped by the configured width and never narrower than its header.
@@ -245,7 +261,7 @@ class PtuiApp(App[None]):
         wanted = library.p90([self.cell_text(doc, column) for doc in self.rows])
         if index == 0:
             wanted += 2  # the mark glyph and its space
-        return min(column["width"], max(wanted, len(column["title"])))
+        return min(column["width"], max(wanted, cell_len(self.header(column))))
 
     def fit_columns(self) -> list[tuple[dict[str, Any], int]]:
         """The columns that fit the pane, with the width each one gets.
@@ -276,15 +292,18 @@ class PtuiApp(App[None]):
         return [(spec[index], widths[index]) for index in sorted(widths)]
 
     def sync_columns(self) -> None:
-        """Rebuild the table's columns when the fit changed — resize, or `z z`."""
+        """Rebuild the table's columns when the fit or the headers changed — a
+        resize, `z z`, or a new sort key that moves the direction arrow."""
         fit = self.fit_columns()
-        if fit == self._fit:
+        headers = [self.header(column) for column, _ in fit]
+        if (fit, headers) == self._fit_state:
             return
+        self._fit_state = (fit, headers)
         self._fit = fit
         table = self.query_one(DataTable)
         table.clear(columns=True)
-        for column, width in fit:
-            table.add_column(column["title"], width=width)
+        for header, (_, width) in zip(headers, fit, strict=True):
+            table.add_column(header, width=width)
 
     def focus_pane(self, pane: str) -> None:
         if pane not in PANES:

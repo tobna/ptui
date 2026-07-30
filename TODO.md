@@ -91,6 +91,31 @@ understood; they were traced in the code, not guessed.
   `PtuiApp.natural_width`. `Author` went 18 → 9 cells on the real library.
 - ~~Cut titles at a word boundary~~ — done: `library.fit` backs off to the last
   colon, else the last space, unless that wastes over 40% of the budget.
+- ~~Sort direction in the column header~~ — done: `PtuiApp.header` shows `Year ↓`
+  on whichever column's `format` matches the sort key, and nothing when the key
+  is not a column (`time-added`). The status bar keeps the key name, which is
+  the only indicator in that case.
+
+- **Warning glyph on documents with doctor findings**, as the first "letter" of
+  the title cell, so a broken document is visible without running anything.
+  Verified against the installed papis (0.15):
+  - The read-only entry point is `doctor.REGISTERED_CHECKS[name].operate(doc)`,
+    which yields errors. **Not `doctor.run()`** — that defaults to `fix=True`
+    and mutates the document, which would drive straight through golden rule 4.
+  - 14 registered checks. All of them over the real library take **~1.7 s for
+    754 documents**, so this cannot run inside `refresh_rows`. It needs a
+    background pass that caches findings by `papis_id` and is invalidated by
+    `safewrite` and by `place()`.
+  - Measured on the real library: **0 findings** over the first 200 docs with
+    all 14 checks. The marker is blank on essentially every row today, which is
+    the right shape for an exception marker — it costs nothing until it matters.
+  - `files_check` returns nothing for a document with no main folder, so a
+    synthetic doc is not a valid test of it.
+  - Which checks run should be configurable (`[doctor] checks`), because
+    `keys-missing` on a personal library is opinionated.
+  This shares the exception-marker cell with the missing-file and multi-file
+  ideas below — decide the whole cell at once, not one flag at a time.
+  Needs `view.doctor` / `doctor.run` from § B to be worth much.
 
 - **`list.row_height` (lines per document), default 1.** At 2, the title wraps
   over both lines and tags get room — worth it because titles are 66 cells at

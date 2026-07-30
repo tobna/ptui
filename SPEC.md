@@ -247,6 +247,9 @@ toast that vanishes.
   cells real surnames need. One `width = 0` column absorbs the remainder, and a
   fixed column that would starve it is dropped until the terminal is wide
   enough again.
+- The sort direction shows in the header of the column the list is sorted by
+  (`Year ↓`). A sort key that no column displays changes no header — the status
+  bar names the key, and that is the only indicator in that case.
 - Truncate by terminal cells, not characters: CJK and combining marks. Cut at a
   word boundary — the last colon in the budget, else the last space — never
   mid-word, unless the boundary would waste most of the width.

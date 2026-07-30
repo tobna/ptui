@@ -142,6 +142,13 @@ backs off to the last colon or space rather than cutting mid-word). The refit
 hangs off `ListTable.on_resize` — the app-level resize event fires before
 layout, when widget sizes are still stale.
 
+`PtuiApp.header()` puts the sort arrow on the sorted column. It matches by
+rewriting the sort key into a column's format string (`PtuiApp.sort_format`:
+`author_list.0.family` -> `{doc[author_list][0][family]}`), so a key no column
+shows — `time-added`, the shipped default — simply matches nothing and no
+header changes. `sync_columns` caches the headers alongside the fit, or a new
+sort key would not redraw them.
+
 `ui.glyph("mark")` is the only way a symbol reaches the screen. `ui.GLYPHS`
 holds the ASCII and nerd-font column for each name; `ui.use_icons()` is called
 once from `PtuiApp.__init__` and sets a module global, so call sites do not

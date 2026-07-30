@@ -97,6 +97,27 @@ async def test_columns_fit_the_pane_and_drop_when_they_cannot(app):
         assert app._fit[-1][1] >= 12  # the flex column keeps at least MIN_FLEX
 
 
+async def test_sort_direction_shows_in_the_header_of_the_sorted_column(app):
+    from textual.widgets import DataTable
+
+    from ptui import ui
+
+    async with app.run_test(size=(160, 24)) as pilot:
+        await settle(pilot)
+        headers = lambda: [str(c.label) for c in app.query_one(DataTable).columns.values()]  # noqa: E731
+        # the default sort is time-added, which no column shows
+        assert not any(ui.glyph("sort_desc") in h for h in headers())
+
+        await press(pilot, "S", "y", "e", "a", "r", "enter")  # sort by Year, descending
+        await settle(pilot)
+        assert f"Year {ui.glyph('sort_desc')}" in headers()
+
+        await press(pilot, "S", "t", "i", "t", "l", "e", "enter")  # Title, ascending
+        await settle(pilot)
+        assert f"Title {ui.glyph('sort_asc')}" in headers()
+        assert not any(h.startswith("Year ") for h in headers())  # the arrow moved
+
+
 async def test_help_opens_in_every_mode_and_lists_effective_bindings(app):
     from ptui import ui
 
