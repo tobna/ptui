@@ -175,6 +175,19 @@ In `SelectList` the cursor glyph tracks the **highlighted** row, not the
 current value, and that one is marked bold instead. `on_option_list_option_
 highlighted` rewrites the two prompts that changed rather than the whole list.
 
+`library.parse_query()` is the whole narrow grammar: whitespace-separated
+terms, ANDed by `match_doc`, so typing more always narrows. A term may be bare,
+`-negated`, `"quoted"`, `field:value` (dotted paths work — `resolve` handles
+them) or a numeric range (`year:>2023`, `year:2020..2024`). Aliases come from
+`[query.aliases]`, the same table the scope prompt uses, and are expanded inside
+`parse_query` — do not expand them again at the call site. `shlex` does the
+quoting and raises on the half-typed quote you always have, so an unterminated
+query is retried closed. `match_text` is the same matcher over one blob, which is
+what `ui.Item.matches` uses: **one matcher for `/` and every picker filter**.
+Fuzzy is opt-in and requires the matched run to fit `FUZZY_SPAN` times the
+needle; plain subsequence matching was the A1/A2 bug and must not come back.
+Narrowing filters and never reorders — the sort is the user's.
+
 `library.display()` is the only way a stored value becomes text: it joins
 lists, so `tags` never renders as `['x']`. Column formats go through
 `library.flatten()`, which joins *scalar* lists in the document before handing

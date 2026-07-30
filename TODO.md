@@ -6,22 +6,23 @@ understood; they were traced in the code, not guessed.
 
 ## A. Broken — fix first
 
-1. **`/` narrows far too little.** `Nauen` returns obviously unrelated entries —
-   measured on the real library: **695 of 747 documents still shown**. Cause:
-   fuzzy narrowing is a subsequence test over *all* narrow fields joined into
-   one string, so scattered letters match. Fix: make `substring` the default
-   `query.narrow_mode`, and make fuzzy match per field with contiguity
-   preferred (rank, don't just filter).
+1. ~~**`/` narrows far too little.**~~ Done (2026-07-30). `library.parse_query`
+   splits the query into whitespace-separated terms and `match_doc` ANDs them, so
+   typing more always narrows. `nauen` went from **702 of 754** to **18**;
+   `coreset` from 496 to 25. Substring is the shipped `narrow_mode`; fuzzy is
+   opt-in and now requires the matched run to stay within `FUZZY_SPAN` times the
+   needle, which is what killed the old whole-query subsequence test. Grammar:
+   bare terms, `-negation`, `"quoted phrases"`, `field:value` through the same
+   `[query.aliases]` the scope prompt uses, and `year:>2023` / `year:2020..2024`
+   ranges. 2 ms per keystroke over the whole library.
+   Deliberately **not** ranked: with terms ANDed the result set is already small,
+   and re-ordering would override the sort the user picked, which SPEC keeps
+   independent of narrowing.
 
-2. **The filter box in every picker does nothing.** Measured with `f o` on a
-   document that has both `… Vision Transformer.pdf` and
-   `… Vision Transformer_note.pdf`: typing `note` still shows both. Cause: the
-   same one as A1 — `ui.Item.matches` runs `library.is_subsequence` over
-   `label + hint + haystack`, and a long file name contains almost any needle
-   as a scattered subsequence (`Locality-Atte*n*ding visi*o*n *T*ransform*e*r`).
-   `o` picks the right file; only the picker's filter is broken.
-   Fix once, in the matcher both layers share: substring by default, fuzzy
-   ranked by contiguity. Then `f o`, `S`, `g l` and `/` all improve together.
+2. ~~**The filter box in every picker does nothing.**~~ Done, by the same change:
+   `ui.Item.matches` now calls `library.match_text` with `library.parse_query`,
+   so `f o`, `S`, `g l`, `?` and `/` share one matcher. `note` no longer matches
+   `Locality-Attending Vision Transformer.pdf`; there is a test for exactly that.
 
 ## B. Bound but not implemented (they log "not implemented yet")
 
@@ -171,6 +172,38 @@ understood; they were traced in the code, not guessed.
 - Column set: `Tags` renders as a Python list and only survives on a wide
   terminal. Decide what earns the space once the rules above land.
 
+## D2. Data model — wrong assumptions to correct
+
+1. **`venue` is not a place.** It is the *name* of the conference or journal —
+   `booktitle` / `journal` / `journaltitle` — never the city it was held in.
+   Fix everywhere the word is used:
+   - `app.INFO_FIELDS` shows the raw `venue` key. It should show the venue *name*,
+     resolved from the first of `booktitle`, `journal`, `journaltitle`, `venue`
+     that is set. Coverage on the real library: `booktitle` 371, `journal` 136,
+     `venue` 237 — so reading only `venue` misses most published documents.
+   - `library.kind()` already checks all three for its preprint test; that part
+     is right and must stay in step with whatever helper this becomes.
+   - `field.venue` keeps its fa-university glyph, which fits a venue *name* fine.
+   Probably one `library.venue(doc)` helper, used by the info pane and by `kind`.
+
+2. **Merge mode, over the marked documents.** Duplicates are the reason: the same
+   paper arrives twice, once from arXiv and once from the proceedings, and the
+   two records each hold fields the other lacks. Shape to work out before coding:
+   - Trigger from marks (`m`-namespace, or `d`/`c`), on exactly the marked set.
+   - A field-by-field picker: for every key where the marked documents disagree,
+     choose which value survives; identical values need no question. `SelectList`
+     already does one-of-many, so this is a loop over conflicting keys.
+   - `files` **unions** rather than picks — losing an attachment is the one
+     unrecoverable outcome here.
+   - One surviving `papis_id`; the others' folders are left on disk, not deleted,
+     until `doc.delete` exists and is trusted (§ B).
+   - Every write through `safewrite`, and the whole thing dry-runnable, like
+     `place()` already is.
+   - Finding the duplicates is a separate job from merging them: papis has
+     `doctor`'s `duplicated-keys` / `duplicated-values` checks, and a
+     `ref`/`doi`/title-similarity pass would want measuring on the real library
+     before being trusted.
+
 ## E. New features asked for
 
 1. **More add sources**, in priority order:
@@ -218,5 +251,5 @@ were wrong for exactly this reason before being checked.
 
 ## Not yet exercised
 
-Narrow modes other than the default, marks at scale, `lib.switch`, and the
+Regex narrow mode, marks at scale, `lib.switch`, and the
 `[modes.files]` keymap.

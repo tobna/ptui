@@ -354,6 +354,14 @@ class PtuiApp(App[None]):
         table = self.query_one(DataTable)
         self.sync_columns()
         table.clear()
+        # What to light up in each cell: the positive, unqualified terms. A
+        # negated term matched nothing here by definition, and a qualified one
+        # may have matched a field that is not on screen.
+        lit = [
+            term.text
+            for term in library.parse_query(self.narrow_query, self.cfg.get("query.aliases", {}))
+            if not term.negate and not term.field
+        ]
         for doc in self.rows:
             marked = library.doc_id(doc) in self.marks
             cells = []
@@ -364,7 +372,10 @@ class PtuiApp(App[None]):
                 text = library.fit(text, width)
                 # ponytail: bold marks the row; per-theme colouring needs Rich
                 # styles that CSS classes cannot reach into DataTable cells.
-                cells.append(Text(text, style="bold" if marked else ""))
+                cell = Text(text, style="bold" if marked else "")
+                if lit:
+                    cell.highlight_words(lit, "reverse", case_sensitive=False)
+                cells.append(cell)
             table.add_row(*cells)
         if keep is not None:
             row = next((i for i, d in enumerate(self.rows) if library.doc_id(d) == keep), 0)
@@ -390,7 +401,8 @@ class PtuiApp(App[None]):
             docs,
             query,
             self.cfg.get("query.narrow_fields", ["title"]),
-            self.cfg.get("query.narrow_mode", "fuzzy"),
+            self.cfg.get("query.narrow_mode", "substring"),
+            self.cfg.get("query.aliases", {}),
         )
         self.refresh_rows()
 

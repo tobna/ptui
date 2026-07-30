@@ -83,6 +83,65 @@ def test_display_joins_lists_and_flatten_keeps_author_list_indexable():
     assert flat["author_list"][0]["family"] == "He"
 
 
+def test_parse_query_grammar():
+    assert library.parse_query("  ") == ()
+    parsed = library.parse_query("vision -survey a:nauen", {"a": "author:"})
+    assert [(t.text, t.field, t.negate) for t in parsed] == [
+        ("vision", "", False),
+        ("survey", "", True),
+        ("nauen", "author", False),  # the alias, expanded
+    ]
+    # a quote you are still in the middle of typing must not raise
+    assert [t.text for t in library.parse_query('"vision trans')] == ["vision trans"]
+    assert [t.text for t in library.parse_query('"vision transformer" x')] == [
+        "vision transformer",
+        "x",
+    ]
+    # a URL is not a field-qualified term
+    assert [(t.text, t.field) for t in library.parse_query("http://arxiv.org/abs/1")] == [
+        ("http://arxiv.org/abs/1", "")
+    ]
+    assert [t.text for t in library.parse_query("-")] == ["-"]  # a lone dash is a term
+
+
+def test_narrow_ands_its_terms_and_honours_fields_and_ranges():
+    FIELDS = ["title", "author", "year"]
+    lib = docs(
+        {"title": "Vision Transformer", "author": "Nauen", "year": 2024},
+        {"title": "A Survey of Vision", "author": "Other", "year": 2019},
+        {"title": "Efficient Attention", "author": "Nauen", "year": 2026},
+    )
+
+    def n(query, mode="substring"):
+        return [d["title"] for d in library.narrow(lib, query, FIELDS, mode)]
+
+    assert n("vision") == ["Vision Transformer", "A Survey of Vision"]
+    assert n("vision nauen") == ["Vision Transformer"]  # ANDed
+    assert n("nauen vision") == ["Vision Transformer"]  # order-independent
+    assert n("vision -survey") == ["Vision Transformer"]  # negation
+    assert n("author:nauen") == ["Vision Transformer", "Efficient Attention"]
+    assert n("author:nauen -attention") == ["Vision Transformer"]
+    assert n("year:>2023") == ["Vision Transformer", "Efficient Attention"]
+    assert n("year:2019..2024") == ["Vision Transformer", "A Survey of Vision"]
+    assert n("year:2024") == ["Vision Transformer"]  # a bare number is still a substring
+    assert n('"vision transformer"') == ["Vision Transformer"]
+    assert n("zzz") == []
+    assert n("") == [d["title"] for d in lib]
+    # fuzzy forgives a dropped letter inside a word, but stays tight — see
+    # test_fuzzy_match_needs_the_run_to_stay_tight for what it now refuses
+    assert n("vson", "fuzzy") == ["Vision Transformer", "A Survey of Vision"]
+    assert n("efcient attntion", "fuzzy") == ["Efficient Attention"]
+    assert n("zzz", "fuzzy") == []
+    assert library.narrow(lib, "[", FIELDS, "regex") == []  # unparsable, not a crash
+
+
+def test_fuzzy_match_needs_the_run_to_stay_tight():
+    assert library.fuzzy_match("note", "note")
+    assert library.fuzzy_match("nte", "note")  # a dropped letter is fine
+    assert not library.fuzzy_match("note", "locality-attending vision transformer")
+    assert library.fuzzy_match("", "anything")
+
+
 def test_kind_calls_an_arxiv_only_article_a_preprint():
     def k(**fields):
         return library.kind(docs(fields)[0])

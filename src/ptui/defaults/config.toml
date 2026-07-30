@@ -84,7 +84,7 @@ format = "{doc[tags]}"
 width = 20
 
 [query]
-narrow_mode = "fuzzy"         # fuzzy | substring | regex
+narrow_mode = "substring"     # substring | fuzzy | regex; terms are ANDed either way
 narrow_debounce_ms = 60
 narrow_fields = ["title", "author", "tags", "ref", "year"]
 history_file = "~/.local/state/ptui/query_history"

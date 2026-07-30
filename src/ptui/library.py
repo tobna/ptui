@@ -15,6 +15,8 @@ from __future__ import annotations
 import math
 import os
 import re
+import shlex
+from dataclasses import dataclass
 from typing import Any
 
 from rich.cells import cell_len, set_cell_size
@@ -54,7 +56,7 @@ def scope(query: str, library: str | None = None) -> list[Document]:
 
 
 def haystack(doc: Document, fields: list[str]) -> str:
-    return " ".join(str(doc.get(f, "")) for f in fields).casefold()
+    return " ".join(display(doc.get(f, "")) for f in fields).casefold()
 
 
 def is_subsequence(needle: str, hay: str) -> bool:
@@ -62,22 +64,140 @@ def is_subsequence(needle: str, hay: str) -> bool:
     return all(char in it for char in needle)
 
 
-def narrow(docs: list[Document], query: str, fields: list[str], mode: str) -> list[Document]:
-    """Filter in memory. Unparsable regex matches nothing rather than raising."""
+FUZZY_SPAN = 3
+"""How far a fuzzy match may spread, as a multiple of the needle. Plain
+subsequence matching is useless on real data — `note` matches
+`Locality-Atte(n)ding visi(o)n (T)ransform(e)r` — so the run has to stay tight."""
+
+
+def fuzzy_match(needle: str, hay: str) -> bool:
+    """Subsequence, but only when the matched characters sit close together.
+
+    Scans from every possible start so a late tight run still counts; the needle
+    is short and the haystack is one document, so the quadratic worst case never
+    shows up in practice.
+    """
+    if not needle:
+        return True
+    budget = len(needle) * FUZZY_SPAN
+    for start in range(len(hay)):
+        if hay[start] != needle[0]:
+            continue
+        index = 0
+        for offset in range(start, min(len(hay), start + budget)):
+            if hay[offset] == needle[index]:
+                index += 1
+                if index == len(needle):
+                    return True
+    return False
+
+
+_FIELD = re.compile(r"^([A-Za-z_][A-Za-z0-9_.-]*):(?!/)(.*)$")
+_NUM = r"(\d+(?:\.\d+)?)?"
+_RANGE = re.compile(rf"^(>=|<=|>|<)?{_NUM}(\.\.)?{_NUM}$")
+
+
+@dataclass(frozen=True, slots=True)
+class Term:
+    """One whitespace-separated word of a narrow query."""
+
+    text: str
+    field: str = ""
+    """Empty means "any of the configured narrow fields"."""
+    negate: bool = False
+
+
+def parse_query(query: str, aliases: dict[str, str] | None = None) -> tuple[Term, ...]:
+    """`-survey a:nauen "vision transformer"` -> three terms, ANDed by the caller.
+
+    Quotes come from `shlex`, which raises on the unbalanced quote you always
+    have halfway through typing one — so an unterminated query is retried closed.
+    """
+    query = expand_aliases(query, aliases or {})
+    tokens: list[str] = query.split()
+    for candidate in (query, f'{query}"', f"{query}'"):
+        try:
+            tokens = shlex.split(candidate)
+            break
+        except ValueError:
+            continue
+
+    terms = []
+    for token in tokens:
+        negate = token.startswith("-") and len(token) > 1
+        token = token[1:] if negate else token
+        # `http://x` must not read as the field `http`, hence the `(?!/)`
+        found = _FIELD.match(token)
+        field, text = (found.group(1), found.group(2)) if found else ("", token)
+        if text:
+            terms.append(Term(text.casefold(), field, negate))
+    return tuple(terms)
+
+
+def _in_range(value: str, spec: str) -> bool | None:
+    """`year:>2023`, `year:2020..2024`, `year:..2020`. None when this is not a
+    range comparison at all, so the caller falls back to a substring test."""
+    found = _RANGE.match(spec)
+    if not found or not (found.group(1) or found.group(3)):
+        return None
+    try:
+        number = float(re.sub(r"[^0-9.]", "", value) or "nan")
+        low = float(found.group(2)) if found.group(2) else float("-inf")
+        high = float(found.group(4)) if found.group(4) else float("inf")
+    except ValueError:
+        return None
+    if found.group(3):  # a .. b
+        return low <= number <= high
+    op, bound = found.group(1), low
+    return {">": number > bound, ">=": number >= bound, "<": number < bound}.get(
+        op, number <= bound
+    )
+
+
+def match_text(text: str, terms: tuple[Term, ...], mode: str = "substring") -> bool:
+    """Every term must hit the blob. For pickers, where there are no fields."""
+    hay = text.casefold()
+    hit = fuzzy_match if mode == "fuzzy" else lambda n, h: n in h
+    return all(hit(term.text, hay) != term.negate for term in terms)
+
+
+def match_doc(doc: Document, terms: tuple[Term, ...], fields: list[str], mode: str) -> bool:
+    """Every term must hit: a qualified term its own field, a bare term any of
+    `fields`. Ranges only apply to a qualified term — `>2023` alone is a string."""
+    blob = haystack(doc, fields)
+    hit = fuzzy_match if mode == "fuzzy" else lambda n, h: n in h
+    for term in terms:
+        if not term.field:
+            found = hit(term.text, blob)
+        else:
+            value = display(resolve(doc, term.field) or "")
+            ranged = _in_range(value, term.text)
+            found = ranged if ranged is not None else hit(term.text, value.casefold())
+        if found == term.negate:
+            return False
+    return True
+
+
+def narrow(
+    docs: list[Document],
+    query: str,
+    fields: list[str],
+    mode: str,
+    aliases: dict[str, str] | None = None,
+) -> list[Document]:
+    """Filter in memory. Terms are ANDed, so typing more always narrows — the
+    old whole-query subsequence test left 702 of 754 documents on `nauen`.
+    Unparsable regex matches nothing rather than raising."""
     if not query.strip():
         return docs
-    needle = query.casefold()
     if mode == "regex":
         try:
-            pattern = re.compile(needle)
+            pattern = re.compile(query.casefold())
         except re.error:
             return []
         return [d for d in docs if pattern.search(haystack(d, fields))]
-    if mode == "substring":
-        return [d for d in docs if needle in haystack(d, fields)]
-    # fuzzy: every character in order, like fzf
-    tight = needle.replace(" ", "")
-    return [d for d in docs if is_subsequence(tight, haystack(d, fields))]
+    terms = parse_query(query, aliases)
+    return [d for d in docs if match_doc(d, terms, fields, mode)]
 
 
 # ── sorting ─────────────────────────────────────────────────────────────────

@@ -21,7 +21,8 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 
 - **Two-layer search** — a real papis query for the scope, an instant in-memory
   filter on top. The status bar always shows both, so a missing document is
-  never a mystery.
+  never a mystery. `/` takes terms: `vision -survey a:nauen y:>2023`, all ANDed,
+  matches highlighted as you type, 2 ms across a 750-document library.
 - **Vim keys, discoverable** — which-key popups, a context hint bar, a `?`
   overlay, and a `:` command line that shows the binding next to every command.
 - **Marks that survive** — marks are keyed by document, not by row, so sorting

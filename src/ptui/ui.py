@@ -37,7 +37,8 @@ GLYPHS = {
     # arXiv-only article reads as `preprint`. `type.misc` is the fallback for
     # anything unrecognised, so a library with `incollection` still renders.
     "type.inproceedings": ("C", ""),  # nf-fa-users
-    "type.preprint": ("P", ""),  # nf-fa-paper_plane - sent out, not landed
+    # Both columns: the chi of the arXiv wordmark needs no patched font.
+    "type.preprint": ("χ", "χ"),
     "type.article": ("A", ""),  # nf-fa-file_text_o
     "type.book": ("B", ""),  # nf-fa-book
     "type.thesis": ("T", ""),  # nf-fa-graduation_cap
@@ -90,8 +91,10 @@ class Item:
     haystack: str = field(default="")
 
     def matches(self, needle: str) -> bool:
-        return not needle or library.is_subsequence(
-            needle.replace(" ", ""), f"{self.label} {self.hint} {self.haystack}".casefold()
+        """The same matcher the list uses, so `f o` and `/` behave alike. It has
+        to be: a subsequence test over a long file name matched almost anything."""
+        return library.match_text(
+            f"{self.label} {self.hint} {self.haystack}", library.parse_query(needle)
         )
 
 

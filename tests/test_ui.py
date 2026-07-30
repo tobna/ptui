@@ -4,12 +4,22 @@ from textual.widgets import OptionList
 from ptui import ui
 
 
-def test_item_filtering_is_fuzzy_over_label_and_hint():
+def test_item_filtering_ands_substrings_over_label_and_hint():
     item = ui.Item(label="First author", value="author_list.0.family", hint="author_list.0.family")
     assert item.matches("")
-    assert item.matches("fauth")
     assert item.matches("0.fam")
+    assert item.matches("auth first")  # terms are ANDed, order does not matter
+    assert not item.matches("fauth")  # scattered letters no longer match
+    assert not item.matches("first zzz")  # one miss fails the whole query
     assert not item.matches("zzz")
+
+
+def test_item_filtering_no_longer_matches_any_needle_in_a_long_filename():
+    # the A2 bug: `note` matched this by subsequence — Atte(n)ding visi(o)n (T)ransform(e)r
+    pdf = ui.Item(label="Locality-Attending Vision Transformer.pdf", value=1)
+    note = ui.Item(label="Locality-Attending Vision Transformer_note.pdf", value=2)
+    assert not pdf.matches("note")
+    assert note.matches("note")
 
 
 def test_glyphs_switch_with_the_setting_and_stay_one_cell():

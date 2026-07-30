@@ -140,6 +140,19 @@ orphan, because nothing detects it until the user presses `o`.
 The status bar must always show both — `scope: tags:cv | narrow: transf` —
 or users cannot tell why a document is missing.
 
+Narrow is **term-based**: the query splits on whitespace and every term must
+match, so typing more characters always shrinks the result. A term is a
+case-insensitive substring by default, and may be `-negated`, `"quoted"` to keep
+its spaces, qualified as `field:value` (dotted paths included), or a numeric
+range — `year:>2023`, `year:2020..2024`. `[query.aliases]` applies to *both*
+prompts, so `a:nauen` means the same thing in either. Fuzzy is opt-in via
+`query.narrow_mode` and must keep the matched characters close together; a plain
+subsequence test over the joined fields matches almost everything and is
+forbidden. Narrowing **filters and never reorders** — sorting stays the user's.
+
+The same matcher serves every picker's filter box. One implementation, or they
+drift and only one of them gets fixed.
+
 ## Sorting
 
 - `sort.picker` opens the shared `SelectList` modal (see below).
