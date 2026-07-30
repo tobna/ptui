@@ -9,7 +9,7 @@
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/python-3.13%2B-blue">
   <img alt="Built with Textual" src="https://img.shields.io/badge/built%20with-Textual-5a5aff">
-  <img alt="papis" src="https://img.shields.io/badge/papis-%E2%89%A50.15-b8283c">
+  <img alt="papis" src="https://img.shields.io/badge/papis-0.15.x-b8283c">
 </p>
 
 ---
@@ -23,8 +23,9 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   filter on top. The status bar always shows both, so a missing document is
   never a mystery. `/` takes terms: `vision -survey a:nauen y:>2023`, all ANDed,
   matches highlighted as you type, 2 ms across a 750-document library.
-- **Vim keys, discoverable** — which-key popups, a context hint bar, a `?`
-  overlay, and a `:` command line that shows the binding next to every command.
+- **Vim keys, discoverable** — which-key popups after a prefix, a context hint
+  bar, and a `?` overlay listing the *effective* keymap of whichever mode you are
+  in, generated from `keys.toml` so it can never drift.
 - **Marks that survive** — marks are keyed by document, not by row, so sorting
   and filtering never lose them. Batch operations confirm against the real count.
 - **Safe by construction** — every write re-checks `info.yaml`'s mtime, writes
@@ -36,10 +37,13 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **SSH-friendly** — `icons = false` swaps every nerd-font glyph for its ASCII
   twin at the same width, no forked worker pools, and the info pane moves under
   the list by itself once the title column would get squeezed.
+- **Tells you what a document is** — one column, one cell: conference paper,
+  journal article, thesis, or an arXiv-only `preprint` worked out from the
+  metadata. Nerd-font glyphs by default, ASCII on request.
 
-Not there yet: undo, tagging, delete, doctor integration, saved searches, the
-`?` overlay and the `:` command line. Bindings for them exist and say so when
-pressed — see [`TODO.md`](TODO.md).
+Not there yet: undo, tagging, delete, doctor integration, saved searches, visual
+mode and the `:` command line. Bindings for them exist and say so when pressed —
+see [`TODO.md`](TODO.md).
 
 ## Install
 

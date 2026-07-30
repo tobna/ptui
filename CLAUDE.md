@@ -3,8 +3,9 @@
 ptui is a [Textual](https://textual.textualize.io/) TUI for
 [papis](https://github.com/papis/papis). `SPEC.md` is the design contract —
 read it before changing behaviour; this file is the map of what actually
-exists. `TODO.md` is the backlog from real use: **read it before starting
-anything, and take work from the top of section A.**
+exists. `TODO.md` is the backlog from real use: **read it before starting anything.**
+Section A (broken things) is clear; work comes from § B (keys that are bound but
+do nothing) and § D2 (wrong assumptions in the data model).
 
 ## Golden rules
 
@@ -19,8 +20,11 @@ anything, and take work from the top of section A.**
 2. **`SPEC.md` wins over intuition.** If the code must deviate, change the spec
    in the same commit and say why.
 3. **Verify every papis API call against the installed version** (`uv run python -c ...`).
-   The internal API moved between 0.14 and 0.15. Do not trust API names from
-   `SPEC.md` or from memory.
+   The internal API moved between 0.14 and 0.15, so `pyproject.toml` pins
+   `papis>=0.15.0,<0.16`; papis already warns about API it drops in 0.16. Do not
+   trust API names from `SPEC.md` or from memory — several in this file were
+   wrong until checked (`papis.arxiv.get_data` silently drops `journal_ref`,
+   `doctor.run` defaults to `fix=True`).
 4. **Never touch `info.yaml` outside the safe-write helper.** Papis caches;
    direct writes desync it. Unknown keys and comments must survive a write.
 5. **Documents are identified by `papis_id`, never by folder path.**
@@ -60,12 +64,16 @@ src/ptui/
   commands.py        the registry — keymaps, help and hints all derive from it
   keymap.py          keys.toml -> chords, prefix-conflict check, which-key data
   config.py          shipped defaults + per-key user overrides
-  library.py         scope query, in-memory narrow, sorting, display text
+  library.py         queries, the narrow grammar, sorting, `kind()`, display text
   ui.py              SelectList — the one shared modal picker; the glyph table
   clip.py            clipboard: local tool, else OSC52
   place.py           file placement: atomic, idempotent, no-clobber
   safewrite.py       the only path that writes info.yaml
   defaults/          shipped config.toml, keys.toml, themes/*.tcss
+scripts/
+  keydoc.py          regenerates KEYS.md; tests/test_docs.py fails while stale
+  shot.py            headless screenshot of the real app (--text, --icons, --rows)
+  glyphs.py          prints ui.GLYPHS + undecided icon candidates in your font
 tests/
 ```
 
@@ -104,32 +112,41 @@ per key.
 
 ## Status
 
-**v0 is feature-complete** against `SPEC.md` § "v0 scope" — two panes, scope
-query + narrow filter, vim navigation, `doc.open`, `doc.edit_raw`,
-`export.citekey`, marks, the add flow, `files.relocate`, safe-write, log pane,
-`keymap.check`, which-key + hint bar, `help.show`. 52 tests, `uv run pytest`.
+**v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A
+(the two broken things the first real session found) is clear. 67 tests,
+`uv run pytest`.
 
 Built:
 
 - config + keymap loading, command registry, prefix-conflict check
 - safe `info.yaml` writes, `place()` file placement
 - the app: list + info panes, scope query, debounced narrow, sorting, marks,
-  which-key, hint bar, status bar, log pane
+  which-key, hint bar, status bar, log pane, `help.show`
+- **narrow grammar**: whitespace terms ANDed, `-negation`, `"phrases"`,
+  `field:value`, `year:>2023` ranges, matches highlighted; one matcher shared
+  with every picker filter box
 - verbs: `doc.open`, `doc.open_folder`, `doc.browse`, `doc.edit_raw`,
   `export.{citekey,path,url,bibtex}`, `files.relocate`
 - `SelectList` modal + `sort.picker`, `files.open_pick`, `lib.switch`
 - the add flow: inbox picker, metadata form, live destination preview, `place()`
+- **layout**: `ui.layout = "auto"` picks side-by-side vs stacked from the column
+  fit, optional columns yield to `list.flex_target`, `list.row_height` wraps the
+  flex column, the sort arrow sits in the sorted column's header
+- **glyphs**: one `ui.GLYPHS` table (ASCII + nerd font), `icons = true` shipped,
+  a one-cell document-kind column including the arXiv-only `preprint`
 
-Not built (deliberately, per SPEC "not in v0"): structured editor, undo, doctor,
-saved searches, themes beyond the built-in one, picker entry point, reading
-status, ratings. Also missing and *not* excluded by SPEC: the `:`
-command line, `doc.notes`, `doc.delete`, state persistence
-(`general.persist_state` is read but ignored). Unbound commands log
-"not implemented yet".
+Not built. 25 keys are bound to commands that only log "not implemented yet" —
+`uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them.
+The clusters: the `:` command line (`cmdline.open`), the whole `c` namespace
+(tag/untag/status/rating/set), `doc.delete` + `app.undo`/`app.redo`, doctor
+(`view.doctor`, `doctor.run`, `doctor.fix`), `doc.notes`, saved searches,
+`theme.picker`, visual mode (`v`/`V`), and the files pane with its
+`[modes.files]` verbs. Also read but ignored: `general.persist_state`.
 
-First real session produced `TODO.md`. Known-bad right now: Textual's own
-command palette steals `ctrl+p`, and `/` (plus every picker's filter box)
-narrows too loosely. Do not add features before `TODO.md` § A is clear.
+Known-bad right now: Textual's own command palette steals `ctrl+p` and its
+"show keys and help panel" item opens an unstyled pane with no obvious exit.
+Turn it off with `ENABLE_COMMAND_PALETTE = False` **only once `cmdline.open`
+replaces it** — not before.
 
 `PtuiApp.fit_columns()` sizes the list: a configured width is a ceiling, and
 each fixed column asks for `PtuiApp.natural_width()` — `library.p90` of what it
