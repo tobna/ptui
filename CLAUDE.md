@@ -37,6 +37,7 @@ uv run pytest           # tests
 uv run ruff check --fix && uv run ruff format
 
 uv run python scripts/keydoc.py    # regenerate KEYS.md after a keymap change
+uv run python scripts/glyphs.py    # print ui.GLYPHS + icon candidates in your own font
 
 # look at the UI without a terminal — writes a PNG you can open
 uv run python scripts/shot.py /tmp/shot.png --size 160x30 slash n a u e n

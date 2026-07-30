@@ -130,6 +130,33 @@ understood; they were traced in the code, not guessed.
   in a side-by-side split. Costs half the visible documents, so it stays a
   setting, not a default.
 
+- **A preprint icon, for documents that are *only* preprints.** Measured and
+  probed on the real library (2026-07-30); the conclusion is that local metadata
+  cannot answer this on its own:
+  - 499 of 754 docs carry an arXiv id. 221 of those have no local evidence of
+    publication (no `booktitle`/`journal`/`venue`, no non-arXiv DOI, `publisher`
+    either absent or literally `arXiv`, `type` not inproceedings/book/thesis).
+  - That set is **wrong**: it contains *Sanity Checks for Saliency Maps*, NeurIPS
+    2018. The false positives are entries imported from arXiv and never
+    refreshed, so the heuristic really measures "stale metadata", not "preprint".
+  - **arXiv's own API does not help.** `journal_ref` is empty for that NeurIPS
+    paper — authors rarely update it, so absence proves nothing. Worse,
+    `papis.arxiv.get_data(id_list=...)` discards `journal_ref` and `doi`
+    entirely; it returns only the fields `arxiv_to_papis` maps. The `comment`
+    field often says "Accepted at CVPR 2024" but it is free text.
+  - **OpenAlex answers it.** `api.openalex.org/works?filter=doi:<doi>` returns
+    `locations[].source.display_name`; for the 2018 paper that list is
+    `[arXiv, arXiv, Neural Information Processing Systems]`. Preprint-only means
+    every location is a preprint server. Free, no key, wants a `mailto`. Note
+    the top-level `type` field says `preprint` even for that paper, because it
+    describes the record queried — use `locations`, not `type`.
+  So: the local heuristic decides *who to ask* (221 docs, not 754), one cached
+  OpenAlex lookup settles each, and the icon is instant afterwards. The cache
+  wants to be the same side-cache keyed by `papis_id` that the doctor glyph
+  above needs — build one, not two. A pure-offline fallback is the age guard:
+  an arXiv-only paper from 2018 is stale metadata, one from this year probably
+  is a preprint (79 of the 221 are 2025–2026).
+
 - **Optional columns must earn their width.** Today a fixed column is dropped
   only when it would push the flex column below `MIN_FLEX = 12`, which means
   `Tags` can survive while `Title` is squeezed to 12 cells — the wrong trade.
