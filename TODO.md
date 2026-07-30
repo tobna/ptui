@@ -162,8 +162,18 @@ understood; they were traced in the code, not guessed.
   by the column rebuild is delivered after teardown, and `refresh_info` raised
   `NoMatches` on the way out.
 
-- Column set: `Tags` renders as a Python list and only survives on a wide
-  terminal. Decide what earns the space once the rules above land.
+- **Column set — the last open layout decision.** The rules it was waiting on
+  have landed, and they took most of the problem with them: `Tags` renders
+  joined (not a Python list), is `optional = true` so it never squeezes `Title`,
+  and the `auto` layout keeps the list pane wide enough that it usually fits.
+  Measured on the shipped columns, `Tags` now appears at ~100 cells stacked and
+  ~180 side by side, and is dropped in between.
+  What is still undecided is only whether a 20-cell column of *joined tag names*
+  is the best use of that width. Alternatives already mocked up against the real
+  library, and still open: 2-3 char codes derived from the tag vocabulary (23
+  distinct tags, so they are learnable), one curated glyph per tag, or dropping
+  the column and leaving tags to the info pane. Not worth building any of them
+  until the current behaviour has been used for a while.
 
 ## D2. Data model — wrong assumptions to correct
 
