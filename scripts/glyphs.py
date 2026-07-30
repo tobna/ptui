@@ -27,9 +27,12 @@ from ptui import config, ui
 CANDIDATES: dict[str, list[tuple[str, str]]] = {
     "document type — preprint (arXiv-only article)": [
         ("\uf1d8", "fa-paper-plane, sent out and not landed - in use"),
+        ("\u03c7", "GREEK SMALL CHI - the X in the arXiv logo, and in every font"),
         ("\uf016", "fa-file-o, a page nobody has stamped"),
         ("\uf017", "fa-clock-o, still waiting"),
-        ("\uf0c6", "fa-paperclip"),
+        ("\uf0ee", "fa-cloud-upload, uploaded somewhere"),
+        ("\U000f0b09", "nf-md-alpha-x-box - NERD FONTS v3 ONLY, blank on a v2 patch"),
+        ("\U000f01ad", "nf-md-school - NERD FONTS v3 ONLY, blank on a v2 patch"),
     ],
     "status bar — scope": [("", "fa-search"), ("", "fa-circle-o, the whole set")],
     "status bar — library": [("", "fa-book"), ("", "fa-folder")],
