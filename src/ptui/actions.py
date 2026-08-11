@@ -107,9 +107,7 @@ def pane_resize(app: Any, delta: float) -> None:
 
 @command("app.log", "operation log")
 def app_log(app: Any) -> None:
-    pane = app.query_one("#log-pane")
-    pane.display = not pane.display
-    app.focus_pane("log" if pane.display else "list")
+    app.focus_pane("list" if app.query_one("#log-pane").display else "log")
 
 
 # ── queries ─────────────────────────────────────────────────────────────────

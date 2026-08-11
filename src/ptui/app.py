@@ -395,6 +395,10 @@ class PtuiApp(App[None]):
         if pane not in PANES:
             self.log_line(f"[yellow]no {pane} pane in v0[/]")
             return
+        # The log is the one transient pane: it opens when focused and closes
+        # when focus leaves, so escape gets rid of it. Every other pane is
+        # toggled by hand (`z i`), and focusing must not argue with that.
+        self.query_one("#log-pane").display = pane == "log"
         self.mode = pane
         for name in PANES:
             self.query_one(f"#{name}-pane").set_class(name == pane, "pane-active")

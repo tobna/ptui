@@ -355,6 +355,11 @@ toast that vanishes.
   which layout they want, a resize must not argue. There is no third
   single-pane state — the list pane can never be hidden anyway, and `z i` hides
   the info pane on demand.
+- The **log pane is transient**: it appears when it is focused and disappears
+  when focus leaves it, so `escape` closes it like any other transient surface
+  and `app.log` is a toggle only in the sense that pressing it again focuses the
+  list. Focus never lands on a pane that is not on screen. The info pane is not
+  transient — `z i` is an explicit choice and focusing must not undo it.
 - `ui.split_ratio` is the **list pane's** share of whichever axis the split
   currently runs along, and the list keeps the whole window whenever it is the
   only visible pane. Both dimensions are set on every layout change.

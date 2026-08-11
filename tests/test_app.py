@@ -53,8 +53,10 @@ async def test_escape_leaves_any_mode(app):
     async with app.run_test() as pilot:
         await press(pilot, "4")  # the log mode defines no bindings at all
         assert app.mode == "log"
+        assert app.query_one("#log-pane").display  # focusing a pane shows it
         await press(pilot, "escape")
         assert app.mode == "list"
+        assert not app.query_one("#log-pane").display  # escape closes it, not just unfocuses
         await press(pilot, "tab")  # info: defines four keys, none of them q
         assert app.mode == "info"
         await press(pilot, "g")  # a pending prefix must not survive the escape

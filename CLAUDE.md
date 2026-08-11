@@ -4,8 +4,10 @@ ptui is a [Textual](https://textual.textualize.io/) TUI for
 [papis](https://github.com/papis/papis). `SPEC.md` is the design contract —
 read it before changing behaviour; this file is the map of what actually
 exists. `TODO.md` is the backlog from real use: **read it before starting anything.**
-Section A (broken things) is clear; work comes from § B (keys that are bound but
-do nothing) and § D2 (wrong assumptions in the data model).
+Section A (broken things) is empty; work comes from § B (keys that are bound but
+do nothing), § D (display polish, including themes) and § E (measurements owed
+and the wrong assumptions they would correct). Finished entries are deleted from
+it, not struck through.
 
 ## Golden rules
 
@@ -51,6 +53,12 @@ uv run python scripts/shot.py --text --icons          # same, with nerd-font gly
 **Look at the screenshot before claiming a visual bug is fixed.** Pilot presses
 real keys, so this exercises the actual app; several layout problems in
 `TODO.md` were found this way rather than reported.
+
+**The PNG lies about spacing.** SVG export writes each styled run as its own
+positioned text element, so bold text looks like it has lost the space beside it
+(`enteropen file`) and marked rows look misaligned. Neither is real. Use
+`--text` — the composited screen buffer — for anything about alignment, padding
+or truncation, and the PNG only for layout and colour.
 
 ## Layout
 
@@ -115,9 +123,8 @@ per key.
 
 ## Status
 
-**v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A
-(the two broken things the first real session found) is clear. 67 tests,
-`uv run pytest`.
+**v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
+empty. 97 tests, `uv run pytest`.
 
 Built:
 
@@ -234,7 +241,10 @@ through trash) rather than deleting it.
 The `app` test fixture redirects `pdf_root`, `log.file` **and**
 `undo.trash_dir` into `tmp_path`. The last one was added after a merge test
 quietly filled the developer's real `~/.local/share/ptui/trash`; any new command
-that writes outside the library needs the same treatment.
+that writes outside the library needs the same treatment. It also sets
+`doctor.scan_on_startup = false`: no test asserts on the startup scan, and the
+thread competed with `settle`'s 0.2 s for the GIL — under load the first press
+landed before the list had rows and the command found no target.
 
 `fetch.py` fronts papis's importer plugins — 13 importers and 23 downloaders,
 listed by `fetch.available()` from `get_available_importers()`, so a new plugin
@@ -314,6 +324,15 @@ cleared by `pane.toggle_layout` so an explicit `z z` survives every later resize
 layout direction and *both* dimensions from `app.side_by_side` / `app.split`,
 so `z z`, `z i` and `z +/-` all just mutate that state and call it. The list
 pane cannot be hidden and takes the whole window when it is alone.
+
+`PtuiApp.focus_pane()` owns the **log** pane's visibility: it is the one
+transient pane, so it opens when focused and closes when focus leaves. Every
+path routes through there — `1`-`4`, `tab`, escape and `g o` (`app.log` is now
+just "focus it, or focus the list if it is already up") — which is what fixed
+both halves of the old bug: escape left the pane on screen looking dead, and
+`4` focused a pane that was never shown, putting the keyboard somewhere
+invisible. The info pane is deliberately *not* included: `z i` is an explicit
+toggle and focusing must not argue with it.
 
 `escape` and the help key are dispatched above the keymap (`app.on_key`):
 outside `[modes.list]` escape drops any pending chord and returns to the list,
