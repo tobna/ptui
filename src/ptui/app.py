@@ -14,6 +14,7 @@ import papis.format
 from loguru import logger
 from papis.document import Document
 from rich.cells import cell_len
+from rich.markup import escape
 from rich.text import Text
 from textual import events, work
 from textual.app import App, ComposeResult
@@ -24,6 +25,7 @@ from ptui import (
     actions,
     commands,
     config,
+    doctor,
     keymap,
     library,
     place,
@@ -89,6 +91,9 @@ class PtuiApp(App[None]):
         self.scope_query = cfg.get("general.startup_query", "")
         self.narrow_query = ""
         self.marked_only = False
+        self.doctor_only = False
+        """The doctor view: narrow to documents with findings. Same shape as
+        `marked_only` — a filter over the scoped set, not a separate widget."""
         self.sort_key, self.sort_reverse = self._default_sort()
         self.prompt_kind = ""
         layout = cfg.get("ui.layout", "auto")
@@ -132,6 +137,8 @@ class PtuiApp(App[None]):
         # than it is — which decided the layout wrongly on a borderline width.
         self.relayout()
         self.focus_pane("list")
+        if self.cfg.get("doctor.scan_on_startup", True):
+            self.scan_library()
 
     def relayout(self) -> None:
         """Re-decide the `auto` layout and apply it only if it changed. Applying
@@ -474,6 +481,8 @@ class PtuiApp(App[None]):
         docs = self.docs
         if self.marked_only:
             docs = [d for d in docs if library.doc_id(d) in self.marks]
+        if self.doctor_only:
+            docs = [d for d in docs if doctor.cached(d)]
         self.rows = library.narrow(
             docs,
             query,
@@ -516,7 +525,46 @@ class PtuiApp(App[None]):
                 ok = place.resolve(self.current, entry).exists()
                 mark = " " if ok else f"[red]{ui.glyph('warning')}[/]"
                 lines.append(f"  {mark} {entry}")
+        lines += self.doctor_lines(self.current)
         pane.update("\n".join(lines))
+
+    def doctor_lines(self, doc: Document) -> list[str]:
+        """This document's findings, from the cache the startup scan fills.
+
+        A clean document says nothing — the section is an exception marker, and
+        a permanent "no findings" would cost a line on every row to say so. The
+        cache goes stale by mtime, so an edited document reads "not checked"
+        instead of lying with the findings from before the edit; `! d` refills it.
+        """
+        found = doctor.cached(doc)
+        if found == []:
+            return []
+        head = ["", f"[dim]{ui.glyph('field.doctor')}   doctor[/]"]
+        if found is None:
+            return [*head, "  [dim]not checked[/]"]
+        # escaped: a finding quotes the offending value, and a `[...]`-shaped one
+        # would otherwise be swallowed as markup by Static.update
+        return [
+            *head,
+            *(
+                f"  [red]{ui.glyph('warning')}[/] {escape(f.name)}  {escape(f.msg)}"
+                + ("" if f.fix_action else "  [dim](no fix)[/]")
+                for f in found
+            ),
+        ]
+
+    @work(thread=True, exclusive=True, group="doctor")
+    def scan_library(self) -> None:
+        """Fill the findings cache in the background, once, at startup.
+
+        ~1.7 s for 754 documents, which is why it cannot live in `refresh_info`
+        and why it is a thread: the per-document checks are pure CPU and papis
+        I/O, and nothing here touches the UI until the call back onto the app.
+        """
+        checks = self.cfg.get("doctor.checks", [])
+        for doc in list(self.docs):
+            doctor.scan(doc, checks)
+        self.call_from_thread(self.refresh_info)
 
     def refresh_status(self) -> None:
         visible_marks = sum(1 for d in self.rows if library.doc_id(d) in self.marks)
@@ -526,6 +574,8 @@ class PtuiApp(App[None]):
             f"sort: {self.sort_key} {ui.glyph('sort_desc' if self.sort_reverse else 'sort_asc')}",
             f"{len(self.marks)} marked ({visible_marks} visible) / {len(self.rows)} shown / {len(self.docs)} total",
         ]
+        if self.doctor_only:
+            parts.insert(1, f"[yellow]{ui.glyph('warning')} doctor[/]")
         if self.pending:
             parts.append(f"[bold]{' '.join(self.pending)}-[/]")
         self.query_one("#status-bar", Static).update(" | ".join(parts))

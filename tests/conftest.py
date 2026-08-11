@@ -76,6 +76,10 @@ def app(papis_lib):
         f'[export]\nclipboard = "osc52"\n\n'
         f'[files]\npdf_root = "{papis_lib / "pdfs"}"\n'
         f'[log]\nfile = ""\n'
+        # No startup doctor scan: it is a thread nothing here asserts on, and it
+        # competed with the 0.2s `settle` for the GIL — under load the first
+        # press landed before the list had rows, and the command found no target.
+        f"[doctor]\nscan_on_startup = false\n"
         f'[undo]\ntrash_dir = "{papis_lib / "trash"}"\n'
     )
     return PtuiApp(config.load(ptui_config), keymap.load(papis_lib / "no-keys.toml"))

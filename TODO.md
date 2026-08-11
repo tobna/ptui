@@ -4,6 +4,15 @@ Feedback from the first session with a real library (2026-07-28). Ordered
 roughly by how much it hurts. Root causes are noted where they are already
 understood; they were traced in the code, not guessed.
 
+## A. Broken
+
+- **The log pane cannot be escaped** (reported 2026-07-30). `escape` in any mode
+  but the list is handled above the keymap (`app.on_key`): it returns focus to
+  the list but leaves the pane displayed, so the log stays on screen and escape
+  looks dead. Closing it needs `g o` / `4` again — `app.log` is the only thing
+  that touches `display`. Every other pane is toggled, not closed, so escape
+  probably has to close whatever transient pane it is leaving.
+
 ## B. Bound but not implemented (they log "not implemented yet")
 
 - `:` `cmdline.open` — pressing it does nothing. This is the layer that teaches
@@ -17,67 +26,41 @@ understood; they were traced in the code, not guessed.
 - `c t` / `c T` / `c s` / `c r` / `c f` — `doc.tag`, `doc.untag`, `doc.status`,
   `doc.rating`, `doc.set`. None of the `c` namespace exists yet. ct and cT should probably be one operation to just edit the tags...
 - `d d` `doc.delete` — and therefore `u` `app.undo` cannot be tested at all.
-- ~~`g d` / `\ d` `view.doctor`, `doctor.run`, `doctor.fix`.~~ Done
-  (2026-07-30), in `doctor.py`. `\ d` reports into the log, `g d` browses
-  findings and `enter` fixes that one, `\ D` fixes every fixable finding on the
-  target set. Nothing writes unless asked. `doctor.run` never calls papis's
-  `doctor.run` — that defaults to `fix=True`. `[doctor] checks = []` = all.
-  **Measured: 0 findings across all 14 checks over all 754 documents**, so the
-  UI is exercised by a deliberately broken fixture document, not by the library.
-  `doctor.fix` deviates from SPEC's "one selected finding": a `Finding` cannot
-  travel through a `keys.toml` argument, so the by-name command is the batch one
-  and the single-finding path is `view.doctor`'s `enter`. SPEC updated to match.
+- ~~doctor: `doctor.run`, `doctor.fix`, `doctor.fix_pick`.~~ Done (2026-07-30),
+  in `doctor.py` — see § B2 for the shape it ended up with and what it replaced.
 - `g n` `doc.notes`, `g s` `view.saved`, `\ s` `query.save`, `\ t` `theme.picker`.
 - `f a` `files.attach`, `f n` `files.normalize`, and the `[modes.files]` verbs
   (`files.rename`, `files.repoint`, `files.detach`, `files.reorder`) — there is
   no files pane yet.
 
-## B2. Doctor is shipped broken — fix before trusting it
+## ~~B2. Doctor is shipped broken~~ — done (2026-07-30)
 
-Reported from real use (2026-07-30): `papis doctor --all` reports nothing on this
-library, but `g d` / repeated `f d` show findings. All of the following are ptui
-bugs, not papis ones.
+The phantom findings, the picker-shaped report and the wrong fix counts are all
+gone. What landed, and what was wrong in this section before it did:
 
-1. **Findings appear on the second run and every run after.** Reproduced: run
-   `doctor.findings(doc)` four times on the same untouched document — run 1 gives
-   0, runs 2+ give 2 × `duplicated-keys`. Nothing in the document changes.
-   Cause: `duplicated_keys_check` accumulates into a module-level
-   `DUPLICATED_KEYS_SEEN`, so the second look at the same document sees its own
-   values from the first. `duplicated-values` is built the same way.
-   These are **library-wide** checks — they only mean anything run once across a
-   whole query — and ptui runs every registered check per document, repeatedly.
-   Fix: split the checks into per-document and whole-library sets. Per-document
-   ones run on `g d` / `f d`; the library-wide ones belong in a separate pass
-   that runs once over the scoped set and resets papis's global state first.
-   `[doctor] checks = []` meaning "all" is what dragged them in.
+1. **Only `duplicated-keys` is stateful.** Measured against papis 0.15: it is the
+   single registered check with module state (`DUPLICATED_KEYS_SEEN`). This
+   section claimed `duplicated-values` was "built the same way" — it is not, it
+   looks for repeats *inside* one list field and is per-document. Fixed by
+   `doctor.LIBRARY_WIDE`: `findings()` excludes that set, `scan_library()` is its
+   one pass over the whole target set and resets papis's state first.
+2. **The report is the list, not a picker.** `doctor.run` narrows to the
+   documents that have findings (`app.doctor_only`, the same shape as
+   `marked_only`), and the info pane shows the current document's findings as a
+   section below its files. `view.doctor` is deleted. Fixing is a verb —
+   `doctor.fix`, or `doctor.fix_pick` to choose one finding.
+3. **Findings are cached** by `papis_id` and stamped with `info.yaml`'s mtime, so
+   a written document reads *not checked* rather than showing pre-write findings.
+   A thread worker fills the cache at startup (`[doctor] scan_on_startup`).
+4. **Keys moved out of `f`** — doctor is not a file operation. The `!` namespace
+   is doctor: `! !` scan + narrow, `! d` re-check this document, `! f` fix here,
+   `! o` fix one finding, `! a` fix the marked/shown set. `g d`, `f d`, `f f`,
+   `\ d` and `\ D` are gone.
 
-2. **The "0 findings over 754 documents" measurement is therefore worthless.**
-   It was taken with one pass over each document, which is the one case where
-   these checks behave. Re-measure per-check after (1), and separately for the
-   library-wide ones.
-
-3. **Findings are shown in a `SelectList`, which is the wrong shape.** A picker
-   says "choose one of these", but findings are a _report_ — you want to see all
-   of them at once, for one document or for the whole library, and then act.
-   SPEC calls `view.doctor` a "findings view" and a picker is not a view.
-   Making the reader dismiss a modal to see the next finding is backwards.
-
-   Why it ended up this way, so the same mistake is not repeated: `SelectList`
-   was the only list widget available and `enter`-to-fix was wanted, so the
-   interaction was built around the widget that existed rather than around what
-   findings are. That is the actual bug — the picker is a symptom.
-
-   What it should become: findings go to the **log pane**, which already exists
-   and is already where `doctor.run` writes, or to a dedicated findings pane if
-   that turns out too cramped. Fixing becomes an **explicit verb on a selected
-   finding**, not the side effect of confirming a chooser. `doctor.fix` stops
-   being reachable only by pressing `enter` in a modal.
-
-4. **Consequence of (1) for `doctor.fix`.** `\ D` and `f f` fix "every fixable
-   finding", computed from the same repeated-run list. A duplicated-keys finding
-   has no `fix_action`, so nothing was written — but the count reported to the
-   user is wrong, and any check with the same statefulness that _does_ have a fix
-   would write on a phantom finding. Do not trust `doctor.fix` until (1) is done.
+Still open: **re-measure the real library.** The old "0 findings over 754
+documents" number was taken with the broken per-document pass and is worthless.
+Re-run per check now that the sets are split, and run the library-wide pass once
+over the whole library — nothing has ever exercised `duplicated-keys` honestly.
 
 ## C. Decisions that change the defaults (and so SPEC)
 
@@ -106,9 +89,9 @@ bugs, not papis ones.
 
 ## D. Display polish
 
-- **Warning glyph on documents with doctor findings** — **blocked on § B2**, a
-  glyph driven by findings that appear on a second look would be worse than none.
-  As the first "letter" of
+- **Warning glyph on documents with doctor findings** — unblocked: § B2 landed
+  and `doctor.CACHE` is exactly the background-pass-plus-cache this asked for, so
+  the column only has to read `doctor.cached(doc)`. As the first "letter" of
   the title cell, so a broken document is visible without running anything.
   Verified against the installed papis (0.15):
   - The read-only entry point is `doctor.REGISTERED_CHECKS[name].operate(doc)`,

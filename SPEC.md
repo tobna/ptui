@@ -207,6 +207,35 @@ genuinely disagree.
 - Finding duplicates is a **separate job** from merging them; ptui merges what
   you marked and does not go looking.
 
+## Doctor — a report, not a chooser
+
+Findings are read-only until asked otherwise: nothing papis calls a "fix" runs
+without an explicit verb. `papis.commands.doctor.run()` is **never** called — it
+takes `fix=True` by default and mutates a document as a side effect of looking
+at it. Findings come from each check's own `operate`.
+
+- **Per document: the info pane.** The document under the cursor shows its own
+  findings below its files, as an exception marker — a clean document says
+  nothing rather than spending a line to say so. This is the whole per-document
+  view; there is no modal to open and dismiss.
+- **Whole library: the list, narrowed.** `doctor.run` scans the target set,
+  writes the flat report to the log pane, and narrows the list to the documents
+  that have findings. Jumping to an entry is then just moving the cursor, and
+  every other verb still works on the row. `escape` drops the narrow like any
+  other. Marks first, otherwise the whole narrowed set — a library-wide check
+  cannot say anything about a single document under the cursor.
+- **Findings are cached by `papis_id`, stamped with `info.yaml`'s mtime.** A
+  background pass at startup fills it (`[doctor] scan_on_startup`); a written
+  document reads as *not checked* rather than showing findings from before the
+  write. `doctor.run current=true` re-checks one document.
+- **Per-document and library-wide checks are different sets.**
+  `duplicated-keys` accumulates the values it has seen in papis's module state,
+  so running it per document invents a finding on the second look at the same
+  record. It runs once, over the whole set, after that state is reset. Despite
+  the name, `duplicated-values` is per-document — it looks *inside* one list.
+- Fixing is a verb, never the side effect of confirming a chooser: `doctor.fix`
+  for every fixable finding on the targets, `doctor.fix_pick` to choose one.
+
 ## Sorting
 
 - `sort.picker` opens the shared `SelectList` modal (see below).
@@ -454,10 +483,10 @@ from this. Adding a command must not require touching four places.
 | `export.citekey`                |                               | per `export.citekey_format`                      |
 | `export.path`                   |                               | absolute path of main file                       |
 | `export.url`                    |                               | DOI/URL                                          |
-| `view.doctor`                   |                               | findings picker; `enter` fixes that one finding   |
 | `view.saved`                    |                               | saved searches view                              |
-| `doctor.run`                    | `checks:str?`                 | reports into the log; **never fixes**            |
-| `doctor.fix`                    |                               | every fixable finding on the targets, via safe-write |
+| `doctor.run`                    | `checks:str?`, `current:bool` | scan → log + narrow to what has findings; **never fixes** |
+| `doctor.fix`                    | `current:bool`                | every fixable finding on the targets, via safe-write |
+| `doctor.fix_pick`               |                               | SelectList over this document's findings; `enter` fixes that one |
 | `lib.switch`                    | `name:str?`                   | SelectList over libraries                        |
 | `theme.picker`                  |                               | SelectList over `themes/*.tcss`                  |
 | `help.show`                     | `filter:str?`                 | generated help overlay                           |

@@ -708,7 +708,8 @@ def app_escape(app: Any) -> None:
         if step == "modal" and app.prompt_kind:
             app.close_prompt()
             return
-        if step == "narrow" and app.narrow_query:
+        if step == "narrow" and (app.narrow_query or app.doctor_only):
+            app.doctor_only = False  # the doctor view is a narrow, so escape drops it too
             app.refilter("")
             return
     app.pending = ()
@@ -902,26 +903,29 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
 # ── doctor ──────────────────────────────────────────────────────────────────
 
 
-def _checks(app: Any) -> list[str]:
-    configured = app.cfg.get("doctor.checks", [])
+def _checks(app: Any, checks: str = "") -> list[str]:
+    configured = checks.split() if checks else app.cfg.get("doctor.checks", [])
     for name in doctor.unknown_checks(configured):
         app.log_line(f"[yellow]doctor: no such check[/] {name}")
-    return doctor.check_names(configured)
+    return configured
 
 
 def _doctor_targets(app: Any, current: bool) -> list[Any]:
-    """`current = true` means this document only, ignoring marks — which is the
-    difference between `f d` and `g d`."""
+    """`current = true` means this document only, ignoring marks — the difference
+    between `! d` and `! !`. Without it the whole narrowed set is the target,
+    marks first: doctoring only the document under the cursor is what `! d` is
+    for, and a library-wide check needs a library-sized set to say anything.
+    """
     if not current:
-        return app.targets
+        return app.targets if app.marks else app.rows
     doc = app.current
     return [doc] if doc is not None else []
 
 
 def _findings(app: Any, current: bool = False) -> list[tuple[Any, doctor.Finding]]:
-    """Every finding over the target set. Read-only."""
+    """Every finding over the target set, freshly scanned. Read-only."""
     checks = _checks(app)
-    return [(doc, f) for doc in _doctor_targets(app, current) for f in doctor.findings(doc, checks)]
+    return [(doc, f) for doc in _doctor_targets(app, current) for f in doctor.scan(doc, checks)]
 
 
 def _label(doc: Any, finding: doctor.Finding) -> str:
@@ -932,33 +936,44 @@ def _label(doc: Any, finding: doctor.Finding) -> str:
 
 @command("doctor.run", "run doctor")
 def doctor_run(app: Any, checks: str = "", current: bool = False) -> None:
-    """Report findings. **Never fixes** — `doctor.fix` does that, on request.
+    """Scan, report into the log, and narrow the list to what has findings.
 
-    Batch-aware: every mark, or the cursor. `checks` is a space-separated
-    override for `[doctor] checks`; `current` ignores marks.
+    **Never fixes** — `doctor.fix` does that, on request. The narrowed list *is*
+    the findings view: the cursor moves through the affected documents and the
+    info pane shows each one's findings, so there is no modal to dismiss and
+    every other verb still works on the row. `escape` drops the narrow.
+
+    `current` scans this document only and does not narrow — it is the manual
+    re-check after an edit, which is what refreshes the info pane.
     """
-    names = checks.split() if checks else app.cfg.get("doctor.checks", [])
-    for name in doctor.unknown_checks(names):
-        app.log_line(f"[yellow]doctor: no such check[/] {name}")
+    names = _checks(app, checks)
     targets = _doctor_targets(app, current)
-    found = [(doc, f) for doc in targets for f in doctor.findings(doc, doctor.check_names(names))]
+    found = [(doc, f) for doc in targets for f in doctor.scan(doc, names)]
+    if not current:
+        # Once, over the whole set: these checks compare documents against each
+        # other, so they are meaningless per document and stateful across runs.
+        found += doctor.scan_library(targets, names)
     for doc, finding in found:
         app.log_line(f"[yellow]{finding.name}[/] {_label(doc, finding)}")
     app.log_line(f"doctor: {len(found)} finding(s) over {len(targets)} document(s)")
     app.query_one("#log-pane").display = True
+    if current:
+        app.refresh_info()
+        return
+    app.doctor_only = True
+    app.refilter()
 
 
-@command("view.doctor", "doctor findings")
-def view_doctor(app: Any, current: bool = False) -> None:
-    """Browse findings; `enter` applies that one finding's fix, through safe-write.
+@command("doctor.fix_pick", "fix one finding…")
+def doctor_fix_pick(app: Any) -> None:
+    """Choose one of this document's findings to fix.
 
-    Nothing is written by opening this — the same rule as `help.show`, except
-    that here confirming a row is an explicit request to change the document.
+    A picker used as a picker: reporting is the info pane's job, and this asks
+    *which one*. Nothing is written by opening it.
     """
-    found = _findings(app, current)
+    found = _findings(app, current=True)
     if not found:
-        count = len(_doctor_targets(app, current))
-        app.log_line(f"doctor: nothing to report over {count} document(s)")
+        app.log_line("doctor: nothing to fix here")
         return
     items = [
         ui.Item(label=_label(doc, finding), value=index, hint=finding.name)
@@ -968,7 +983,7 @@ def view_doctor(app: Any, current: bool = False) -> None:
     def apply(index: int, _invert: bool) -> None:
         _apply_one(app, *found[index])
 
-    ui.pick(app, items, title="Doctor findings")(apply)
+    ui.pick(app, items, title="Fix which finding?")(apply)
 
 
 def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
@@ -988,6 +1003,7 @@ def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
     app.log_line(
         f"fixed {finding.name} on {doc.get('ref', '')}: {', '.join(changed) or 'no change'}"
     )
+    doctor.scan(doc, _checks(app))  # the write invalidated the cache; the pane reads it
     app.refresh_rows()
     return True
 
@@ -996,10 +1012,9 @@ def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
 def doctor_fix(app: Any, current: bool = False) -> None:
     """Apply every fixable finding over the target set.
 
-    SPEC describes this as "one selected finding", which is what `view.doctor`
-    does on `enter`. A finding cannot travel through a `keys.toml` argument, so
-    the command reachable by name is the batch one — the same shape as every
-    other verb here.
+    A finding cannot travel through a `keys.toml` argument, so the command
+    reachable by name is the batch one — the same shape as every other verb
+    here. `doctor.fix_pick` is the one-finding path.
     """
     found = _findings(app, current)
     fixable = [(doc, f) for doc, f in found if f.fix_action]

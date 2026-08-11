@@ -137,20 +137,19 @@ Built:
   flex column, the sort arrow sits in the sorted column's header
 - **glyphs**: one `ui.GLYPHS` table (ASCII + nerd font), `icons = true` shipped,
   a one-cell document-kind column including the arXiv-only `preprint`
+- **doctor**: read-only findings in the info pane, `! !` narrows the list to the
+  documents that have them, fixes only on an explicit verb
 
-Not built. 25 keys are bound to commands that only log "not implemented yet" —
-`uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them.
+Not built. 26 keys are bound to commands that only log "not implemented yet" —
+`uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
+(import `actions` first, or the registry is empty and every key looks unbound).
 The clusters: the `:` command line (`cmdline.open`), the whole `c` namespace
-(tag/untag/status/rating/set), `doc.delete` + `app.undo`/`app.redo`, doctor
-(`view.doctor`, `doctor.run`, `doctor.fix`), `doc.notes`, saved searches,
+(tag/untag/status/rating/set), `doc.delete` + `app.undo`/`app.redo`,
+`view.marked`, `doc.notes`, saved searches,
 `theme.picker`, visual mode (`v`/`V`), and the files pane with its
 `[modes.files]` verbs. Also read but ignored: `general.persist_state`.
 
-Known-bad right now: **doctor is shipped broken** — `duplicated-keys` and
-`duplicated-values` keep module-level state in papis, so a second look at the
-same document invents findings, and ptui runs every registered check per
-document. See `TODO.md` § B2 before touching or trusting anything doctor-shaped.
-Also: Textual's own command palette steals `ctrl+p` and its
+Known-bad right now: Textual's own command palette steals `ctrl+p` and its
 "show keys and help panel" item opens an unstyled pane with no obvious exit.
 Turn it off with `ENABLE_COMMAND_PALETTE = False` **only once `cmdline.open`
 replaces it** — not before.
@@ -261,6 +260,31 @@ diffs the keys it touched, and writes only those through `safewrite`; on any
 failure the document is reloaded, or it would keep an edit that never landed.
 `[doctor] checks = []` means every registered check — a shipped list would rot
 against whatever a papis release registers.
+
+**There is no findings widget.** Per document, findings are a section of the
+info pane (`PtuiApp.doctor_lines`), rendered like `files` and shown only when
+there is something to say. Over the library, `doctor.run` narrows the list —
+`app.doctor_only` is a filter over the scoped set, the same shape as
+`marked_only`, so jumping to an entry is moving the cursor and `escape` (the
+`narrow` step of `escape_chain`) drops it. Fixing is a verb: `doctor.fix`, or
+`doctor.fix_pick` for one finding. The old `view.doctor` picker is gone — it
+made the reader dismiss a modal to see the next finding.
+
+`doctor.LIBRARY_WIDE` is the split that fixes the phantom findings:
+`duplicated_keys_check` accumulates into papis's module-level
+`DUPLICATED_KEYS_SEEN`, so the second look at one document sees its own values
+from the first. It is the **only** stateful registered check in papis 0.15 —
+`duplicated-values` looks for repeats *inside* one list field and is
+per-document. `findings()` excludes the library-wide set; `scan_library()` is
+their one pass and clears papis's state first.
+
+`doctor.CACHE` maps `papis_id` -> (`info.yaml` mtime, findings), filled by
+`PtuiApp.scan_library` (a thread worker at startup, ~1.7 s for 754 documents,
+off with `[doctor] scan_on_startup`). Staleness is the mtime, not a
+notification: every write goes through `safewrite` or `place`, both touch the
+file, and a `stat` cannot be forgotten at a new call site the way an
+invalidation call can. `cached()` returning `None` means *unknown*, which the
+info pane renders as "not checked" — never as clean.
 
 `library.venue()` is the conference or journal **name**: first non-empty of
 `booktitle`, `journal`, `journaltitle`. It deliberately ignores the `venue` key —

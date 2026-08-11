@@ -38,6 +38,10 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **Merge duplicates** — mark the copies, `m m`, and keep the citekey you want.
   Fields only one record had are filled in, real disagreements ask, attachments
   are unioned, and the folded-in folders go to the trash rather than the void.
+- **Doctor without the surgery** — findings show up in the info pane for the
+  document you are on, `! !` narrows the list to every document that has any,
+  and nothing is written until you ask (`! f`, or `! o` to pick one finding).
+  papis's own `doctor.run` fixes by default; ptui never calls it.
 - **Files that file themselves** — ordered rules decide where a PDF belongs;
   `f r` relocates and renames a whole selection to the scheme, skipping anything
   it does not understand.

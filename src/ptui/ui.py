@@ -57,6 +57,7 @@ GLYPHS = {
     "field.notes": (" ", ""),  # nf-fa-pencil
     "field.reading_status": (" ", ""),  # nf-fa-bookmark
     "field.files": (" ", ""),  # nf-fa-file_text
+    "field.doctor": (" ", ""),  # nf-fa-stethoscope
 }
 """Every symbol ptui prints, ASCII first and nerd font second. Never emit one
 directly: a glyph written inline is a glyph that ignores `ui.icons`, and the

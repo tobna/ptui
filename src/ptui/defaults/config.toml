@@ -157,6 +157,7 @@ auto_doctor = true            # run papis doctor on the new document
 # papis doctor. ptui only ever *reports* unless you ask for a fix.
 [doctor]
 checks = []                   # empty = every check papis registers
+scan_on_startup = true        # fill the findings cache in the background (~2ms/doc)
 
 [delete]
 ask_files = true

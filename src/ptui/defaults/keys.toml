@@ -4,7 +4,7 @@
 #   SHIFT           = variant of the lowercase meaning
 #   \               = leader, for rare/administrative commands
 #
-# Namespaces: g=go  f=files  y=yank  c=change  m=marks  z=layout  d=delete
+# Namespaces: g=go  f=files  y=yank  c=change  m=marks  z=layout  d=delete  !=doctor
 # Reserved (intentionally unbound): n N — for query.narrow_style = "jump"
 
 [options]
@@ -75,7 +75,6 @@ escape_chain = ["modal", "visual", "narrow"]
 # ————— g : go somewhere —————————————————————————
 "g g"      = { cmd = "nav.top",     desc = "top" }
 "g n"      = { cmd = "doc.notes",   desc = "notes" }
-"g d"      = { cmd = "view.doctor", desc = "doctor findings" }
 "g s"      = { cmd = "view.saved",  desc = "saved searches" }
 "g m"      = { cmd = "view.marked", desc = "marked only" }
 "g l"      = { cmd = "lib.switch",  desc = "switch library" }
@@ -96,8 +95,6 @@ escape_chain = ["modal", "visual", "narrow"]
 
 # ————— f : files ————————————————————————————
 "f o"      = { cmd = "files.open_pick", desc = "open which file…" }
-"f d"      = { cmd = "view.doctor", args = { current = true }, desc = "doctor: this document" }
-"f f"      = { cmd = "doctor.fix",  args = { current = true }, desc = "doctor fix: this document" }
 "f a"      = { cmd = "files.attach",    desc = "attach file" }
 "f r"      = { cmd = "files.relocate",  desc = "relocate + rename to scheme" }
 "f R"      = { cmd = "files.relocate", args = { force = true }, desc = "relocate (force)" }
@@ -120,13 +117,21 @@ escape_chain = ["modal", "visual", "narrow"]
 # ————— d : delete ———————————————————————————
 "d d"      = { cmd = "doc.delete", desc = "delete document" }
 
+# ————— ! : doctor ———————————————————————————
+# The view is the narrowed list, so there is no separate findings pane: `! !`
+# scans and narrows, the info pane shows the findings of whatever the cursor is
+# on, and escape drops the narrow like any other.
+"! !"      = { cmd = "doctor.run",      desc = "scan + narrow to findings" }
+"! d"      = { cmd = "doctor.run", args = { current = true }, desc = "re-check this document" }
+"! f"      = { cmd = "doctor.fix", args = { current = true }, desc = "fix findings here" }
+"! o"      = { cmd = "doctor.fix_pick", desc = "fix one finding…" }
+"! a"      = { cmd = "doctor.fix",      desc = "fix findings on marked/shown" }
+
 # ————— \ : leader (rare / admin) ——————————————————
 "\\ s"     = { cmd = "query.save",        desc = "save current search" }
 "\\ t"     = { cmd = "theme.picker",      desc = "theme" }
 "\\ c"     = { cmd = "app.config_check",  desc = "check config" }
 "\\ k"     = { cmd = "keymap.check",      desc = "check keymap conflicts" }
-"\\ d"     = { cmd = "doctor.run",        desc = "run doctor" }
-"\\ D"     = { cmd = "doctor.fix",        desc = "fix doctor findings" }
 
 [modes.files]
 "j"        = { cmd = "nav.down" }
