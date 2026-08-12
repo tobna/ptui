@@ -64,6 +64,15 @@ EXTRA_THEMES = (
 STATUS_BG = "$surface"
 """The status bar's own background — what the powerline blocks flow out of."""
 
+MARKER_WIDTH = 2
+"""Cells the flexible column gives up to the exception marker and its space.
+
+One cell, always reserved, so the titles stay aligned whether or not a document
+has anything wrong with it. It is the *only* exception marker: a missing file is
+already a doctor finding (papis's `files` check), and how many files a document
+has is information rather than an exception — that belongs in the info pane.
+"""
+
 MIN_FLEX = 12
 """Cells the flexible column keeps. Below this a fixed column is dropped instead —
 author plus a stubby title beats a wide title and no idea who wrote it."""
@@ -399,10 +408,16 @@ class PtuiApp(App[None]):
         return "{doc[" + "][".join(self.sort_key.split(".")) + "]}"
 
     def header(self, column: dict[str, Any]) -> str:
-        """`Year ↓` when the list is sorted on that column's own field."""
+        """`Year ↓` when the list is sorted on that column's own field.
+
+        The flexible column's header is indented past the exception marker, or
+        it sits two cells left of every value under it.
+        """
+        pad = "" if column["width"] else " " * MARKER_WIDTH
         if column["format"].strip() != self.sort_format:
-            return column["title"]
-        return f"{column['title']} {ui.glyph('sort_desc' if self.sort_reverse else 'sort_asc')}"
+            return pad + column["title"]
+        arrow = ui.glyph("sort_desc" if self.sort_reverse else "sort_asc")
+        return f"{pad}{column['title']} {arrow}"
 
     def natural_width(self, index: int, column: dict[str, Any]) -> int:
         """What a fixed column asks for: its p90 over the whole narrowed set,
@@ -529,21 +544,30 @@ class PtuiApp(App[None]):
         # DataTable cells are Rich, not CSS-styled, so the theme's colour has to
         # be fetched by hand — `theme_variables` is the same table the CSS reads.
         mark_style = f"bold {self.theme_variables.get('accent', '')}".strip()
+        warn_style = f"bold {self.theme_variables.get('error', '')}".strip()
         for doc in self.rows:
             marked = library.doc_id(doc) in self.marks
+            marker = ui.glyph("warning") if doctor.cached(doc) else " "
             cells = []
             for index, (column, width) in enumerate(self._fit):
                 text = self.cell_text(doc, column)
                 if index == 0:
                     text = f"{ui.glyph('mark') if marked else ' '} {text}"
+                flex = not column["width"]
+                room = width - MARKER_WIDTH if flex else width
                 # Only the flexible column wraps: it is the one holding a title
                 # long enough to need a second line, and giving every column the
                 # extra rows would just pad the table out.
-                if height > 1 and not column["width"]:
-                    text = library.fit_lines(text, width, height)
+                if height > 1 and flex:
+                    text = library.fit_lines(text, room, height).replace(
+                        "\n", "\n" + " " * MARKER_WIDTH
+                    )
                 else:
-                    text = library.fit(text, width)
-                cell = Text(text, style=mark_style if marked else "")
+                    text = library.fit(text, room)
+                cell = Text()
+                if flex:  # the exception marker, in its own colour
+                    cell.append(f"{marker} ", style=warn_style)
+                cell.append(text, style=mark_style if marked else "")
                 if lit:
                     cell.highlight_words(lit, "reverse", case_sensitive=False)
                 cells.append(cell)

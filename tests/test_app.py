@@ -162,8 +162,10 @@ async def test_sort_direction_shows_in_the_header_of_the_sorted_column(app):
 
         await press(pilot, "S", "t", "i", "t", "l", "e", "enter")  # Title, ascending
         await settle(pilot)
-        assert f"Title {ui.glyph('sort_asc')}" in headers()
-        assert not any(h.startswith("Year ") for h in headers())  # the arrow moved
+        # the flexible column's header is indented past the exception marker,
+        # so that `Title` sits over the titles rather than two cells left of them
+        assert f"  Title {ui.glyph('sort_asc')}" in headers()
+        assert not any(h.strip().startswith("Year ") for h in headers())  # the arrow moved
 
 
 async def test_help_opens_in_every_mode_and_lists_effective_bindings(app):
@@ -260,3 +262,35 @@ async def test_status_bar_shows_the_mode_and_the_counts(app):
 
         await press(pilot, "4")  # the mode block follows the focused pane
         assert " LOG " in bar()
+
+
+async def test_a_document_with_doctor_findings_is_marked_in_the_list(app, monkeypatch):
+    from textual.widgets import DataTable
+
+    from ptui import doctor, ui
+
+    broken = doctor.Finding(
+        name="key-type",
+        path=None,
+        msg="year is a str",
+        suggestion_cmd="",
+        fix_action=None,
+        payload="",
+        doc=None,
+    )
+    # `cached` returns None for *not checked*, [] for clean, findings for broken —
+    # and only the last of those may draw the glyph.
+    seen = {"id0": [broken], "id1": [], "id2": None}
+    monkeypatch.setattr(doctor, "cached", lambda doc: seen[doc["papis_id"]])
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        app.refresh_rows()
+        table = app.query_one(DataTable)
+        flex = next(i for i, (column, _) in enumerate(app._fit) if not column["width"])
+        titles = [table.get_row_at(row)[flex].plain for row in range(3)]
+
+        assert titles[0].startswith(f"{ui.glyph('warning')} ")  # findings
+        assert titles[1].startswith("  ")  # clean, but still aligned
+        assert titles[2].startswith("  ")  # not checked is not the same as broken
+        assert titles[0][2:].startswith("Attention")

@@ -56,15 +56,6 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
   per-level colour (`log.*` classes existed in the old stylesheet and nothing
   ever set them), and `AddForm` is a stack of unstyled inputs.
 
-- **Warning glyph on documents with doctor findings** — unblocked: the doctor
-  landed and `doctor.CACHE` is exactly the background-pass-plus-cache this asked
-  for, so the column only has to read `doctor.cached(doc)`. As the first
-  "letter" of the title cell, so a broken document is visible without running
-  anything. Note `cached()` returns `None` for *not checked*, which is not the
-  same as clean and must not draw the same glyph. This shares the
-  exception-marker cell with the missing-file and multi-file ideas, so decide
-  the whole cell at once rather than one flag at a time.
-
 - **Column set — the last open layout decision.** The rules it was waiting on
   have landed, and they took most of the problem with them: `Tags` renders
   joined (not a Python list), is `optional = true` so it never squeezes `Title`,

@@ -124,7 +124,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 114 tests, `uv run pytest`.
+empty. 115 tests, `uv run pytest`.
 
 Built:
 
@@ -154,7 +154,7 @@ Built:
 - **`doc.edit`** (`e`) and **`doc.notes`** (`g n`), both `$EDITOR` under
   `app.suspend()`
 - **themes**: Textual's 21 plus `tokyonight-moon`, `theme.picker` (`\ t`),
-  titled panes, a lualine-shaped status bar
+  titled panes, a lualine-shaped status bar, the doctor's exception marker
 
 Not built. 15 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
@@ -352,6 +352,14 @@ never existed (`#cmdline`, `ConfirmDialog`, `#help-overlay`).
 
 Three things about the chrome that cost time to find:
 
+- **The exception marker** is `MARKER_WIDTH` cells the flexible column always
+  gives up, so titles stay aligned whether or not a document has anything wrong
+  with it — and `header()` indents that column's title by the same amount, or
+  `Title` sits two cells left of every title under it. It reads
+  `doctor.cached(doc)`, where **`None` means *not checked* and must not draw the
+  same glyph as clean**. It is the only exception marker there will be: a
+  missing file is already a doctor finding (papis's `files` check), and how many
+  files a document has is information, not an exception.
 - **A pane's ID beats `.pane-active` in Textual's specificity**, so the active
   rule is written `#list-pane.pane-active, …`. Without the ID the focused
   border silently never lights up.
