@@ -13,9 +13,10 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 ## B. Bound but not implemented (they log "not implemented yet")
 
 - `e` `doc.edit` — see C1; `E` (`doc.edit_raw`) works.
-- `c t` / `c T` / `c s` / `c r` / `c f` — `doc.tag`, `doc.untag`, `doc.status`,
-  `doc.rating`, `doc.set`. None of the `c` namespace exists yet. `c t` and `c T`
-  should probably be one operation that just edits the tags.
+- `c t` / `c T` / `c s` / `c r` — `doc.tag`, `doc.untag`, `doc.status`,
+  `doc.rating`. `c f` `doc.set` is built and is the write path all four want:
+  each is `doc.set` with the key fixed and the value picked rather than typed.
+  `c t` and `c T` should probably be one operation that just edits the tags.
 - `d d` `doc.delete` — and therefore `u` `app.undo` cannot be tested at all.
 - `g n` `doc.notes`, `g s` `view.saved`, `\ s` `query.save`, `\ t` `theme.picker`.
 - `f a` `files.attach`, `f n` `files.normalize`, and the `[modes.files]` verbs
@@ -106,10 +107,9 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 2. **The `:` line's own commands** — specified in `SPEC.md` § "Commands that
    exist for the `:` line", none of them implemented. They need no key: the
    argument is the command. In the order they are worth building:
-   `doc.set key value` (also unblocks the whole `c` namespace in § B, which is
-   the same write path), `doctor.fix checks`, `config.set key value`
-   (session-only, nothing written to `config.toml`), `mark.query q [unmark]`,
-   then `nav.goto ref`, `doc.add source uri`, `query.save name`.
+   `doctor.fix checks`, `config.set key value` (session-only, nothing written
+   to `config.toml`), `mark.query q [unmark]`, then `nav.goto ref`,
+   `doc.add source uri`, `query.save name`. (`doc.set` is built.)
 
 3. **An unmark for every mark.** `mark.all_filtered` and the new `mark.query`
    take `unmark:bool=false`; the keymap gives the SHIFT variant to unmarking

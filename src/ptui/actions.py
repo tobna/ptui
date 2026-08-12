@@ -133,6 +133,12 @@ def prompt_result(app: Any, kind: str, value: str) -> None:
     """Dispatch a prompt whose result is not a query."""
     if kind == "add":
         add_form(app, Path(value).expanduser())
+    elif kind == "set":
+        # `key value with spaces` — the value is the rest of the line, not a
+        # shell word: this is a prompt, and quoting a title would be absurd.
+        field, _, text = value.strip().partition(" ")
+        if field:
+            doc_set(app, field, text.strip())
     elif kind.startswith("cmdline:"):
         cmdline_run(app, kind.removeprefix("cmdline:"), value)
     elif kind.startswith("import:"):
@@ -427,6 +433,64 @@ def doc_edit_raw(app: Any) -> None:
     papis.database.get().update(doc)
     app.refresh_rows()
     app.log_line(f"edited {doc.get('ref', doc.get('title', ''))}")
+
+
+@command("doc.set", "set any field")
+def doc_set(app: Any, key: str | None = None, value: str | None = None) -> None:
+    """Set one field on every target, through the safe write. Batch-aware.
+
+    With no `key` it prompts — `c f` and a bare `:doc.set` land in the same
+    place. An empty value **removes** the key, which is the only way to clear a
+    field without opening `$EDITOR`. The value's type comes from
+    `library.typed`, so `tags` becomes a list and `year` an int.
+    """
+    if key is None:
+        app.open_prompt("set", "key value  (no value clears the field)")
+        return
+    targets = app.targets
+    if not targets:
+        return
+    try:  # every value first, so a bad number aborts before anything is written
+        planned = [(doc, library.typed(key, value or "", doc.get(key))) for doc in targets]
+    except ValueError as exc:
+        app.log_line(f"[red]{exc}[/]")
+        return
+    if len(targets) == 1:
+        _set_apply(app, planned, key)
+        return
+    # SPEC: a batch confirms against the *total* marked count. The picker is the
+    # confirm — ponytail: no preview list, the count and the value are the whole
+    # question here, unlike a delete.
+    what = f"{key} = {value}" if value else f"remove {key}"
+    items = [
+        ui.Item(label=f"set {what} on {len(targets)} documents", value=True),
+        ui.Item(label="cancel", value=False),
+    ]
+    ui.pick(app, items, title=f"Set {key} on {len(targets)} documents?")(
+        lambda ok, _invert: _set_apply(app, planned, key) if ok else None
+    )
+
+
+def _set_apply(app: Any, planned: list[tuple[Any, Any]], key: str) -> None:
+    done = 0
+    for doc, new in planned:
+
+        def write(data: Any, new: Any = new) -> None:
+            if new is None:
+                data.pop(key, None)
+            else:
+                data[key] = new
+
+        try:
+            safewrite.edit(doc, write)
+        except safewrite.StaleError:
+            app.log_line(f"[yellow]{doc.get('ref', '')} changed on disk; press r to reload[/]")
+        except Exception as exc:
+            app.log_line(f"[red]{key} on {doc.get('ref', '')} failed:[/] {exc}")
+        else:
+            done += 1
+    app.refresh_rows()
+    app.log_line(f"set {key} on {done}/{len(planned)} document(s)")
 
 
 # ── add ─────────────────────────────────────────────────────────────────────

@@ -124,7 +124,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 103 tests, `uv run pytest`.
+empty. 107 tests, `uv run pytest`.
 
 Built:
 
@@ -148,11 +148,14 @@ Built:
   documents that have them, fixes only on an explicit verb
 - **`:` command line** (`cmdline.open`, also `ctrl+p`): a `SelectList` over
   `commands.REGISTRY` with each command's binding as the hint
+- **`doc.set`** (`c f`, `:doc.set key value`): one field on every target through
+  `safewrite`, typed from papis's own declared key types
 
-Not built. 24 keys are bound to commands that only log "not implemented yet" —
+Not built. 23 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
 (import `actions` first, or the registry is empty and every key looks unbound).
-The clusters: the whole `c` namespace (tag/untag/status/rating/set),
+The clusters: the rest of the `c` namespace (tag/untag/status/rating —
+`c f` `doc.set` is built and is their write path),
 `doc.delete` + `app.undo`/`app.redo`, `view.marked`, `doc.notes`, saved
 searches, `theme.picker`, visual mode (`v`/`V`), and the files pane with its
 `[modes.files]` verbs. Also read but ignored: `general.persist_state`.
@@ -334,6 +337,18 @@ both halves of the old bug: escape left the pane on screen looking dead, and
 `4` focused a pane that was never shown, putting the keyboard somewhere
 invisible. The info pane is deliberately *not* included: `z i` is an explicit
 toggle and focusing must not argue with it.
+
+`doc.set` decides the *type* of what it writes through `library.typed`, and the
+types come from papis's own `doctor-key-type-keys` (`tags:list`, `year:int`,
+read with `papis.config.getlist("key-type-keys", section="doctor")`) rather than
+a table here — otherwise setting `tags` to a string is exactly what the
+`key-type` doctor check exists to complain about. Undeclared keys keep the type
+already stored under them, and everything else stays text: guessing that `04` in
+an unknown field is a number is how `volume` loses its zero. An empty value
+**removes** the key. Every value is computed before anything is written, so a
+bad number aborts the batch instead of half-applying it, and a batch of more
+than one confirms first (the picker is the dialog; SPEC's preview list is
+ponytail'd down to the count, which is the whole question for a field set).
 
 `cmdline.open` and `help.show` split by what they list: help renders the current
 mode's *keymap* and only browses, the `:` line renders the *registry* and runs

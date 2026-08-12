@@ -235,3 +235,18 @@ def test_discover_keys():
         "title",
         "year",
     ]
+
+
+def test_typed_follows_the_declared_type_then_the_stored_one():
+    import pytest
+
+    assert library.typed("tags", "ml cv") == ["ml", "cv"]  # papis declares tags:list
+    assert library.typed("year", "2020") == 2020  # ...and year:int
+    assert library.typed("title", "2020") == "2020"  # a str key stays text
+    # no declared type: the value already there decides, so a list stays a list
+    assert library.typed("keywords", "a, b", current=["x"]) == ["a", "b"]
+    assert library.typed("keywords", "a, b") == "a, b"
+    assert library.typed("volume", "04", current="1") == "04"  # never guessed into a number
+    assert library.typed("tags", "   ") is None  # nothing typed means remove the key
+    with pytest.raises(ValueError):
+        library.typed("year", "twenty")

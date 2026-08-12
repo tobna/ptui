@@ -37,7 +37,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `a` | `doc.add` | add document |
 | `b` | `doc.browse` | open URL/DOI |
 | `c T` | `doc.untag` | remove tags *(not implemented)* |
-| `c f` | `doc.set` | set any field *(not implemented)* |
+| `c f` | `doc.set` | set any field |
 | `c r` | `doc.rating` | rating *(not implemented)* |
 | `c s` | `doc.status` | reading status *(not implemented)* |
 | `c t` | `doc.tag` | add tags *(not implemented)* |

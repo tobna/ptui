@@ -122,3 +122,55 @@ async def test_cmdline_reports_a_bad_argument_line(app, monkeypatch):
         await press(pilot, ":", *"nav.down", "enter", *"many", "enter")
         assert app.current["year"] == 2017  # nothing moved, nothing crashed
         assert any("many" in message for message in logged)  # and it said why
+
+
+async def test_set_writes_a_field_with_the_type_papis_declares(app, papis_lib):
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "c", "f")
+        assert app.prompt_kind == "set"
+        await press(pilot, *"tags ml, cv", "enter")
+        await settle(pilot)
+        assert app.current["tags"] == ["ml", "cv"]  # a list, per `tags:list`
+
+        await press(pilot, "c", "f", *"year 2020", "enter")
+        await settle(pilot)
+        assert app.current["year"] == 2020  # an int, per `year:int`
+
+        await press(pilot, "c", "f", *"tags", "enter")  # no value clears the key
+        await settle(pilot)
+        assert "tags" not in app.current
+
+    text = info.read_text()
+    assert "papis_id: id0" in text  # the rest of the file survived the writes
+    assert "year: 2020" in text
+
+
+async def test_set_refuses_a_value_of_the_wrong_type(app, papis_lib, monkeypatch):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = []
+        monkeypatch.setattr(app, "log_line", logged.append)
+        await press(pilot, "c", "f", *"year twenty", "enter")
+        await settle(pilot)
+        assert app.current["year"] == 2017  # nothing written
+        assert any("must be int" in message for message in logged)
+
+
+async def test_set_over_marks_asks_first(app):
+    from ptui import ui
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "space", "space")  # mark two documents
+        await press(pilot, "c", "f", *"reading_status read", "enter")
+        assert isinstance(app.screen, ui.SelectList)  # a batch confirms
+
+        await press(pilot, "escape")  # ...and cancelling writes nothing
+        await settle(pilot)
+        assert not any(d.get("reading_status") for d in app.docs)
+
+        await press(pilot, "c", "f", *"reading_status read", "enter", "enter")
+        await settle(pilot)
+        assert [d.get("reading_status") for d in app.targets] == ["read", "read"]

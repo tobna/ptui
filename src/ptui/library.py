@@ -26,6 +26,7 @@ from rich.cells import cell_len, set_cell_size
 # the sequential path (PAPIS_NP is papis's own switch — a user can override it).
 os.environ.setdefault("PAPIS_NP", "0")
 
+import papis.config
 import papis.database
 import papis.id
 from papis.document import Document
@@ -332,6 +333,52 @@ def display(value: Any) -> str:
     if isinstance(value, (list, tuple)):
         return ", ".join(display(item) for item in value)
     return str(value)
+
+
+_LIST_SPLIT = re.compile(r"[,\s]+")
+
+
+def key_types() -> dict[str, str]:
+    """The type papis declares for each key, from its **own** doctor config
+    (`doctor-key-type-keys`: `tags:list`, `year:int`, `files:list`, …).
+
+    Read from papis rather than kept in a table here, so setting a field and
+    the `key-type` check can never disagree — a `tags` written as a string is
+    exactly what that check exists to complain about.
+    """
+    types = {}
+    for entry in papis.config.getlist("key-type-keys", section="doctor"):
+        key, _, kind = str(entry).partition(":")
+        if kind:
+            types[key.strip()] = kind.strip()
+    return types
+
+
+def typed(key: str, text: str, current: Any = None) -> Any:
+    """What a user typed, as the value that key should hold. `None` means
+    *remove the key* — an empty value is how a field is cleared.
+
+    The declared type wins; failing that, the type already stored under the key
+    does, so a list stays a list even for a key papis has no opinion about.
+    Everything else is text: guessing that `2024` in an undeclared field means a
+    number is how `volume: 04` loses its zero.
+    """
+    text = text.strip()
+    if not text:
+        return None
+    kind = key_types().get(key)
+    if kind is None and current is not None:
+        kind = type(current).__name__
+    if kind == "list":
+        return [part for part in _LIST_SPLIT.split(text) if part]
+    if kind == "bool":
+        return text.casefold() in {"true", "yes", "on", "1"}
+    if kind in ("int", "float"):
+        try:
+            return int(text) if kind == "int" else float(text)
+        except ValueError as exc:
+            raise ValueError(f"{key} must be {kind}, not {text!r}") from exc
+    return text
 
 
 ARXIV_DOI = "10.48550"
