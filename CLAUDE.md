@@ -193,10 +193,15 @@ still-undecided candidates so a real terminal can choose.
 A `[[list.columns]]` entry with `glyph = "type"` renders its formatted value
 through the `type.*` family instead of printing it — that is the one-cell
 document-kind column. Its value comes from `{doc[kind]}`, which `library.kind()`
-derives: the `type` field, except that an article whose only DOI is arXiv's and
-which names no journal/booktitle/venue reads as `preprint`. Local data only, so
-a stale entry for a paper that did get published stays flagged; `library.flatten`
-injects `kind` and it wins over any stored key of that name.
+derives: the `type` field, except that an article with no venue and no trace but
+arXiv's reads as `preprint`. The DOI decides whenever there is one; a document
+with **no** DOI falls through to `library.on_arxiv` (`eprinttype`, else an
+arxiv.org URL), which is what makes the 19 arXiv imports that never recorded a
+DOI read correctly. Measured on the real library: 190 preprints, and the order
+matters — 182 documents carry a publisher DOI *and* an arXiv eprint, so eprint
+may never outrank a DOI. Local data only, so a stale entry for a paper that did
+get published stays flagged; `library.flatten` injects `kind` and it wins over
+any stored key of that name.
 
 In `SelectList` the cursor glyph tracks the **highlighted** row, not the
 `current` value — every picker has a highlight, only some are opened with a

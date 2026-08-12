@@ -190,9 +190,10 @@ def test_kind_calls_an_arxiv_only_article_a_preprint():
 
     arxiv = "10.48550/arXiv.2509.26092"
     assert k(type="article", doi=arxiv) == "preprint"
-    # an arXiv DOI is required, not merely the absence of a publisher one: 25 docs
-    # in the real library have no DOI at all and stay `article` because of this
+    # no DOI *and* no arXiv trace at all: the 3 such documents in the real
+    # library are an OpenAI blog post and an openreview draft, not preprints
     assert k(type="article") == "article"
+    assert k(type="article", eprinttype="OpenAI Blog") == "article"
     assert k(type="article", doi="10.1109/CVPR.2024.1") == "article"  # a publisher minted it
     assert k(type="article", doi=arxiv, journal="TPAMI") == "article"
     assert k(type="article", doi=arxiv, booktitle="NeurIPS") == "article"
@@ -202,6 +203,25 @@ def test_kind_calls_an_arxiv_only_article_a_preprint():
     assert k(type="article", doi=arxiv, journal="  ") == "preprint"  # blank is not a venue
     assert k(type="inproceedings", doi=arxiv) == "inproceedings"  # only articles can be preprints
     assert library.flatten(docs({"type": "article", "doi": arxiv})[0])["kind"] == "preprint"
+
+
+def test_an_arxiv_entry_with_no_doi_is_still_a_preprint():
+    """The LUMA case: imported from arXiv, never assigned a DOI at all. 19 such
+    documents in the real library used to read as `article`."""
+
+    def k(**fields):
+        return library.kind(docs(fields)[0])
+
+    eprint = {"eprint": "2607.00687v1", "eprinttype": "arxiv"}
+    assert k(type="article", **eprint) == "preprint"
+    assert k(type="article", eprinttype="arXiv") == "preprint"  # case is not a signal
+    assert k(type="article", url="http://arxiv.org/abs/2607.00687v1") == "preprint"
+    # …but a published paper keeps its arXiv eprint forever, and the DOI wins:
+    # 182 documents in the real library carry both.
+    assert k(type="article", doi="10.1109/CVPR.2024.1", **eprint) == "article"
+    assert k(type="article", doi="10.1109/CVPR.2024.1", url="https://arxiv.org/abs/1") == "article"
+    assert k(type="article", journal="TPAMI", **eprint) == "article"  # so does a venue
+    assert k(type="article", eprinttype="openreview") == "article"  # another server is not arXiv
 
 
 def test_p90_ignores_the_one_long_outlier():

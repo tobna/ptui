@@ -92,13 +92,11 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
    checks and a title-similarity pass are the candidates, and both want
    measuring before being trusted.
 
-3. **`preprint` misses arXiv entries that have no DOI at all.** `library.kind()`
-   only asks whether `doi` starts with `10.48550/arxiv`, so an arXiv import that
-   never recorded a DOI reads as `article`. Widen it: arXiv DOI, **or** — only
-   when the document has no `doi` — an arxiv.org `url` (`eprint` too, if it is
-   as common). A non-arXiv DOI still means published, so the URL fallback must
-   never override a real DOI. Measure both counts against the real library
-   before changing the default.
+3. **Nothing re-checks whether a preprint got published.** `kind()` is local
+   data only, so the 190 documents that read `preprint` include every arXiv
+   import that was never refreshed. A DOI lookup would settle it, but it is a
+   network call per document and wants a cache — measure how many of the 190
+   resolve to a published DOI before deciding it is worth the machinery.
 
 ## F. New features asked for
 

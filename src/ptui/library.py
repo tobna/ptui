@@ -338,6 +338,25 @@ ARXIV_DOI = "10.48550"
 """arXiv mints its own DOIs under this prefix. A DOI under any other prefix was
 assigned by a publisher, which is the strongest local evidence of publication."""
 
+ARXIV_URL = "arxiv.org"
+
+
+def on_arxiv(doc: Document) -> bool:
+    """arXiv evidence that is *not* a DOI — only ever asked of a document that
+    has no DOI at all, because `eprint` survives publication: measured on the
+    real library, 182 documents carry a publisher DOI **and** an arXiv eprint,
+    so this may never outrank one.
+
+    `eprinttype` rather than the bare presence of `eprint`: every one of the 495
+    eprints in that library names its server, and the ones that are not arXiv say
+    `OpenAI Blog` or `openreview`, which are exactly the entries that must stay
+    `article`. The URL is the fallback for an entry that recorded no eprint type.
+    """
+    if str(doc.get("eprinttype") or "").casefold() == "arxiv":
+        return True
+    return ARXIV_URL in str(doc.get("url") or "").casefold()
+
+
 VENUE_KEYS = ("booktitle", "journal", "journaltitle")
 """Where the *name* of a conference or journal lives, in preference order.
 
@@ -359,19 +378,26 @@ def venue(doc: Document) -> str:
 def kind(doc: Document) -> str:
     """`type`, except that an arXiv-only article reads as `preprint`.
 
-    Local data only, deliberately: an `article` whose only DOI is arXiv's and
-    which names no journal, booktitle or venue has nothing to say it was ever
+    Local data only, deliberately: an `article` that names no journal, booktitle
+    or venue and whose only trace is arXiv's has nothing to say it was ever
     published. That is evidence of absence, not absence of publication — an
     entry imported from arXiv and never refreshed looks identical, so a paper
     that did appear at a conference is flagged until its metadata is updated.
     Settling it properly needs a network lookup; see TODO § D.
+
+    The DOI decides whenever there is one: arXiv's prefix means preprint, any
+    other prefix means a publisher minted it. Only a document with **no** DOI
+    falls through to `on_arxiv`, which is what rescues the 19 arXiv imports that
+    never recorded one — measured, they are all `eprinttype: arxiv`.
     """
     if doc.get("type") != "article":
         return str(doc.get("type", ""))
     if venue(doc):
         return "article"
     doi = str(doc.get("doi") or "").casefold()
-    return "preprint" if doi.startswith(ARXIV_DOI) else "article"
+    if doi:
+        return "preprint" if doi.startswith(ARXIV_DOI) else "article"
+    return "preprint" if on_arxiv(doc) else "article"
 
 
 STRUCTURAL = frozenset({"files"})
