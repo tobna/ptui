@@ -6,6 +6,7 @@ app module, so `app.py` can import this at load time to register everything.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
@@ -139,6 +140,8 @@ def prompt_result(app: Any, kind: str, value: str) -> None:
         field, _, text = value.strip().partition(" ")
         if field:
             doc_set(app, field, text.strip())
+    elif kind in ("tag", "untag"):
+        (doc_tag if kind == "tag" else doc_untag)(app, value)
     elif kind.startswith("cmdline:"):
         cmdline_run(app, kind.removeprefix("cmdline:"), value)
     elif kind.startswith("import:"):
@@ -422,17 +425,62 @@ def doc_browse(app: Any) -> None:
 def doc_edit_raw(app: Any) -> None:
     """Full-screen `$EDITOR` on `info.yaml` — never a pty embedded in a pane."""
     import papis.commands.edit
-    import papis.database
 
     doc = app.current
     if doc is None:
         return
     with app.suspend():
         papis.commands.edit.run(doc, wait=True)
+    # Re-parse before trusting it: a stray tab or an unclosed quote leaves papis
+    # unable to load the document at all, and it would otherwise show up much
+    # later as a document that has silently lost every field.
+    try:
+        safewrite.read(Path(doc.get_info_file()))
+    except Exception as exc:
+        app.log_line(f"[red]invalid YAML, nothing reloaded:[/] {exc}")
+        app.log_line("[yellow]papis cannot load this document until it parses — press E again[/]")
+        return
+    _resync(app, doc)
+    app.log_line(f"edited {doc.get('ref', doc.get('title', ''))}")
+
+
+def _resync(app: Any, doc: Any) -> None:
+    """Re-read a document papis itself wrote, and put it back in the index."""
+    import papis.database
+
     doc.load()
     papis.database.get().update(doc)
     app.refresh_rows()
-    app.log_line(f"edited {doc.get('ref', doc.get('title', ''))}")
+
+
+@command("doc.edit", "edit")
+def doc_edit(app: Any) -> None:
+    """`edit.mode` decides which editor. The structured one is not built (SPEC
+    § Editing), so `editor` is the shipped default and this is `doc.edit_raw`
+    with a note when the config still asks for the form."""
+    if app.cfg.get("edit.mode", "editor") == "structured":
+        app.log_line("[yellow]the structured editor is not built yet; opening $EDITOR[/]")
+    doc_edit_raw(app)
+
+
+@command("doc.notes", "notes")
+def doc_notes(app: Any) -> None:
+    """Open (creating if needed) the document's notes file in `$EDITOR`.
+
+    `papis.commands.edit.edit_notes` creates the file from papis's own template
+    and writes the `notes` key itself — one of the few writes that does not go
+    through `safewrite`, because it is papis's own API doing it, exactly as with
+    `papis.commands.add.run`.
+    """
+    import papis.commands.edit
+
+    doc = app.current
+    if doc is None:
+        return
+    with app.suspend():
+        papis.commands.edit.edit_notes(doc, git=bool(app.cfg.papis("edit.use_git", "use-git")))
+    _resync(app, doc)
+    app.log_line(f"notes: {doc.get('notes', 'unchanged')}")
 
 
 @command("doc.set", "set any field")
@@ -447,11 +495,21 @@ def doc_set(app: Any, key: str | None = None, value: str | None = None) -> None:
     if key is None:
         app.open_prompt("set", "key value  (no value clears the field)")
         return
+    what = f"{key} = {value}" if value else f"remove {key}"
+    _set_field(app, key, lambda doc: library.typed(key, value or "", doc.get(key)), what)
+
+
+def _set_field(app: Any, key: str, value_of: Callable[[Any], Any], what: str) -> None:
+    """Plan one value per target, confirm a batch, then write. The single path
+    every `c` verb takes — they differ only in how the value is worked out.
+
+    `value_of` returning `None` removes the key.
+    """
     targets = app.targets
     if not targets:
         return
     try:  # every value first, so a bad number aborts before anything is written
-        planned = [(doc, library.typed(key, value or "", doc.get(key))) for doc in targets]
+        planned = [(doc, value_of(doc)) for doc in targets]
     except ValueError as exc:
         app.log_line(f"[red]{exc}[/]")
         return
@@ -461,12 +519,11 @@ def doc_set(app: Any, key: str | None = None, value: str | None = None) -> None:
     # SPEC: a batch confirms against the *total* marked count. The picker is the
     # confirm — ponytail: no preview list, the count and the value are the whole
     # question here, unlike a delete.
-    what = f"{key} = {value}" if value else f"remove {key}"
     items = [
         ui.Item(label=f"set {what} on {len(targets)} documents", value=True),
         ui.Item(label="cancel", value=False),
     ]
-    ui.pick(app, items, title=f"Set {key} on {len(targets)} documents?")(
+    ui.pick(app, items, title=f"{what} — {len(targets)} documents?")(
         lambda ok, _invert: _set_apply(app, planned, key) if ok else None
     )
 
@@ -491,6 +548,89 @@ def _set_apply(app: Any, planned: list[tuple[Any, Any]], key: str) -> None:
             done += 1
     app.refresh_rows()
     app.log_line(f"set {key} on {done}/{len(planned)} document(s)")
+
+
+def tags_of(doc: Any) -> list[str]:
+    """A document's tags as a list, whatever papis found in the file — the key
+    is declared `tags:list` but a hand-written `tags: ml, cv` is legal YAML and
+    happens."""
+    value = doc.get("tags") or []
+    return list(value) if isinstance(value, list) else library.typed("tags", str(value)) or []
+
+
+@command("doc.tag", "add tags")
+def doc_tag(app: Any, tags: str | None = None) -> None:
+    """Add tags, keeping the ones already there. Batch-aware.
+
+    Adding rather than replacing is the whole difference from `doc.set tags`:
+    marking twenty documents and tagging them must not wipe what each already
+    had. Order is preserved so the file diff stays small.
+    """
+    if tags is None:
+        app.open_prompt("tag", "tags to add")
+        return
+    wanted = library.typed("tags", tags) or []
+    if not wanted:
+        return
+
+    def add(doc: Any) -> list[str]:
+        current = tags_of(doc)
+        return [*current, *(tag for tag in wanted if tag not in current)]
+
+    _set_field(app, "tags", add, f"+{', '.join(wanted)}")
+
+
+@command("doc.untag", "remove tags")
+def doc_untag(app: Any, tags: str | None = None) -> None:
+    """Remove tags. A document left with none loses the key rather than keeping
+    an empty list, which is what `library.typed` does for every other field."""
+    if tags is None:
+        here = ", ".join(tags_of(app.current)) if app.current else ""
+        app.open_prompt("untag", f"tags to remove{f' — has: {here}' if here else ''}")
+        return
+    wanted = library.typed("tags", tags) or []
+    if not wanted:
+        return
+
+    def drop(doc: Any) -> list[str] | None:
+        return [tag for tag in tags_of(doc) if tag not in wanted] or None
+
+    _set_field(app, "tags", drop, f"-{', '.join(wanted)}")
+
+
+# ponytail: SPEC's three values, not a config key. `:doc.status submitted` still
+# works — the field is a free string, the picker is just the common case.
+STATUSES = ("unread", "reading", "read")
+
+
+@command("doc.status", "reading status")
+def doc_status(app: Any, value: str | None = None) -> None:
+    if value is None:
+        items = [ui.Item(label=status, value=status) for status in STATUSES]
+        items.append(ui.Item(label="clear", value="", hint="remove the field"))
+        current = app.current.get("reading_status") if app.current else None
+        ui.pick(app, items, title="Reading status", current=current)(
+            lambda status, _invert: doc_status(app, status)
+        )
+        return
+    _set_field(
+        app, "reading_status", lambda _doc: value or None, f"reading_status = {value or '-'}"
+    )
+
+
+@command("doc.rating", "rating")
+def doc_rating(app: Any, value: int | None = None) -> None:
+    """0 to 5, where 0 removes the key. Written as an int: papis does not declare a
+    type for `rating`, so `library.typed` would keep it as text."""
+    if value is None:
+        items = [ui.Item(label=str(n) if n else "0 — clear", value=n) for n in range(6)]
+        current = app.current.get("rating") if app.current else None
+        ui.pick(app, items, title="Rating", current=current)(
+            lambda stars, _invert: doc_rating(app, stars)
+        )
+        return
+    stars = max(0, min(5, value))
+    _set_field(app, "rating", lambda _doc: stars or None, f"rating = {stars or '-'}")
 
 
 # ── add ─────────────────────────────────────────────────────────────────────

@@ -51,17 +51,19 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **Tells you what a document is** — one column, one cell: conference paper,
   journal article, thesis, or an arXiv-only `preprint` worked out from the
   metadata. Nerd-font glyphs by default, ASCII on request.
-
-- **Edit a field without leaving the list** — `c f` sets any field on the
-  current document or on every mark, with the type papis declares for it (`tags`
-  a list, `year` an int); an empty value clears the field. Batches confirm first,
-  and every write goes through the safe-write path.
+- **Edit fields without leaving the list** — `c t` adds tags (keeping the ones
+  already there), `c T` removes them, `c s` sets the reading status, `c r` the
+  rating, and `c f` any field at all, with the type papis declares for it
+  (`tags` a list, `year` an int). All batch-aware over marks, batches confirm
+  first, every write through the safe-write path. `e` opens `$EDITOR` and tells
+  you if you saved YAML papis can no longer parse.
 - **Every command by name** — `:` (or `ctrl+p`) fuzzy-completes over the whole
   command registry with each command's key binding beside it, so the keymap
   teaches itself while you use it.
 
-Not there yet: undo, tagging, delete, saved searches and visual mode. Bindings
-for them exist and say so when pressed — see [`TODO.md`](TODO.md).
+Not there yet: delete and undo (one piece of work), saved searches, themes, the
+files pane and visual mode. Bindings for them exist and say so when pressed —
+see [`TODO.md`](TODO.md).
 
 ## Install
 

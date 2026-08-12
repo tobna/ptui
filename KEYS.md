@@ -36,11 +36,11 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `\ t` | `theme.picker` | theme *(not implemented)* |
 | `a` | `doc.add` | add document |
 | `b` | `doc.browse` | open URL/DOI |
-| `c T` | `doc.untag` | remove tags *(not implemented)* |
+| `c T` | `doc.untag` | remove tags |
 | `c f` | `doc.set` | set any field |
-| `c r` | `doc.rating` | rating *(not implemented)* |
-| `c s` | `doc.status` | reading status *(not implemented)* |
-| `c t` | `doc.tag` | add tags *(not implemented)* |
+| `c r` | `doc.rating` | rating |
+| `c s` | `doc.status` | reading status |
+| `c t` | `doc.tag` | add tags |
 | `ctrl+a` | `mark.all_filtered` | mark all (alias of m a) |
 | `ctrl+d` | `nav.page_down` | page down |
 | `ctrl+p` | `cmdline.open` | run a command by name |
@@ -50,7 +50,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `d d` | `doc.delete` | delete document *(not implemented)* |
 | `down` | `nav.down` | move down |
 | `E` | `doc.edit_raw` | edit info.yaml in $EDITOR |
-| `e` | `doc.edit` | edit (structured) *(not implemented)* |
+| `e` | `doc.edit` | edit (structured) |
 | `enter` | `doc.open` | open file |
 | `escape` | `app.escape` | cancel |
 | `f R` | `files.relocate` force=True | relocate (force) |
@@ -62,7 +62,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `g g` | `nav.top` | top |
 | `g l` | `lib.switch` | switch library |
 | `g m` | `view.marked` | marked only *(not implemented)* |
-| `g n` | `doc.notes` | notes *(not implemented)* |
+| `g n` | `doc.notes` | notes |
 | `g o` | `app.log` | operation log |
 | `g s` | `view.saved` | saved searches *(not implemented)* |
 | `i` | `doc.add` source=inbox | add from inbox |
@@ -118,7 +118,7 @@ The info pane, focused with `2` or `tab`.
 
 | Keys | Command | Does what |
 | --- | --- | --- |
-| `e` | `doc.edit` | — *(not implemented)* |
+| `e` | `doc.edit` | edit |
 | `j` | `nav.down` | move down |
 | `k` | `nav.up` | move up |
 

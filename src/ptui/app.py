@@ -38,7 +38,18 @@ MIN_FLEX = 12
 """Cells the flexible column keeps. Below this a fixed column is dropped instead —
 author plus a stubby title beats a wide title and no idea who wrote it."""
 
-INFO_FIELDS = ("author", "year", "venue", "ref", "doi", "url", "tags", "notes", "reading_status")
+INFO_FIELDS = (
+    "author",
+    "year",
+    "venue",
+    "ref",
+    "doi",
+    "url",
+    "tags",
+    "notes",
+    "reading_status",
+    "rating",
+)
 """Info-pane fields, in order. Each needs a `field.<name>` entry in `ui.GLYPHS`."""
 
 

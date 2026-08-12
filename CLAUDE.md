@@ -124,7 +124,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 107 tests, `uv run pytest`.
+empty. 111 tests, `uv run pytest`.
 
 Built:
 
@@ -148,17 +148,18 @@ Built:
   documents that have them, fixes only on an explicit verb
 - **`:` command line** (`cmdline.open`, also `ctrl+p`): a `SelectList` over
   `commands.REGISTRY` with each command's binding as the hint
-- **`doc.set`** (`c f`, `:doc.set key value`): one field on every target through
+- **the `c` namespace**: `doc.set` (`c f`), `doc.tag`/`doc.untag` (`c t`/`c T`),
+  `doc.status` (`c s`), `doc.rating` (`c r`) — one field on every target through
   `safewrite`, typed from papis's own declared key types
+- **`doc.edit`** (`e`) and **`doc.notes`** (`g n`), both `$EDITOR` under
+  `app.suspend()`
 
-Not built. 23 keys are bound to commands that only log "not implemented yet" —
+Not built. 16 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
 (import `actions` first, or the registry is empty and every key looks unbound).
-The clusters: the rest of the `c` namespace (tag/untag/status/rating —
-`c f` `doc.set` is built and is their write path),
-`doc.delete` + `app.undo`/`app.redo`, `view.marked`, `doc.notes`, saved
-searches, `theme.picker`, visual mode (`v`/`V`), and the files pane with its
-`[modes.files]` verbs. Also read but ignored: `general.persist_state`.
+The clusters: `doc.delete` + `app.undo`/`app.redo` (one piece — a delete with
+no undo is not shippable), `view.marked`, saved searches, `theme.picker`,
+visual mode (`v`/`V`), and the files pane with its `[modes.files]` verbs. Also read but ignored: `general.persist_state`.
 
 `PtuiApp.fit_columns()` sizes the list: a configured width is a ceiling, and
 each fixed column asks for `PtuiApp.natural_width()` — `library.p90` of what it
@@ -338,6 +339,16 @@ both halves of the old bug: escape left the pane on screen looking dead, and
 invisible. The info pane is deliberately *not* included: `z i` is an explicit
 toggle and focusing must not argue with it.
 
+Every `c` verb is `actions._set_field(app, key, value_of, what)` — plan one
+value per target, confirm when there is more than one, write through
+`safewrite`. They differ only in `value_of`: `doc.set` runs the typed text,
+`doc.tag` unions with what the document already has (**adding, not replacing**
+— tagging twenty marked documents must not wipe what each had), `doc.untag`
+subtracts and returns `None` when the last tag goes, so the key goes with it.
+`doc.rating` writes an int by hand because papis declares no type for it, and 0
+clears. `actions.tags_of` normalises whatever is in the file, since `tags: a, b`
+is legal YAML that papis's own `key-type` check would call wrong.
+
 `doc.set` decides the *type* of what it writes through `library.typed`, and the
 types come from papis's own `doctor-key-type-keys` (`tags:list`, `year:int`,
 read with `papis.config.getlist("key-type-keys", section="doctor")`) rather than
@@ -365,6 +376,17 @@ is a **string** (`from __future__ import annotations`) — hence the textual
 `"bool" in annotation` test, `bool` before `int` so `"false"` does not read as
 truthy. Too many arguments, an unclosed quote and a bad number all raise
 `ValueError` and are reported in the log by `actions.cmdline_run`.
+
+`doc.edit_raw` re-parses `info.yaml` after `$EDITOR` returns and **does not
+reload** when it no longer parses: papis cannot load it either, so reloading
+would redraw the document as having lost every field. `doc.edit` is the same
+thing plus a note when `edit.mode` still says `structured` — that editor is not
+built, and `editor` is now the shipped default (SPEC § Editing). `doc.notes`
+hands off to `papis.commands.edit.edit_notes`, which writes the `notes` key
+itself — one of the few writes not going through `safewrite`, for the same
+reason `papis.commands.add.run` does not: it is papis's own API. Both suspend
+the app, which `App.run_test` refuses, so a test needs
+`monkeypatch.setattr(app, "suspend", contextlib.nullcontext)`.
 
 `escape` and the help key are dispatched above the keymap (`app.on_key`):
 outside `[modes.list]` escape drops any pending chord and returns to the list,

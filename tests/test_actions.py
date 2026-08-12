@@ -174,3 +174,88 @@ async def test_set_over_marks_asks_first(app):
         await press(pilot, "c", "f", *"reading_status read", "enter", "enter")
         await settle(pilot)
         assert [d.get("reading_status") for d in app.targets] == ["read", "read"]
+
+
+async def test_tag_adds_and_untag_removes_without_touching_the_rest(app, papis_lib):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        assert app.current["tags"] == ["test"]  # the fixture's own tag
+        await press(pilot, "c", "t")
+        assert app.prompt_kind == "tag"
+        await press(pilot, *"ml, cv", "enter")
+        await settle(pilot)
+        assert app.current["tags"] == ["test", "ml", "cv"]  # added, not replaced
+
+        await press(pilot, "c", "t", *"ml", "enter")  # already there
+        await settle(pilot)
+        assert app.current["tags"] == ["test", "ml", "cv"]  # no duplicate
+
+        await press(pilot, "c", "T", *"test cv", "enter")
+        await settle(pilot)
+        assert app.current["tags"] == ["ml"]
+
+        await press(pilot, "c", "T", *"ml", "enter")  # the last one goes with the key
+        await settle(pilot)
+        assert "tags" not in app.current
+
+    assert "papis_id: id0" in (papis_lib / "lib" / "doc0" / "info.yaml").read_text()
+
+
+async def test_status_and_rating_pick_a_value(app):
+    from ptui import ui
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "c", "s")
+        assert isinstance(app.screen, ui.SelectList)
+        await press(pilot, *"reading", "enter")
+        await settle(pilot)
+        assert app.current["reading_status"] == "reading"
+
+        await press(pilot, "c", "r", "down", "down", "down", "enter")  # 0,1,2 -> 3
+        await settle(pilot)
+        assert app.current["rating"] == 3
+        assert isinstance(app.current["rating"], int)  # never the string "3"
+
+        await press(pilot, "c", "r", "up", "up", "up", "enter")  # opens on 3; 0 clears
+        await settle(pilot)
+        assert "rating" not in app.current
+
+        await press(pilot, "c", "s", *"clear", "enter")
+        await settle(pilot)
+        assert "reading_status" not in app.current
+
+
+async def test_tagging_a_batch_confirms_and_keeps_each_documents_own_tags(app):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "c", "t", *"solo", "enter")  # doc0 only
+        await settle(pilot)
+        await press(pilot, "space", "space")  # mark doc0 and doc1
+        await press(pilot, "c", "t", *"shared", "enter", "enter")  # confirm the batch
+        await settle(pilot)
+        assert [d["tags"] for d in app.targets] == [
+            ["test", "solo", "shared"],
+            ["test", "shared"],
+        ]
+
+
+async def test_edit_reports_yaml_it_can_no_longer_parse(app, papis_lib, monkeypatch):
+    import contextlib
+
+    import papis.commands.edit
+
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    monkeypatch.setattr(
+        papis.commands.edit, "run", lambda doc, **kw: info.write_text("title: [unclosed\n")
+    )
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = []
+        monkeypatch.setattr(app, "log_line", logged.append)
+        # $EDITOR takes the terminal for real, which a headless pilot has not got
+        monkeypatch.setattr(app, "suspend", contextlib.nullcontext)
+        await press(pilot, "e")  # edit.mode defaults to editor, so `e` is `E`
+        await settle(pilot)
+        assert any("invalid YAML" in message for message in logged)
+        assert app.current["title"] == "Attention Is All You Need"  # not reloaded

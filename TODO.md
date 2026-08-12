@@ -12,25 +12,18 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 ## B. Bound but not implemented (they log "not implemented yet")
 
-- `e` `doc.edit` — see C1; `E` (`doc.edit_raw`) works.
-- `c t` / `c T` / `c s` / `c r` — `doc.tag`, `doc.untag`, `doc.status`,
-  `doc.rating`. `c f` `doc.set` is built and is the write path all four want:
-  each is `doc.set` with the key fixed and the value picked rather than typed.
-  `c t` and `c T` should probably be one operation that just edits the tags.
 - `d d` `doc.delete` — and therefore `u` `app.undo` cannot be tested at all.
-- `g n` `doc.notes`, `g s` `view.saved`, `\ s` `query.save`, `\ t` `theme.picker`.
+  The two are one piece of work: SPEC has a required delete dialog, files route
+  through `undo.trash_dir` (`place.trash`, already used by merge) and the index
+  needs `papis.database.delete` or the document comes straight back.
+- `g s` `view.saved`, `\ s` `query.save`, `\ t` `theme.picker`.
 - `f a` `files.attach`, `f n` `files.normalize`, and the `[modes.files]` verbs
   (`files.rename`, `files.repoint`, `files.detach`, `files.reorder`) — there is
   no files pane yet.
 
 ## C. Decisions that change the defaults (and so SPEC)
 
-1. **`edit.mode = "editor"` becomes the default**, i.e. `e` and `E` both open
-   `$EDITOR` on `info.yaml`. On return, re-parse the file and report clearly if
-   it is no longer valid YAML (papis will have refused to load it). The
-   structured editor stays on the roadmap but is not the default.
-
-2. **`ui.icons = "auto"` — low priority.** Detect at startup whether the
+1. **`ui.icons = "auto"` — low priority.** Detect at startup whether the
    terminal can actually render the nerd-font column, and fall back to ASCII
    instead of drawing tofu. Only worth doing if the detection is honest:
    - There is no way to _ask_ a terminal what its font contains. The one real
@@ -44,6 +37,10 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
      So: three values (`true` / `false` / `"auto"`), `auto` runs the CPR probe and
      loses to ASCII on any doubt, and `config.get("ui.icons")` stops being a bool
      — `ui.use_icons()` is the only caller, so that stays a one-line change.
+
+2. **The structured editor is still unbuilt.** `edit.mode` now ships as
+   `"editor"`, so `e` and `E` are the same command and `structured_fields` is
+   read by nothing. Either build the form or drop the mode and the config key.
 
 ## D. Display polish
 

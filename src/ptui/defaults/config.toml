@@ -172,7 +172,7 @@ stack_size = 50               # in-memory metadata undo, any strategy
 git_warn_untracked = true
 
 [edit]
-mode = "structured"           # structured | editor
+mode = "editor"               # structured | editor (structured not built yet)
 editor = ""                   # empty = papis `editor` / $EDITOR
 use_git = false               # papis `use-git` wins if set
 structured_fields = ["title", "author_list", "year", "tags", "ref", "doi", "url"]

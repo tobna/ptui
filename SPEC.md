@@ -313,12 +313,19 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
 
 ## Editing
 
-- `edit.mode = "structured"` (default): form editor in the info pane —
-  tags, ref, year, authors, custom fields. Validated; cannot emit invalid
-  YAML.
-- `edit.mode = "editor"`: `App.suspend()` → `$EDITOR` on `info.yaml`,
-  full-screen. Do **not** embed a pty in the pane.
+- `edit.mode = "editor"` (default): `App.suspend()` → `$EDITOR` on
+  `info.yaml`, full-screen. Do **not** embed a pty in the pane. On return the
+  file is re-parsed: invalid YAML is reported and **nothing is reloaded**,
+  because papis cannot load the document either and a silent reload would show
+  it as having lost every field.
+- `edit.mode = "structured"`: form editor in the info pane — tags, ref, year,
+  authors, custom fields. Validated; cannot emit invalid YAML. Not built; the
+  mode falls back to `$EDITOR` and says so.
 - `E` (`doc.edit_raw`) always forces the `$EDITOR` path.
+- Field verbs write through the safe write, never the editor: `doc.tag` adds to
+  what a document already has rather than replacing it, `doc.untag` removes the
+  key along with its last tag, and both are batch-aware. `doc.rating` is an int
+  0–5 where 0 clears, since papis declares no type for it.
 
 ## Long-running operations
 

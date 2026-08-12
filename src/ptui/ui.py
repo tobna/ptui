@@ -56,6 +56,7 @@ GLYPHS = {
     "field.venue": (" ", ""),  # nf-fa-university
     "field.notes": (" ", ""),  # nf-fa-pencil
     "field.reading_status": (" ", ""),  # nf-fa-bookmark
+    "field.rating": (" ", ""),  # nf-fa-star
     "field.files": (" ", ""),  # nf-fa-file_text
     "field.doctor": (" ", ""),  # nf-fa-stethoscope
 }
