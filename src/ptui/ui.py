@@ -250,11 +250,22 @@ class AddForm(ModalScreen[dict[str, str] | None]):
     AddForm { align: center middle; background: $background 60%; }
     AddForm > Vertical {
         width: 80%; max-width: 110; height: auto;
-        border: round $primary; background: $surface; padding: 0 1;
+        border: round $primary; background: $surface; padding: 0 0 1 0;
     }
-    AddForm Input { border: none; padding: 0; }
-    AddForm .field-label { color: $text-muted; }
-    AddForm #add-preview { padding: 1 0 0 0; color: $text-muted; }
+    /* The same header bar `SelectList` wears: one modal look, not two. */
+    AddForm #picker-title {
+        padding: 0 1; text-style: bold; background: $primary; color: $background;
+    }
+    /* The focused field is the only one with a background, which is what makes
+       a stack of six inputs readable as "you are typing in this one". */
+    /* `height: 1` matters: an `Input` is three rows tall by default, so six of
+       them plus labels ran off the bottom of an 80x24 terminal. */
+    AddForm Input, AddForm Input:focus {
+        height: 1; border: none; padding: 0 1; margin: 0 1; background: $surface;
+    }
+    AddForm Input:focus { background: $panel; }
+    AddForm .field-label { color: $text-muted; padding: 0 2; }
+    AddForm #add-preview { padding: 1 2 0 2; color: $text-muted; }
     """
 
     def __init__(
@@ -269,7 +280,9 @@ class AddForm(ModalScreen[dict[str, str] | None]):
     def compose(self) -> ComposeResult:
         with Vertical():
             what = self.source.name if self.source else "from metadata"
-            yield Static(f"Add [bold]{what}[/]", id="picker-title")
+            # `literal`: a file name may hold brackets, and this is the one
+            # string here that goes through markup.
+            yield Static(f"Add {literal(what)}", id="picker-title")
             for field_name in ADD_FIELDS:
                 yield Static(field_name, classes="field-label")
                 yield Input(value=str(self.data.get(field_name, "")), id=f"add-{field_name}")
