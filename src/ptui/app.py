@@ -64,6 +64,10 @@ EXTRA_THEMES = (
 STATUS_BG = "$surface"
 """The status bar's own background — what the powerline blocks flow out of."""
 
+READING_COLOURS = {"unread": "dim", "reading": "$warning", "read": "$success"}
+"""`reading_status` is a state, so it gets a colour rather than a word to read.
+An unknown value falls back to dim — the field tolerates free strings."""
+
 LOG_LEVELS = {
     "CRITICAL": "error",
     "ERROR": "error",
@@ -642,27 +646,54 @@ class PtuiApp(App[None]):
 
         def show(value: Any) -> str:
             text = library.display(value)
-            return library.strip_latex(text) if strip else text
+            # `ui.literal`, not `escape`: Textual drops `[Extended]` from a title
+            # and neither escape helper touches it — see the note on `literal`.
+            return ui.literal(library.strip_latex(text) if strip else text)
 
         # The icon sits left of the right-aligned label, so the icons line up in
         # their own column instead of drifting with the length of each field name.
-        lines = [f"[bold]{show(doc.get('title', '<untitled>'))}[/]", ""]
+        lines = [f"[$primary bold]{show(doc.get('title', '<untitled>'))}[/]", ""]
         for key in INFO_FIELDS:
             if doc.get(key):
-                lines.append(f"[dim]{ui.glyph(f'field.{key}')} {key:>8}[/]  {show(doc[key])}")
+                value = self.info_value(key, doc[key], show)
+                lines.append(f"[dim]{ui.glyph(f'field.{key}')} {key:>8}[/]  {value}")
         files = doc.get("files", [])
         if files:
             # The icon belongs to the section, not to every row: repeating it once
             # per entry says nothing, while a missing file is worth shouting about.
-            lines += ["", f"[dim]{ui.glyph('field.files')}    files[/]"]
+            lines += ["", f"[dim]{ui.glyph('field.files')}    files ({len(files)})[/]"]
             for entry in files:
                 # the real document, not the flattened copy: resolve() needs the
                 # main folder to turn a relative `files` entry into a path
                 ok = place.resolve(self.current, entry).exists()
-                mark = " " if ok else f"[red]{ui.glyph('warning')}[/]"
-                lines.append(f"  {mark} {entry}")
+                mark = " " if ok else f"[$error]{ui.glyph('warning')}[/]"
+                lines.append(f"  {mark} {ui.literal(str(entry))}")
         lines += self.doctor_lines(self.current)
         pane.update("\n".join(lines))
+
+    def info_value(self, key: str, value: Any, show: Any) -> str:
+        """One info-pane value, in the colour its meaning deserves.
+
+        Four fields say something a plain string does not: tags are a set of
+        things, a reading status is a state, a rating is a quantity, and `ref`
+        is the handle you yank into a `.tex`. Everything else is text, and
+        colouring it too would leave nothing standing out.
+        """
+        if key == "tags":
+            tags = value if isinstance(value, list) else str(value).split(", ")
+            return "[dim] · [/]".join(f"[$secondary]{ui.literal(str(tag))}[/]" for tag in tags)
+        if key == "reading_status":
+            colour = READING_COLOURS.get(str(value).casefold(), "dim")
+            return f"[{colour}]{show(value)}[/]"
+        if key == "rating":
+            stars = max(0, min(5, int(value))) if str(value).isdigit() else 0
+            return (
+                f"[$warning]{ui.glyph('star') * stars}[/]"
+                f"[dim]{ui.glyph('star_empty') * (5 - stars)}[/]"
+            )
+        if key == "ref":
+            return f"[$accent]{show(value)}[/]"
+        return show(value)
 
     def doctor_lines(self, doc: Document) -> list[str]:
         """This document's findings, from the cache the startup scan fills.
@@ -675,15 +706,16 @@ class PtuiApp(App[None]):
         found = doctor.cached(doc)
         if found == []:
             return []
-        head = ["", f"[dim]{ui.glyph('field.doctor')}   doctor[/]"]
+        head = ["", f"[dim]{ui.glyph('field.doctor')}   doctor ({len(found or [])})[/]"]
         if found is None:
             return [*head, "  [dim]not checked[/]"]
-        # escaped: a finding quotes the offending value, and a `[...]`-shaped one
-        # would otherwise be swallowed as markup by Static.update
+        # `literal`: a finding quotes the offending value, and a `[...]`-shaped
+        # one is otherwise swallowed by Static.update
         return [
             *head,
             *(
-                f"  [red]{ui.glyph('warning')}[/] {escape(f.name)}  {escape(f.msg)}"
+                f"  [$error]{ui.glyph('warning')}[/] "
+                f"[$warning]{ui.literal(f.name)}[/]  {ui.literal(f.msg)}"
                 + ("" if f.fix_action else "  [dim](no fix)[/]")
                 for f in found
             ),

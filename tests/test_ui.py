@@ -87,3 +87,14 @@ async def test_picker_marks_the_current_value(app):
         options = app.screen.query_one(OptionList)
         assert ui.glyph("cursor") not in str(options.get_option_at_index(0).prompt)
         assert ui.glyph("cursor") in str(options.get_option_at_index(1).prompt)
+
+
+def test_literal_survives_everything_textual_would_eat():
+    from ptui import ui
+
+    # Textual drops `[Extended]` and reads `[bold]` as a tag; neither
+    # `rich.markup.escape` nor `textual.markup.escape` escapes the first.
+    assert ui.literal("Attention [Extended]") == r"Attention \[Extended]"
+    assert ui.literal("key [doc[year]] is odd") == r"key \[doc\[year]] is odd"
+    assert ui.literal("a [bold]x[/] b") == r"a \[bold]x\[/] b"
+    assert ui.literal("nothing to do") == "nothing to do"

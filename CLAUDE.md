@@ -54,6 +54,12 @@ uv run python scripts/shot.py --text --icons          # same, with nerd-font gly
 real keys, so this exercises the actual app; several layout problems in
 `TODO.md` were found this way rather than reported.
 
+**`shot.py` drives the *real* library, and those keys are real.** A screenshot
+taken with `c r … enter` wrote a rating into a live document — found, reverted
+through `safewrite`, and the file restored from the library's own git. Only
+read-only keys belong in a screenshot: navigation, `/`, a picker you escape out
+of. Anything that writes goes in a test, against the fixture.
+
 **The PNG lies about spacing.** SVG export writes each styled run as its own
 positioned text element, so bold text looks like it has lost the space beside it
 (`enteropen file`) and marked rows look misaligned. Neither is real. Use
@@ -124,7 +130,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 117 tests, `uv run pytest`.
+empty. 120 tests, `uv run pytest`.
 
 Built:
 
@@ -352,6 +358,12 @@ never existed (`#cmdline`, `ConfirmDialog`, `#help-overlay`).
 
 Three things about the chrome that cost time to find:
 
+- **`ui.literal`, never an escape helper, for a value inside Textual markup.**
+  Textual *drops* `[Extended]` from a title, and neither `rich.markup.escape`
+  nor `textual.markup.escape` touches it — both only escape what already looks
+  like a tag. Escaping every `[` is the one thing that survives `[Extended]`,
+  `[doc[year]]` and `[bold]` alike. `RichLog` is the exception: it parses Rich
+  markup, where `escape` is right.
 - **`RichLog` parses Rich markup, not Textual's**, so `$error` means nothing in
   the log pane: `LOG_LEVELS` maps a loguru level to a theme variable and the
   sink looks the hex up in `theme_variables`. Record text is escaped there —

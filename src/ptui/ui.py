@@ -36,6 +36,10 @@ GLYPHS = {
     # and the blocks simply butt up against each other.
     "sep_right": (" ", "\ue0b0"),
     "sep_left": (" ", "\ue0b2"),
+    # Ratings, drawn as five cells. The ASCII pair has to be as wide as the
+    # nerd one, so it is asterisk and middle dot rather than "3/5".
+    "star": ("*", "\uf005"),  # nf-fa-star
+    "star_empty": ("\u00b7", "\uf006"),  # nf-fa-star_o
     "cursor": (">", ""),  # nf-fa-chevron_right
     "scope": (" ", ""),  # nf-fa-search
     # Document kinds, keyed by `library.kind` - the `type` field, except that an
@@ -71,6 +75,19 @@ ASCII column is what a bare tty over SSH has. Both columns are one cell wide,
 so column arithmetic does not care which is on — a slot with no sensible ASCII
 twin uses a space rather than a two-character abbreviation.
 """
+
+
+def literal(text: str) -> str:
+    """Text that must reach the screen exactly as it is, inside Textual markup.
+
+    **Not `rich.markup.escape`, and not `textual.markup.escape`** — both only
+    escape what *looks* like a tag, and Textual's renderer drops far more than
+    that: a title reading `Attention \\[Extended]` renders as `Attention` with
+    the bracketed word gone. Escaping every `[` is the only thing that survives
+    `[Extended]`, `[doc[year]]` and `[bold]` alike. Measured, all three.
+    """
+    return text.replace("[", "\\[")
+
 
 # ponytail: one process, one font — a module global beats threading `ui.icons`
 # through every call site. `use_icons` is called once, from `PtuiApp.__init__`.

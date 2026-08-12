@@ -339,3 +339,40 @@ async def test_a_log_record_quoting_markup_is_not_swallowed(app):
             "key [doc[year]] is odd" in "".join(s.text for s in strip._segments)
             for strip in pane.lines
         )
+
+
+async def test_the_info_pane_gives_the_four_meaningful_fields_a_colour(app):
+    from ptui import ui
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        # `show` is what `refresh_info` passes: display text, markup-safe
+        value = lambda key, raw: app.info_value(key, raw, ui.literal)  # noqa: E731
+
+        tags = value("tags", ["ml", "cv"])
+        assert "[$secondary]ml[/]" in tags and "[$secondary]cv[/]" in tags
+
+        assert value("ref", "Vaswani2017") == "[$accent]Vaswani2017[/]"
+        assert "$warning" in value("reading_status", "reading")
+        assert "$success" in value("reading_status", "read")
+        assert "dim" in value("reading_status", "submitted")  # free strings tolerated
+
+        assert value("rating", 3) == (
+            f"[$warning]{ui.glyph('star') * 3}[/][dim]{ui.glyph('star_empty') * 2}[/]"
+        )
+        assert value("rating", 99).count(ui.glyph("star")) == 5  # clamped, not five hundred
+
+        # anything else is text, and a bracketed one must survive Textual markup
+        assert value("title", "Attention [Extended]") == r"Attention \[Extended]"
+        assert value("tags", ["[odd]"]) == r"[$secondary]\[odd][/]"
+
+
+async def test_the_info_pane_renders_a_real_document(app):
+    from textual.widgets import Static
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        text = app.query_one("#info", Static).content
+        assert "[$primary bold]Attention Is All You Need[/]" in text
+        assert "[$accent]Vaswani2017[/]" in text
+        assert "[$secondary]test[/]" in text  # the fixture's one tag, as a chip
