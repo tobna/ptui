@@ -130,7 +130,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 120 tests, `uv run pytest`.
+empty. 121 tests, `uv run pytest`.
 
 Built:
 
@@ -368,7 +368,11 @@ Three things about the chrome that cost time to find:
   the log pane: `LOG_LEVELS` maps a loguru level to a theme variable and the
   sink looks the hex up in `theme_variables`. Record text is escaped there —
   papis quotes values like `[doc[year]]`, which Rich would eat. INFO is
-  deliberately absent from the map: the ordinary line must not shout.
+  deliberately absent from the map: the ordinary line must not shout. For the
+  same reason `log_line` rewrites `LOG_TAGS` (`[red]`, `[yellow]`, `[green]`)
+  into theme hexes as the message goes past: a call site reads `[red]failed:[/]`
+  and still comes out in the palette, without forty call sites learning the
+  Rich/Textual markup split.
 - **The exception marker** is `MARKER_WIDTH` cells the flexible column always
   gives up, so titles stay aligned whether or not a document has anything wrong
   with it — and `header()` indents that column's title by the same amount, or

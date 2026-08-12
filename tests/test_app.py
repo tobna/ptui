@@ -325,6 +325,26 @@ async def test_the_log_pane_colours_a_record_by_its_level(app):
         assert app.theme_variables["warning"].lower() not in colours("just so you know")
 
 
+async def test_log_line_colours_follow_the_theme(app):
+    from textual.widgets import RichLog
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "4")
+        app.log_line("[red]it broke[/] and [yellow]this is odd[/]")
+        await settle(pilot)
+
+        line = next(
+            strip
+            for strip in app.query_one(RichLog).lines
+            if "it broke" in "".join(s.text for s in strip._segments)
+        )
+        colours = {s.style.color.name.lower() for s in line._segments if s.style and s.style.color}
+        assert app.theme_variables["error"].lower() in colours
+        assert app.theme_variables["warning"].lower() in colours
+        assert "red" not in colours  # the basic ANSI colour never reaches the pane
+
+
 async def test_a_log_record_quoting_markup_is_not_swallowed(app):
     from loguru import logger
     from textual.widgets import RichLog

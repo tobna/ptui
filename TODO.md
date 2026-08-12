@@ -50,12 +50,11 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
   registered the same way — would cover it. Wait until someone asks: 22 themes
   is a lot of palette already.
 
-- **The panes are titled and bordered, the bars are lualine-shaped, the log is
-  coloured by level, and that is as far as the pass went.** Still first-draft:
-  the info pane is a flat list of labelled lines (no sections, no emphasis
-  beyond dim), `AddForm` is a stack of unstyled inputs, and `app.log_line`
-  messages carry hand-written `[red]`/`[yellow]` markup rather than the theme's
-  own colours — one grep away from being consistent with the log's levels.
+- **Nothing is styled per document *kind* yet.** Every row reads the same
+  whether it is a preprint, a book or a thesis, and the one-cell kind glyph is
+  the only signal. A muted colour per kind is the obvious next idea and also the
+  obvious way to make the list noisy — worth a mock-up against the real library
+  before anyone builds it.
 
 - **Column set — the last open layout decision.** The rules it was waiting on
   have landed, and they took most of the problem with them: `Tags` renders

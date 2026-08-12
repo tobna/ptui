@@ -68,6 +68,11 @@ READING_COLOURS = {"unread": "dim", "reading": "$warning", "read": "$success"}
 """`reading_status` is a state, so it gets a colour rather than a word to read.
 An unknown value falls back to dim — the field tolerates free strings."""
 
+LOG_TAGS = {"[red]": "error", "[yellow]": "warning", "[green]": "success"}
+"""What a call site's `[red]` means, in theme terms. The log pane is a `RichLog`
+and parses *Rich* markup, where `$error` is meaningless — so the translation
+happens in `log_line`, once, instead of at every call site."""
+
 LOG_LEVELS = {
     "CRITICAL": "error",
     "ERROR": "error",
@@ -807,7 +812,17 @@ class PtuiApp(App[None]):
         self.query_one("#hint-bar", Static).update(" " + "   ".join(hints))
 
     def log_line(self, message: str) -> None:
-        """User-visible operation log. Batch outcomes belong here, not in a toast."""
+        """User-visible operation log. Batch outcomes belong here, not in a toast.
+
+        `[red]` and friends are rewritten into the theme's own colours on the way
+        past, so a command says `[red]failed:[/]` — which reads as intent at the
+        call site — and still comes out in the palette the rest of the app uses.
+        Translating here rather than at forty call sites is also what keeps the
+        Rich/Textual markup split from leaking into `actions.py`.
+        """
+        for tag, variable in LOG_TAGS.items():
+            if tag in message:
+                message = message.replace(tag, f"[{self.theme_variables.get(variable, '')}]")
         self.query_one(RichLog).write(message)
 
     # ── prompt ──────────────────────────────────────────────────────────────
