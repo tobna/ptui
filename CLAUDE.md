@@ -124,7 +124,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 115 tests, `uv run pytest`.
+empty. 117 tests, `uv run pytest`.
 
 Built:
 
@@ -352,6 +352,11 @@ never existed (`#cmdline`, `ConfirmDialog`, `#help-overlay`).
 
 Three things about the chrome that cost time to find:
 
+- **`RichLog` parses Rich markup, not Textual's**, so `$error` means nothing in
+  the log pane: `LOG_LEVELS` maps a loguru level to a theme variable and the
+  sink looks the hex up in `theme_variables`. Record text is escaped there —
+  papis quotes values like `[doc[year]]`, which Rich would eat. INFO is
+  deliberately absent from the map: the ordinary line must not shout.
 - **The exception marker** is `MARKER_WIDTH` cells the flexible column always
   gives up, so titles stay aligned whether or not a document has anything wrong
   with it — and `header()` indents that column's title by the same amount, or

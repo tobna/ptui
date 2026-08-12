@@ -64,6 +64,17 @@ EXTRA_THEMES = (
 STATUS_BG = "$surface"
 """The status bar's own background — what the powerline blocks flow out of."""
 
+LOG_LEVELS = {
+    "CRITICAL": "error",
+    "ERROR": "error",
+    "WARNING": "warning",
+    "SUCCESS": "success",
+    "DEBUG": "text-muted",
+    "TRACE": "text-muted",
+}
+"""Loguru level -> the theme variable that colours it in the log pane. INFO is
+absent on purpose: the ordinary line is the one that must not shout."""
+
 MARKER_WIDTH = 2
 """Cells the flexible column gives up to the exception marker and its space.
 
@@ -242,9 +253,23 @@ class PtuiApp(App[None]):
         logger.remove()
         pane = self.query_one(RichLog)
         level = self.cfg.get("log.level", "info").upper()
-        logger.add(
-            lambda m: pane.write(m.rstrip()), level=level, format="{time:HH:mm:ss} {message}"
-        )
+
+        def write(message: Any) -> None:
+            """One loguru record, coloured by its level.
+
+            `RichLog` parses *Rich* markup, where `$error` means nothing, so the
+            colour is looked up in `theme_variables` — the hex the CSS would
+            have used. A record's text is escaped: a warning quotes the offending
+            value, and papis is full of `[...]`-shaped ones.
+            """
+            record = message.record
+            body = escape(record["message"])
+            colour = self.theme_variables.get(LOG_LEVELS.get(record["level"].name, ""), "")
+            pane.write(
+                f"[dim]{record['time']:%H:%M:%S}[/] " + (f"[{colour}]{body}[/]" if colour else body)
+            )
+
+        logger.add(write, level=level, format="{message}")
         log_file = self.cfg.as_path("log.file")
         if log_file:
             log_file.parent.mkdir(parents=True, exist_ok=True)

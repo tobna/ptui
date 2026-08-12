@@ -50,11 +50,12 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
   registered the same way — would cover it. Wait until someone asks: 22 themes
   is a lot of palette already.
 
-- **The panes are titled and bordered, the bars are lualine-shaped, and that is
-  as far as the pass went.** Still first-draft: the info pane is a flat list of
-  labelled lines (no sections, no emphasis beyond dim), the log pane has no
-  per-level colour (`log.*` classes existed in the old stylesheet and nothing
-  ever set them), and `AddForm` is a stack of unstyled inputs.
+- **The panes are titled and bordered, the bars are lualine-shaped, the log is
+  coloured by level, and that is as far as the pass went.** Still first-draft:
+  the info pane is a flat list of labelled lines (no sections, no emphasis
+  beyond dim), `AddForm` is a stack of unstyled inputs, and `app.log_line`
+  messages carry hand-written `[red]`/`[yellow]` markup rather than the theme's
+  own colours — one grep away from being consistent with the log's levels.
 
 - **Column set — the last open layout decision.** The rules it was waiting on
   have landed, and they took most of the problem with them: `Tags` renders

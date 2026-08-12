@@ -294,3 +294,48 @@ async def test_a_document_with_doctor_findings_is_marked_in_the_list(app, monkey
         assert titles[1].startswith("  ")  # clean, but still aligned
         assert titles[2].startswith("  ")  # not checked is not the same as broken
         assert titles[0][2:].startswith("Attention")
+
+
+async def test_the_log_pane_colours_a_record_by_its_level(app):
+    from loguru import logger
+    from textual.widgets import RichLog
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "4")  # the pane renders nothing while it is hidden
+        pane = app.query_one(RichLog)
+
+        def colours(text: str) -> set[str]:
+            """Every foreground colour on the line holding `text`."""
+            line = next(
+                strip for strip in pane.lines if text in "".join(s.text for s in strip._segments)
+            )
+            # Textual normalises a theme colour (`#ff757f` comes back `#FE757F`),
+            # so compare against `theme_variables` — the same source the sink
+            # reads — and case-insensitively.
+            return {s.style.color.name.lower() for s in line._segments if s.style and s.style.color}
+
+        logger.error("everything is on fire")
+        logger.info("just so you know")
+        await settle(pilot)
+
+        assert app.theme_variables["error"].lower() in colours("everything is on fire")
+        # INFO stays plain: the ordinary line is the one that must not shout
+        assert app.theme_variables["error"].lower() not in colours("just so you know")
+        assert app.theme_variables["warning"].lower() not in colours("just so you know")
+
+
+async def test_a_log_record_quoting_markup_is_not_swallowed(app):
+    from loguru import logger
+    from textual.widgets import RichLog
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "4")
+        logger.warning("key [doc[year]] is odd")  # papis quotes values like this
+        await settle(pilot)
+        pane = app.query_one(RichLog)
+        assert any(
+            "key [doc[year]] is odd" in "".join(s.text for s in strip._segments)
+            for strip in pane.lines
+        )
