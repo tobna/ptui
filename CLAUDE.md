@@ -124,7 +124,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 97 tests, `uv run pytest`.
+empty. 103 tests, `uv run pytest`.
 
 Built:
 

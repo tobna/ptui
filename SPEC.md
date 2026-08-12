@@ -287,6 +287,13 @@ caller.
   narrowing to 3, pressing delete must not destroy 200 silently.
 - Status bar: `12 marked (4 visible) / 187 shown / 3211 total`.
 - `escape` never clears marks (see `escape_chain`); only `m c` does.
+- **Every way of marking has a way of unmarking the same set.** Marking 40
+  documents by query and then having to clear all marks to undo it is the
+  same trap as the count above. The unmark half is an `unmark:bool` argument
+  on the marking command, never a second command with its own name: the
+  keymap binds the lowercase key to marking and SHIFT to unmarking, per the
+  keybinding design contract. `mark.clear` (unmark all) and `mark.invert`
+  (self-inverse) already close the set.
 
 ## Undo
 
@@ -448,6 +455,7 @@ from this. Adding a command must not require touching four places.
 | `nav.down` / `nav.up`           | `count:int=1`                 | move cursor                                      |
 | `nav.top` / `nav.bottom`        |                               | first / last                                     |
 | `nav.page_down` / `nav.page_up` |                               |                                                  |
+| `nav.goto`                      | `ref:str`                     | move the cursor to a document by `ref`, exact — for a citekey pasted from a `.tex` |
 | `pane.focus`                    | `pane:list\|info\|files\|log` | direct focus                                     |
 | `pane.cycle`                    | `back:bool=false`             | tab / shift-tab                                  |
 | `pane.toggle`                   | `pane:str`                    | show/hide info or files pane; the list never hides |
@@ -463,9 +471,10 @@ from this. Adding a command must not require touching four places.
 | `sort.reverse`                  |                               | toggle direction of current key                  |
 | `sort.cycle`                    |                               | cycle presets — _registered, unbound by default_ |
 | `mark.toggle`                   |                               | advances per `marks.advance`                     |
-| `mark.all_filtered`             |                               | all currently narrowed docs                      |
+| `mark.all_filtered`             | `unmark:bool=false`           | all currently narrowed docs                      |
+| `mark.query`                    | `q:str, unmark:bool=false`    | every document matching a narrow query, without changing the view |
 | `mark.invert`                   |                               | within current filter                            |
-| `mark.clear`                    |                               |                                                  |
+| `mark.clear`                    |                               | unmark everything — the twin of `mark.all_filtered` |
 | `mark.show_only`                |                               | toggle marked-only view                          |
 | `visual.start` / `visual.line`  |                               | `v` / `V`                                        |
 | `doc.open`                      | `which:int?`                  | open via papis opentool                          |
@@ -475,7 +484,7 @@ from this. Adding a command must not require touching four places.
 | `doc.edit`                      |                               | per `edit.mode`                                  |
 | `doc.edit_raw`                  |                               | force `$EDITOR`                                  |
 | `doc.delete`                    |                               | delete dialog                                    |
-| `doc.add`                       | `source:str?`                 | add flow; `source="inbox"` picks from inbox dir  |
+| `doc.add`                       | `source:str?, uri:str?`       | add flow; `source="inbox"` picks from inbox dir; `uri` skips both modals (`:doc.add arxiv 2607.00687`) |
 | `doc.set`                       | `key:str, value:str`          | set a field, batch-aware                         |
 | `doc.tag` / `doc.untag`         | `tags:str`                    | batch-aware                                      |
 | `doc.status`                    | `value:str?`                  | `reading_status`                                 |
@@ -494,7 +503,7 @@ from this. Adding a command must not require touching four places.
 | `export.url`                    |                               | DOI/URL                                          |
 | `view.saved`                    |                               | saved searches view                              |
 | `doctor.run`                    | `checks:str?`, `current:bool` | scan → log + narrow to what has findings; **never fixes** |
-| `doctor.fix`                    | `current:bool`                | every fixable finding on the targets, via safe-write |
+| `doctor.fix`                    | `checks:str?, current:bool`   | every fixable finding on the targets, via safe-write; `checks` fixes one check across the library |
 | `doctor.fix_pick`               |                               | SelectList over this document's findings; `enter` fixes that one |
 | `lib.switch`                    | `name:str?`                   | SelectList over libraries                        |
 | `theme.picker`                  |                               | SelectList over `themes/*.tcss`                  |
@@ -506,9 +515,35 @@ from this. Adding a command must not require touching four places.
 | `app.undo` / `app.redo`         |                               | per undo strategy                                |
 | `app.log`                       |                               | log pane                                         |
 | `app.config_check`              |                               | report unknown/invalid config keys               |
+| `config.set`                    | `key:str, value:str`          | override one config key for this session only; nothing is written to `config.toml` |
 | `app.quit`                      |                               |                                                  |
 | `picker.confirm`                | `invert:bool=false`           | modal only                                       |
 | `picker.cancel`                 |                               | modal only                                       |
+
+### Commands that exist for the `:` line
+
+Every command above is reachable by name, but these are specified *because* a
+key cannot carry their argument — the argument is the whole command. They need
+no default binding, and a picker over a closed set is the wrong shape for all of
+them: the value is arbitrary text.
+
+| typed                                | why no key replaces it                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| `:doc.set reading_status read`       | arbitrary key *and* value, batch-aware over marks — pure text             |
+| `:doctor.fix key-type-check`         | `! f` is all-or-nothing; one check across the library is the real workflow |
+| `:config.set list.row_height 2`      | try a setting without editing `config.toml` and restarting; session only  |
+| `:mark.query year:>2023 -survey`     | marks by query without disturbing the current narrow, which `m a` destroys |
+| `:doc.tag to-read cvpr`              | a picker over the existing vocabulary cannot add a *new* tag              |
+| `:doc.add arxiv 2607.00687`          | skips both the source picker and the URI prompt — the paste-a-number path |
+| `:files.attach ~/Downloads/x.pdf`    | a file that is not in the inbox has no picker to be chosen from           |
+| `:query.save unread-2026`            | a name is text by definition (loading stays a picker)                     |
+| `:nav.goto Nauen2026_LUMA`           | exact jump to a citekey pasted from a `.tex`; `/` changes the view        |
+| `:export.bibtex ~/paper/refs.bib`    | `y b` yanks to the clipboard; only the argument writes a file             |
+
+Deliberately **not** argument-driven: `query.scope` / `query.narrow` (`s` and
+`/` own them), the `pane.*` family (a key is faster than typing), and
+`sort.picker` / `lib.switch` / `theme.picker` (a picker over a closed set beats
+recalling a name).
 
 ## Delete dialog (required behaviour)
 

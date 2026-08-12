@@ -103,6 +103,20 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 1. **"Add to"** — attach a file to an _existing_ document (`files.attach`,
    already in the registry and bound to `f a`), routed through `place()`.
 
+2. **The `:` line's own commands** — specified in `SPEC.md` § "Commands that
+   exist for the `:` line", none of them implemented. They need no key: the
+   argument is the command. In the order they are worth building:
+   `doc.set key value` (also unblocks the whole `c` namespace in § B, which is
+   the same write path), `doctor.fix checks`, `config.set key value`
+   (session-only, nothing written to `config.toml`), `mark.query q [unmark]`,
+   then `nav.goto ref`, `doc.add source uri`, `query.save name`.
+
+3. **An unmark for every mark.** `mark.all_filtered` and the new `mark.query`
+   take `unmark:bool=false`; the keymap gives the SHIFT variant to unmarking
+   (`m a` / `m A`, and `m q` / `m Q` when the query one lands), per the
+   keybinding design contract. `mark.clear` and `mark.invert` already close the
+   set, so this is two arguments and two bindings, not new commands.
+
 ## G. Packaging
 
 - **Not on PyPI**, so `uv tool install ptui` / `pipx install ptui` do not exist.
