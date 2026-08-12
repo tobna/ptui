@@ -28,7 +28,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `2` | `pane.focus` pane=info | focus a pane |
 | `3` | `pane.focus` pane=files | focus a pane |
 | `4` | `pane.focus` pane=log | focus a pane |
-| `:` | `cmdline.open` | — *(not implemented)* |
+| `:` | `cmdline.open` | run a command by name |
 | `?` | `help.show` | help |
 | `\ c` | `app.config_check` | check config |
 | `\ k` | `keymap.check` | check keymap conflicts |
@@ -43,7 +43,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `c t` | `doc.tag` | add tags *(not implemented)* |
 | `ctrl+a` | `mark.all_filtered` | mark all (alias of m a) |
 | `ctrl+d` | `nav.page_down` | page down |
-| `ctrl+p` | `cmdline.open` | — *(not implemented)* |
+| `ctrl+p` | `cmdline.open` | run a command by name |
 | `ctrl+r` | `app.redo` | — *(not implemented)* |
 | `ctrl+s` | `sort.reverse` | reverse sort |
 | `ctrl+u` | `nav.page_up` | page up |

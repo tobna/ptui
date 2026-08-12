@@ -146,20 +146,16 @@ Built:
   a one-cell document-kind column including the arXiv-only `preprint`
 - **doctor**: read-only findings in the info pane, `! !` narrows the list to the
   documents that have them, fixes only on an explicit verb
+- **`:` command line** (`cmdline.open`, also `ctrl+p`): a `SelectList` over
+  `commands.REGISTRY` with each command's binding as the hint
 
-Not built. 26 keys are bound to commands that only log "not implemented yet" —
+Not built. 24 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
 (import `actions` first, or the registry is empty and every key looks unbound).
-The clusters: the `:` command line (`cmdline.open`), the whole `c` namespace
-(tag/untag/status/rating/set), `doc.delete` + `app.undo`/`app.redo`,
-`view.marked`, `doc.notes`, saved searches,
-`theme.picker`, visual mode (`v`/`V`), and the files pane with its
+The clusters: the whole `c` namespace (tag/untag/status/rating/set),
+`doc.delete` + `app.undo`/`app.redo`, `view.marked`, `doc.notes`, saved
+searches, `theme.picker`, visual mode (`v`/`V`), and the files pane with its
 `[modes.files]` verbs. Also read but ignored: `general.persist_state`.
-
-Known-bad right now: Textual's own command palette steals `ctrl+p` and its
-"show keys and help panel" item opens an unstyled pane with no obvious exit.
-Turn it off with `ENABLE_COMMAND_PALETTE = False` **only once `cmdline.open`
-replaces it** — not before.
 
 `PtuiApp.fit_columns()` sizes the list: a configured width is a ceiling, and
 each fixed column asks for `PtuiApp.natural_width()` — `library.p90` of what it
@@ -333,6 +329,22 @@ both halves of the old bug: escape left the pane on screen looking dead, and
 `4` focused a pane that was never shown, putting the keyboard somewhere
 invisible. The info pane is deliberately *not* included: `z i` is an explicit
 toggle and focusing must not argue with it.
+
+`cmdline.open` and `help.show` split by what they list: help renders the current
+mode's *keymap* and only browses, the `:` line renders the *registry* and runs
+what you pick — so an unbound command is still reachable, and a bound one
+teaches its keys through `Item.hint` (`show_keys_in_cmdline`).
+`PtuiApp.ENABLE_COMMAND_PALETTE = False` is what lets `ctrl+p` reach it —
+Textual's palette is a system binding and runs above `App.on_key`.
+
+Arguments are the point of it — everything else already has a key — so picking a
+command that has parameters opens the prompt instead of running it, and `enter`
+on an empty line keeps every default. `commands.parse_args` maps the typed line
+onto the signature: positional, `shlex`-quoted, coerced by the annotation, which
+is a **string** (`from __future__ import annotations`) — hence the textual
+`"bool" in annotation` test, `bool` before `int` so `"false"` does not read as
+truthy. Too many arguments, an unclosed quote and a bad number all raise
+`ValueError` and are reported in the log by `actions.cmdline_run`.
 
 `escape` and the help key are dispatched above the keymap (`app.on_key`):
 outside `[modes.list]` escape drops any pending chord and returns to the list,

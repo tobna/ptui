@@ -76,3 +76,49 @@ async def test_open_reports_a_missing_file_instead_of_launching(app, papis_lib, 
         await settle(pilot)
         await press(pilot, "o")
     assert opened == []
+
+
+def test_parse_args_maps_a_typed_line_onto_the_signature():
+    import pytest
+
+    from ptui import commands
+
+    assert commands.parse_args("sort.by", "year true") == {"key": "year", "reverse": True}
+    assert commands.parse_args("sort.by", "year false") == {"key": "year", "reverse": False}
+    assert commands.parse_args("nav.down", "5") == {"count": 5}
+    assert commands.parse_args("pane.resize", "0.05") == {"delta": 0.05}
+    assert commands.parse_args("export.bibtex", '"/tmp/two words.bib"') == {
+        "target": "/tmp/two words.bib"
+    }
+    assert commands.parse_args("sort.by", "") == {}  # defaults stand
+    assert commands.signature("sort.by") == "key [reverse]"
+
+    with pytest.raises(ValueError):
+        commands.parse_args("sort.reverse", "year")  # takes none
+    with pytest.raises(ValueError):
+        commands.parse_args("nav.down", "many")  # not a number
+
+
+async def test_cmdline_prompts_for_arguments_and_passes_them(app):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, ":", *"sort.by", "enter")
+        assert app.prompt_kind == "cmdline:sort.by"  # it needs args, so it asks
+
+        await press(pilot, *"year true", "enter")
+        await settle(pilot)
+        assert (app.sort_key, app.sort_reverse) == ("year", True)
+        assert [d["year"] for d in app.rows] == [2017, 2016, 2003]
+
+        await press(pilot, ":", *"pane.focus", "enter", *"log", "enter")
+        assert app.mode == "log"
+
+
+async def test_cmdline_reports_a_bad_argument_line(app, monkeypatch):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = []
+        monkeypatch.setattr(app, "log_line", logged.append)
+        await press(pilot, ":", *"nav.down", "enter", *"many", "enter")
+        assert app.current["year"] == 2017  # nothing moved, nothing crashed
+        assert any("many" in message for message in logged)  # and it said why

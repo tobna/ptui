@@ -12,7 +12,7 @@ from typing import Any
 
 from textual.widgets import DataTable
 
-from ptui import clip, doctor, fetch, library, merge, place, safewrite, ui
+from ptui import clip, commands, doctor, fetch, library, merge, place, safewrite, ui
 from ptui.commands import REGISTRY, command
 
 # ── navigation ──────────────────────────────────────────────────────────────
@@ -133,6 +133,8 @@ def prompt_result(app: Any, kind: str, value: str) -> None:
     """Dispatch a prompt whose result is not a query."""
     if kind == "add":
         add_form(app, Path(value).expanduser())
+    elif kind.startswith("cmdline:"):
+        cmdline_run(app, kind.removeprefix("cmdline:"), value)
     elif kind.startswith("import:"):
         _import(app, kind.removeprefix("import:"), value)
     else:
@@ -734,6 +736,60 @@ def help_show(app: Any) -> None:
         # Guaranteed by the dispatcher, so it is in no mode's table.
         items = [ui.Item(label=f"{'escape':<10} back to the list", value=""), *items]
     app.push_screen(ui.SelectList(items, title=f"Keys — {app.mode} mode"))
+
+
+@command("cmdline.open", "run a command by name")
+def cmdline_open(app: Any) -> None:
+    """Discoverability layer 4: fuzzy completion over command names, each with
+    its binding beside it — the layer that teaches the keymap.
+
+    It lists the *registry*, not the keymap: unlike `help.show` this runs what
+    you pick, so a command nobody has bound is still reachable, and one that is
+    bound teaches its keys on the way past. The keys come from the current mode,
+    falling back to the list mode's table so a pane with no bindings of its own
+    still shows where the command lives.
+    """
+    show_keys = app.km.option("show_keys_in_cmdline", True)
+
+    def keys(name: str) -> str:
+        if not show_keys:
+            return ""
+        return app.km.for_command(app.mode, name) or app.km.for_command("list", name) or ""
+
+    items = [
+        ui.Item(
+            label=f"{name:<20} {cmd.desc}",
+            value=name,
+            hint=keys(name),
+            haystack=commands.signature(name),
+        )
+        for name, cmd in sorted(REGISTRY.items())
+    ]
+    ui.pick(app, items, title="Run command")(lambda name, _invert: cmdline_args(app, name))
+
+
+def cmdline_args(app: Any, name: str) -> None:
+    """Ask for the arguments, or run straight away when there are none.
+
+    Arguments are what the command line is *for*: everything else already has a
+    key. A command with parameters therefore always gets the prompt, optional
+    ones included — `enter` on an empty line keeps every default, which is what
+    a binding with no `args` does.
+    """
+    if not commands.params(name):
+        app.run_command(name)
+        return
+    app.open_prompt(f"cmdline:{name}", f"{name} {commands.signature(name)}")
+
+
+def cmdline_run(app: Any, name: str, text: str) -> None:
+    try:
+        args = commands.parse_args(name, text)
+    except ValueError as exc:  # too many arguments, an unclosed quote, a bad number
+        app.log_line(f"[red]{exc}[/]")
+        return
+    app.log_line(f"[dim]:{name}{' ' + text if text.strip() else ''}[/]")
+    app.run_command(name, args)
 
 
 @command("keymap.check", "check keymap conflicts")

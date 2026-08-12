@@ -52,9 +52,12 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   journal article, thesis, or an arXiv-only `preprint` worked out from the
   metadata. Nerd-font glyphs by default, ASCII on request.
 
-Not there yet: undo, tagging, delete, saved searches, visual mode and the `:`
-command line. Bindings for them exist and say so when pressed —
-see [`TODO.md`](TODO.md).
+- **Every command by name** — `:` (or `ctrl+p`) fuzzy-completes over the whole
+  command registry with each command's key binding beside it, so the keymap
+  teaches itself while you use it.
+
+Not there yet: undo, tagging, delete, saved searches and visual mode. Bindings
+for them exist and say so when pressed — see [`TODO.md`](TODO.md).
 
 ## Install
 

@@ -57,6 +57,10 @@ class ListTable(DataTable):
 class PtuiApp(App[None]):
     """Layout CSS lives here; themes only recolour it."""
 
+    ENABLE_COMMAND_PALETTE = False
+    """Textual's own palette runs as a system binding, above `on_key`, and would
+    keep `ctrl+p` from ever reaching `cmdline.open`. Off now that ours exists."""
+
     CSS = """
     Screen { layers: base which; }
     #panes { height: 1fr; }

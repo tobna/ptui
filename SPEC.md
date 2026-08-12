@@ -432,7 +432,11 @@ why `o` feels slow.
 4. **`:` command line**: fuzzy completion over command names **with the bound
    key shown beside each entry**. This is the layer that actually teaches the
    keymap — users find `files.relocate` by typing, see `f r` next to it, and
-   stop typing it.
+   stop typing it. It lists the registry, not the keymap, so an unbound command
+   is still reachable, and unlike layer 3 it runs what is picked. Implemented as
+   the shared `SelectList`, followed by an argument prompt for any command that
+   takes parameters — `sort.by` asks for `key [reverse]`, positional and
+   shell-quoted, and an empty line keeps the defaults.
 
 ## Command registry (source of truth)
 

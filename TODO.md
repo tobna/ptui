@@ -12,13 +12,6 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 ## B. Bound but not implemented (they log "not implemented yet")
 
-- `:` `cmdline.open` — pressing it does nothing. This is the layer that teaches
-  the keymap (fuzzy completion over command names with the bound key beside
-  each), so it matters more than the rest of this list.
-  Only once ours works: `ctrl+p` currently opens _Textual's_ built-in command
-  palette (a system binding that runs before `App.on_key`), whose "show keys and
-  help panel" item opens an unstyled side pane with no obvious way out. Turn it
-  off with `ENABLE_COMMAND_PALETTE = False` when ours replaces it — not before.
 - `e` `doc.edit` — see C1; `E` (`doc.edit_raw`) works.
 - `c t` / `c T` / `c s` / `c r` / `c f` — `doc.tag`, `doc.untag`, `doc.status`,
   `doc.rating`, `doc.set`. None of the `c` namespace exists yet. `c t` and `c T`

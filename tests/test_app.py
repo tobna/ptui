@@ -182,6 +182,31 @@ async def test_help_opens_in_every_mode_and_lists_effective_bindings(app):
         assert app.screen.items[0].label.startswith("escape")
 
 
+async def test_cmdline_runs_a_command_by_name_and_shows_its_keys(app):
+    from ptui import ui
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, ":")
+        assert isinstance(app.screen, ui.SelectList)
+        relocate = next(i for i in app.screen.items if i.value == "files.relocate")
+        assert relocate.hint == "f r"  # the teaching half: the binding beside the name
+
+        await press(pilot, *"mark.all")  # fuzzy completion narrows to one row
+        assert [i.value for i in app.screen.shown] == ["mark.all_filtered"]
+        await press(pilot, "enter")
+        assert len(app.marks) == 3  # it ran, not just closed
+
+
+async def test_ctrl_p_reaches_the_cmdline(app):
+    """Textual's own command palette used to eat this key above `on_key`."""
+    from ptui import ui
+
+    async with app.run_test() as pilot:
+        await press(pilot, "ctrl+p")
+        assert isinstance(app.screen, ui.SelectList)
+
+
 async def test_sort_reverse_keeps_the_cursor_on_the_document(app):
     async with app.run_test() as pilot:
         await press(pilot, "S")  # unimplemented in v0: logs, does not crash
