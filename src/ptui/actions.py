@@ -7,13 +7,14 @@ app module, so `app.py` can import this at load time to register everything.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
 from textual.widgets import DataTable
 
-from ptui import clip, commands, doctor, fetch, library, merge, place, safewrite, ui
+from ptui import clip, commands, doctor, fetch, library, merge, place, safewrite, ui, undo
 from ptui.commands import REGISTRY, command
 
 # ── navigation ──────────────────────────────────────────────────────────────
@@ -228,9 +229,19 @@ def query_clear(app: Any) -> None:
 
 
 @command("app.reload", "reload library")
-def reload(app: Any) -> None:
+def reload(app: Any, rescan: bool = False) -> None:
+    """Re-run the scope query against a fresh database.
+
+    `rescan` throws papis's *on-disk* cache away as well, which is what an undo
+    needs: `clear_cached` only drops the in-process handle, so a folder that has
+    just come back from the trash stays invisible until papis walks the library
+    again. Deleting is the cheap direction — papis wrote the document out of the
+    cache when it went — and restoring is the one that has to pay for the walk.
+    """
     import papis.database
 
+    if rescan:
+        papis.database.get(app.cfg.get("general.library") or None).clear()
     papis.database.clear_cached()
     scope(app, app.scope_query)
 
@@ -528,7 +539,8 @@ def _set_field(app: Any, key: str, value_of: Callable[[Any], Any], what: str) ->
     )
 
 
-def _set_apply(app: Any, planned: list[tuple[Any, Any]], key: str) -> None:
+def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> int:
+    """Write one key across documents. Returns how many landed."""
     done = 0
     for doc, new in planned:
 
@@ -546,6 +558,30 @@ def _set_apply(app: Any, planned: list[tuple[Any, Any]], key: str) -> None:
             app.log_line(f"[red]{key} on {doc.get('ref', '')} failed:[/] {exc}")
         else:
             done += 1
+    return done
+
+
+def _set_apply(app: Any, planned: list[tuple[Any, Any]], key: str) -> None:
+    """Write, then push the step that puts the old values back.
+
+    SPEC: metadata edits get a session-local in-memory undo stack *regardless
+    of strategy* — this is the half of undo that has nothing to do with the
+    trash or with git. The previous values are read before the write, so an
+    undo restores exactly what was there, including the key's absence.
+    """
+    before = [(doc, doc.get(key)) for doc, _ in planned]
+    done = _write_field(app, planned, key)
+
+    def restore() -> None:
+        _write_field(app, before, key)
+        app.refresh_rows()
+
+    def again() -> None:
+        _write_field(app, planned, key)
+        app.refresh_rows()
+
+    if done:
+        app.history.push(undo.Step(f"set {key} on {done} document(s)", restore, again))
     app.refresh_rows()
     app.log_line(f"set {key} on {done}/{len(planned)} document(s)")
 
@@ -1313,6 +1349,223 @@ def doctor_fix(app: Any, current: bool = False) -> None:
     )
     if skipped:
         app.query_one("#log-pane").display = True
+
+
+# ── delete and undo ─────────────────────────────────────────────────────────
+
+
+def trash_dir(app: Any) -> Path:
+    return app.cfg.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
+
+
+def library_dir(app: Any) -> Path:
+    """Where the current library lives on disk, straight from papis."""
+    import papis.config
+
+    name = app.cfg.get("general.library") or papis.config.get_lib_name()
+    return Path(papis.config.get_lib_from_name(name).paths[0])
+
+
+@dataclass(frozen=True, slots=True)
+class Doomed:
+    """One file a delete would take with it, and why it is offered or not."""
+
+    doc: Any
+    entry: str
+    path: Path
+    choice: ui.FileChoice
+
+
+def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
+    """Every file of the targets that lives *outside* its document folder.
+
+    Deviation from SPEC, deliberate and specced: the files inside the folder
+    are not offered, because there is no decision to make — the folder is what
+    is being removed and they travel with it. What needs a checkbox is a file
+    under `pdf_root` or somewhere else entirely.
+
+    Checked by default only under a managed root, and never when another
+    document points at the same realpath: with a shared `pdf_root` and a script
+    appending entries, two documents on one file is a realistic accident.
+    """
+    root = app.cfg.as_path("files.pdf_root")
+    doomed = []
+    for doc in targets:
+        folder = Path(doc.get_main_folder() or ".")
+        for entry in doc.get("files") or []:
+            path = place.resolve(doc, entry)
+            if folder in path.parents:
+                continue
+            managed = root is not None and root in path.parents
+            others = [
+                other.get("ref") or library.doc_id(other)
+                for other in app.docs
+                if other is not doc
+                and any(place.resolve(other, e) == path for e in other.get("files") or [])
+            ]
+            note = "" if managed else "outside the managed roots"
+            if others:
+                note = f"also in {', '.join(others[:3])}"
+            doomed.append(
+                Doomed(doc, entry, path, ui.FileChoice(str(path), managed and not others, note))
+            )
+    return doomed
+
+
+@command("doc.delete", "delete document(s)")
+def doc_delete(app: Any, force: bool = False) -> None:
+    """Remove documents from the library, recoverably.
+
+    Confirms against the **total** number of targets with a preview of what
+    they are — marking 200, narrowing to 3 and pressing `d d` must not delete
+    200 on the strength of what is on screen. `force` skips the dialog and
+    keeps no files, which is the batch-script shape.
+    """
+    targets = app.targets
+    if not targets:
+        return
+    doomed = _doomed_files(app, targets)
+    if force:
+        _delete_apply(app, targets, [d for d in doomed if d.choice.checked])
+        return
+
+    shown = [f"  {doc.get('ref') or library.doc_id(doc)}" for doc in targets[:10]]
+    if len(targets) > 10:
+        shown.append(f"  [dim]… and {len(targets) - 10} more[/]")
+    inside = sum(len(doc.get("files") or []) for doc in targets) - len(doomed)
+    if inside:
+        shown.append(f"[dim]{inside} file(s) inside the folders go with them[/]")
+
+    def confirm(chosen: list[int] | None) -> None:
+        if chosen is not None:
+            _delete_apply(app, targets, [doomed[index] for index in chosen])
+
+    app.push_screen(
+        ui.ConfirmDelete(
+            shown,
+            [d.choice for d in doomed],
+            title=f"Delete {len(targets)} document(s)",
+        ),
+        confirm,
+    )
+
+
+def _delete_apply(app: Any, targets: list[Any], files: list[Doomed]) -> None:
+    """Trash the chosen files, remove the folders per `undo.strategy`, and push
+    one undo step for the whole operation."""
+    import papis.database
+
+    strategy = app.cfg.get("undo.strategy", "trash")
+    where = trash_dir(app)
+    moved: list[tuple[Path, Path]] = []
+    for doomed in files:
+        try:
+            moved.append((doomed.path, place.trash(doomed.path, where)))
+        except Exception as exc:
+            app.log_line(f"[red]could not trash {doomed.path.name}:[/] {exc}")
+
+    folders = [Path(doc.get_main_folder()) for doc in targets if doc.get_main_folder()]
+    label = f"delete {len(targets)} document(s)"
+    step: undo.Step | None = None
+    try:
+        if strategy == "git":
+            step = _delete_with_git(app, folders, label, moved)
+        else:
+            for folder in folders:
+                moved.append((folder, place.trash(folder, where)))
+            step = undo.Step(label, lambda: _undo_trash(app, moved), lambda: doc_delete(app, True))
+    except Exception as exc:
+        app.log_line(f"[red]delete failed:[/] {exc}")
+        return
+
+    # Papis keeps its own index, and a document whose folder has gone still
+    # comes back from the cache — the same pairing `papis rm` does.
+    database = papis.database.get(app.cfg.get("general.library") or None)
+    for doc in targets:
+        try:
+            database.delete(doc)
+        except Exception as exc:
+            app.log_line(f"[yellow]folder gone but the index kept it:[/] {exc}")
+
+    if strategy == "none":
+        app.history.clear()  # nothing here is undoable; do not offer the last one
+    elif step is not None:
+        app.history.push(step)
+
+    app.marks.clear()
+    reload(app)
+    app.log_line(
+        f"deleted {len(targets)} document(s), {len(files)} file(s)"
+        + ("" if strategy == "none" else " — u to undo")
+    )
+    app.query_one("#log-pane").display = True
+
+
+def _delete_with_git(
+    app: Any, folders: list[Path], label: str, moved: list[tuple[Path, Path]]
+) -> undo.Step:
+    """`git rm` the folders in one commit, and undo by reverting it.
+
+    One ptui operation is one commit, so the log reads as a history of what the
+    user did. Files outside the repo were already trashed by the caller, and
+    their undo rides along with the revert.
+    """
+    root = undo.git_root(folders[0]) if folders else None
+    if root is None:
+        raise RuntimeError("undo.strategy = git, but the library is not a git repository")
+    commit = undo.git_delete(root, folders, label)
+
+    def back() -> None:
+        undo.git_revert(root, commit)
+        undo.restore(moved)
+        reload(app, rescan=True)
+        app.log_line(f"reverted {commit[:8]}")
+
+    return undo.Step(label, back, lambda: doc_delete(app, True))
+
+
+def _undo_trash(app: Any, moved: list[tuple[Path, Path]]) -> None:
+    restored = undo.restore(moved)
+    reload(app, rescan=True)
+    app.log_line(f"restored {len(restored)} path(s) from the trash")
+
+
+@command("app.undo", "undo")
+def app_undo(app: Any) -> None:
+    step = app.history.undo()
+    if step is None:
+        app.log_line("[yellow]nothing to undo[/]")
+        return
+    app.refresh_rows()
+    app.log_line(f"undo: {step.label}")
+
+
+@command("app.redo", "redo")
+def app_redo(app: Any) -> None:
+    step = app.history.redo()
+    if step is None:
+        app.log_line("[yellow]nothing to redo[/]")
+        return
+    app.refresh_rows()
+    app.log_line(f"redo: {step.label}")
+
+
+def warn_untracked(app: Any) -> None:
+    """`strategy = "git"`: say so, once, if the files are not actually in git.
+
+    SPEC: do not advertise an undo that isn't one. A gitignored `pdf_root` is
+    the normal case, and it is covered by the trash — what would be a lie is
+    letting the user believe the commit holds their PDFs.
+    """
+    if app.cfg.get("undo.strategy") != "git" or not app.cfg.get("undo.git_warn_untracked", True):
+        return
+    root = undo.git_root(library_dir(app))
+    if root is None:
+        app.log_line("[yellow]undo.strategy = git, but the library is not a git repository[/]")
+        return
+    pdf_root = app.cfg.as_path("files.pdf_root")
+    if pdf_root and not undo.git_tracks(root, pdf_root):
+        app.log_line(f"[yellow]git does not track {pdf_root}; those files undo via the trash[/]")
 
 
 @command("app.quit", "quit")

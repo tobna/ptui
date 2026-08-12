@@ -13,12 +13,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Input, OptionList, Static
+from textual.widgets import Input, OptionList, SelectionList, Static
 
 from ptui import keymap, library
 
@@ -233,6 +234,82 @@ def pick(app: Any, items: list[Item], *, title: str, current: Any = None) -> Cal
         app.push_screen(SelectList(items, title=title, current=current), handle)
 
     return run
+
+
+@dataclass(frozen=True, slots=True)
+class FileChoice:
+    """One `files` entry in the delete dialog, with why it is (un)checked."""
+
+    label: str
+    checked: bool
+    note: str = ""
+
+
+class ConfirmDelete(ModalScreen[list[int] | None]):
+    """Delete N documents: which of their files go too.
+
+    Dismisses with the indices of the checked files, or None when cancelled —
+    an empty list is a real answer ("the documents, none of the files") and is
+    why this cannot dismiss with a bare bool.
+    """
+
+    # priority: the list itself binds `enter` to toggling, and confirming has
+    # to win. `space` stays the toggle, which is what the list already does.
+    BINDINGS: ClassVar = [
+        Binding("enter", "confirm", "delete", priority=True),
+        Binding("escape", "cancel", "cancel", priority=True),
+    ]
+
+    DEFAULT_CSS = """
+    ConfirmDelete { align: center middle; background: $background 60%; }
+    ConfirmDelete > Vertical {
+        width: 70%; max-width: 100; height: auto; max-height: 80%;
+        border: round $error; background: $surface;
+    }
+    ConfirmDelete #picker-title {
+        padding: 0 1; text-style: bold; background: $error; color: $background;
+    }
+    ConfirmDelete #delete-docs { padding: 0 1; }
+    ConfirmDelete SelectionList { height: auto; max-height: 12; border: none; padding: 0 1; }
+    ConfirmDelete #delete-keys { padding: 0 1; color: $text-muted; }
+    """
+
+    def __init__(self, summary: list[str], files: list[FileChoice], *, title: str) -> None:
+        super().__init__()
+        self.summary = summary
+        self.files = files
+        self.title_text = title
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Static(self.title_text, id="picker-title")
+            yield Static("\n".join(self.summary), id="delete-docs")
+            if self.files:
+                yield SelectionList[int](
+                    *(
+                        (
+                            f"{choice.label}{f'  [dim]{choice.note}[/]' if choice.note else ''}",
+                            index,
+                            choice.checked,
+                        )
+                        for index, choice in enumerate(self.files)
+                    )
+                )
+            yield Static(
+                "[$accent]space[/] toggle a file   [$accent]enter[/] delete   "
+                "[$accent]escape[/] cancel",
+                id="delete-keys",
+            )
+
+    def on_mount(self) -> None:
+        if self.files:
+            self.query_one(SelectionList).focus()
+
+    def action_confirm(self) -> None:
+        self.dismiss(list(self.query_one(SelectionList).selected) if self.files else [])
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
 
 
 # ponytail: a fixed field list. `edit.structured_fields` belongs to the

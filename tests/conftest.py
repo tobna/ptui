@@ -59,14 +59,18 @@ def papis_lib(tmp_path, monkeypatch):
     papis.config.CURRENT_CONFIGURATION, papis.config.CURRENT_LIBRARY = previous
 
 
-@pytest.fixture
-def app(papis_lib):
+def build_app(papis_lib, extra: str = ""):
     """The app under test, wired to the throwaway library.
 
     Every path that leaves the library is redirected into `tmp_path`: `osc52`
     keeps the run out of the developer's real clipboard, and `undo.trash_dir`
     keeps it out of their real `~/.local/share/ptui/trash` — a merge moves folders
     there, and a test that used the shipped default silently filled it up.
+
+    `extra` appends config, which is how the undo strategies get their own apps
+    against their own libraries. Nothing here ever touches a real library: the
+    documents, the pdf root, the trash and the git repo all live under
+    `tmp_path` and go away with it.
     """
     from ptui import config, keymap
     from ptui.app import PtuiApp
@@ -80,6 +84,33 @@ def app(papis_lib):
         # competed with the 0.2s `settle` for the GIL — under load the first
         # press landed before the list had rows, and the command found no target.
         f"[doctor]\nscan_on_startup = false\n"
-        f'[undo]\ntrash_dir = "{papis_lib / "trash"}"\n'
+        f'[undo]\ntrash_dir = "{papis_lib / "trash"}"\n' + extra
     )
     return PtuiApp(config.load(ptui_config), keymap.load(papis_lib / "no-keys.toml"))
+
+
+@pytest.fixture
+def app(papis_lib):
+    return build_app(papis_lib)
+
+
+@pytest.fixture
+def git_lib(papis_lib):
+    """The same throwaway library, under git, with one commit holding it.
+
+    `undo.strategy = "git"` needs a real repository — the strategy is `git rm`
+    plus a commit, and mocking that would test the mock. It is a `git init` in
+    `tmp_path`, so it costs milliseconds and is gone afterwards.
+    """
+    import subprocess
+
+    docs = papis_lib / "lib"
+    run = lambda *args: subprocess.run(  # noqa: E731
+        ["git", *args], cwd=docs, check=True, capture_output=True
+    )
+    run("init", "-q", "-b", "main")
+    run("config", "user.email", "test@example.com")
+    run("config", "user.name", "ptui tests")
+    run("add", "-A")
+    run("commit", "-q", "-m", "the library")
+    return papis_lib

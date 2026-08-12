@@ -12,14 +12,18 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 ## B. Bound but not implemented (they log "not implemented yet")
 
-- `d d` `doc.delete` — and therefore `u` `app.undo` cannot be tested at all.
-  The two are one piece of work: SPEC has a required delete dialog, files route
-  through `undo.trash_dir` (`place.trash`, already used by merge) and the index
-  needs `papis.database.delete` or the document comes straight back.
-- `g s` `view.saved`, `\ s` `query.save`, `\ t` `theme.picker`.
+- `g s` `view.saved`, `\ s` `query.save` — saved searches, the last namespace
+  with nothing behind it. A TOML file of name -> (scope, sort) and two commands.
+- `g m` `view.marked` — `m o` (`mark.show_only`) already does this; either bind
+  `g m` to it or drop the command from the registry.
 - `f a` `files.attach`, `f n` `files.normalize`, and the `[modes.files]` verbs
   (`files.rename`, `files.repoint`, `files.detach`, `files.reorder`) — there is
   no files pane yet.
+
+- **Nothing ever empties the trash.** `undo.trash_retention_days = 30` is
+  shipped, read by nobody, and now that `d d` exists the directory only grows.
+  A sweep at startup (delete trashed folders older than the setting) is a few
+  lines; the open question is whether it should ever run unasked.
 
 ## C. Decisions that change the defaults (and so SPEC)
 

@@ -61,13 +61,18 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   catppuccin family, gruvbox, nord, rosé pine, solarized, dracula, and
   `tokyonight-moon` (LazyVim's default) shipped as the out-of-the-box palette.
   Titled panes, a lualine-shaped status bar, and marks in the theme's accent.
+- **Delete you can take back** — `d d` asks first, against the *total* marked
+  count with the refs listed, and every file gets a checkbox that is ticked only
+  when the file lives somewhere ptui manages. `u` puts it all back: folders
+  return from the trash, or, with `undo.strategy = "git"`, ptui's own commit is
+  reverted. Files always route through the trash whatever the strategy, because
+  your PDF root is usually outside the repo.
 - **Every command by name** — `:` (or `ctrl+p`) fuzzy-completes over the whole
   command registry with each command's key binding beside it, so the keymap
   teaches itself while you use it.
 
-Not there yet: delete and undo (one piece of work), saved searches, the files
-pane and visual mode. Bindings for them exist and say so when pressed —
-see [`TODO.md`](TODO.md).
+Not there yet: saved searches, the files pane and visual mode. Bindings for them
+exist and say so when pressed — see [`TODO.md`](TODO.md).
 
 ## Install
 

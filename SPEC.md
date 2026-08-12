@@ -334,6 +334,12 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
   reverts the last ptui-authored commit; the commit log is the undo history.
 - Metadata edits additionally get a session-local in-memory undo stack
   (`undo.stack_size`) regardless of strategy.
+- Reverting is `git revert`, never `reset --hard`: the work tree may hold edits
+  ptui knows nothing about, and rewriting history under a user who also uses
+  the repo by hand is not undo. The revert is itself a `ptui: ` commit.
+- Restoring a document has to throw papis's **on-disk** cache away, not just
+  the in-process handle — otherwise the folder is back and the library still
+  cannot see it.
 
 ## Editing
 
@@ -514,7 +520,7 @@ from this. Adding a command must not require touching four places.
 | `doc.notes`                     |                               | open/create notes                                |
 | `doc.edit`                      |                               | per `edit.mode`                                  |
 | `doc.edit_raw`                  |                               | force `$EDITOR`                                  |
-| `doc.delete`                    |                               | delete dialog                                    |
+| `doc.delete`                    | `force:bool=false`            | delete dialog; `force` skips it                  |
 | `doc.add`                       | `source:str?, uri:str?`       | add flow; `source="inbox"` picks from inbox dir; `uri` skips both modals (`:doc.add arxiv 2607.00687`) |
 | `doc.set`                       | `key:str, value:str`          | set a field, batch-aware                         |
 | `doc.tag` / `doc.untag`         | `tags:str`                    | batch-aware                                      |
@@ -542,7 +548,7 @@ from this. Adding a command must not require touching four places.
 | `cmdline.open`                  |                               | `:` command line with completion                 |
 | `keymap.check`                  |                               | report conflicts + shadowed prefixes             |
 | `app.escape`                    |                               | resolve per `escape_chain`                       |
-| `app.reload`                    |                               | clear papis cache + reload                       |
+| `app.reload`                    | `rescan:bool=false`           | clear papis cache + reload; `rescan` drops the on-disk cache too |
 | `app.undo` / `app.redo`         |                               | per undo strategy                                |
 | `app.log`                       |                               | log pane                                         |
 | `app.config_check`              |                               | report unknown/invalid config keys               |
@@ -578,7 +584,9 @@ recalling a name).
 
 ## Delete dialog (required behaviour)
 
-- Every path in `files` gets a checkbox.
+- Every path in `files` **that lives outside the document folder** gets a
+  checkbox. The ones inside it travel with the folder — there is no decision to
+  make, so offering one would be theatre; the dialog says how many they are.
 - Checked by default **only** for files under a managed root
   (`files.pdf_root` or the document folder). Never default-delete a file in a
   directory ptui did not place it in.
@@ -586,8 +594,13 @@ recalling a name).
   the same realpath. If found, warn and default to unchecked. With a shared
   `pdf_root` and a script appending links, two entries pointing at one file
   is a realistic accident.
-- "Apply to all N marked documents" for batch deletes.
+- "Apply to all N marked documents" for batch deletes: the dialog confirms
+  against the **total** marked count with the refs listed, never the visible
+  ones. Marking 200, narrowing to 3 and pressing `d d` must delete 200 only
+  after saying so.
 - Deletions route through trash.
+- `doc.delete force = true` skips the dialog and keeps every file that is not
+  under a managed root — the batch-script shape, and how a test drives it.
 
 ## v0 scope — build exactly this
 

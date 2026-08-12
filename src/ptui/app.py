@@ -31,6 +31,7 @@ from ptui import (
     library,
     place,
     ui,
+    undo,
 )
 
 PANES = ("list", "info", "log")
@@ -194,6 +195,8 @@ class PtuiApp(App[None]):
         """Cleared by `z z`: an explicit choice outlives any resize."""
         self.side_by_side = layout != "horizontal"  # `auto` re-decides in choose_layout
         self.split = cfg.get("ui.split_ratio", 0.6)
+        self.history = undo.History(cfg.get("undo.stack_size", 50))
+        """One operation is one step, not one document — see `undo.py`."""
         self._fit: list[tuple[dict[str, Any], int]] = []
         self._fit_state: tuple[list[tuple[dict[str, Any], int]], list[str]] | None = None
         self._which_timer: Any = None
@@ -247,6 +250,7 @@ class PtuiApp(App[None]):
         # than it is — which decided the layout wrongly on a borderline width.
         self.relayout()
         self.focus_pane("list")
+        actions.warn_untracked(self)  # once per session, and only under git
         if self.cfg.get("doctor.scan_on_startup", True):
             self.scan_library()
 

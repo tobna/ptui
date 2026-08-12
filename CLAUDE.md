@@ -86,6 +86,7 @@ src/ptui/
   fetch.py           metadata from papis importers: arXiv, DOI, ISBN, .bib, URL
   merge.py           folding duplicates into one: gaps, clashes, survivor choice
   safewrite.py       the only path that writes info.yaml
+  undo.py            the undo history and the trash/git/none strategies
   defaults/          shipped config.toml, keys.toml
 scripts/
   keydoc.py          regenerates KEYS.md; tests/test_docs.py fails while stale
@@ -130,7 +131,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 121 tests, `uv run pytest`.
+empty. 142 tests, `uv run pytest`.
 
 Built:
 
@@ -161,13 +162,37 @@ Built:
   `app.suspend()`
 - **themes**: Textual's 21 plus `tokyonight-moon`, `theme.picker` (`\ t`),
   titled panes, a lualine-shaped status bar, the doctor's exception marker
+- **`doc.delete` (`d d`) + `app.undo`/`app.redo`** (`u` / `ctrl+r`): the
+  checkbox dialog, and all three `undo.strategy` values
 
-Not built. 15 keys are bound to commands that only log "not implemented yet" —
+Not built. 12 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
 (import `actions` first, or the registry is empty and every key looks unbound).
-The clusters: `doc.delete` + `app.undo`/`app.redo` (one piece — a delete with
-no undo is not shippable), `view.marked`, saved searches, `theme.picker`,
-visual mode (`v`/`V`), and the files pane with its `[modes.files]` verbs. Also read but ignored: `general.persist_state`.
+The clusters: `view.marked`, saved searches (`view.saved`, `query.save`),
+visual mode (`v`/`V`), and the files pane with its `[modes.files]` verbs. Also
+read but ignored: `general.persist_state`, `undo.trash_retention_days` (nothing
+ever empties the trash).
+
+`undo.py` is the history and the three strategies; `actions._delete_apply` is
+the one place that removes a document. Whatever `undo.strategy` says, **files
+always route through trash** — `pdf_root` normally sits outside the library, so
+git covers none of it. `trash` moves the folder to `undo.trash_dir` and undo
+moves it back, `git` does `git rm` plus one commit per *operation* (the log is
+the history) and undo `git revert`s it, `none` still trashes but records
+nothing and clears the stack, so `u` cannot offer the operation before it.
+Metadata edits push an in-memory step under every strategy, capturing the old
+values before the write, so undoing a `c` verb restores a key's *absence* too.
+
+Two things that cost time here:
+
+- **`papis.database.clear_cached()` is not enough to make a restored document
+  reappear.** It drops the in-process handle; the backend then re-reads its
+  *on-disk* pickle, which papis rewrote when the document was deleted. Undo
+  calls `reload(app, rescan=True)`, which calls the database's own `clear()`
+  first and pays for a rescan of the library.
+- **`ConfirmDelete` binds `enter` with `priority=True`.** `SelectionList` binds
+  both `space` and `enter` to toggling, so without the priority the confirm key
+  ticks a checkbox instead.
 
 `PtuiApp.fit_columns()` sizes the list: a configured width is a ceiling, and
 each fixed column asks for `PtuiApp.natural_width()` — `library.p90` of what it
@@ -250,6 +275,13 @@ through `place()`; and trashing a folder is not enough — `papis.database.delet
 must be called too, or papis's index hands the document straight back on reload.
 `place.trash()` moves the folder to `undo.trash_dir` (SPEC: files always route
 through trash) rather than deleting it.
+
+`tests/conftest.py` builds apps through `build_app(papis_lib, extra)`, which is
+how the undo strategies get one app each against one library each, and the
+`git_lib` fixture is a real `git init` in `tmp_path` — the git strategy is `git
+rm` plus a commit, and mocking that would test the mock. `tests/test_undo.py`
+covers the dialog defaults, all three strategies, batch-as-one-step, and the
+metadata stack parametrised over every strategy.
 
 The `app` test fixture redirects `pdf_root`, `log.file` **and**
 `undo.trash_dir` into `tmp_path`. The last one was added after a merge test

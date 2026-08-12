@@ -44,10 +44,10 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `ctrl+a` | `mark.all_filtered` | mark all (alias of m a) |
 | `ctrl+d` | `nav.page_down` | page down |
 | `ctrl+p` | `cmdline.open` | run a command by name |
-| `ctrl+r` | `app.redo` | — *(not implemented)* |
+| `ctrl+r` | `app.redo` | redo |
 | `ctrl+s` | `sort.reverse` | reverse sort |
 | `ctrl+u` | `nav.page_up` | page up |
-| `d d` | `doc.delete` | delete document *(not implemented)* |
+| `d d` | `doc.delete` | delete document |
 | `down` | `nav.down` | move down |
 | `E` | `doc.edit_raw` | edit info.yaml in $EDITOR |
 | `e` | `doc.edit` | edit (structured) |
@@ -82,7 +82,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `shift+tab` | `pane.cycle` back=True | next pane |
 | `space` | `mark.toggle` | mark/unmark |
 | `tab` | `pane.cycle` | next pane |
-| `u` | `app.undo` | — *(not implemented)* |
+| `u` | `app.undo` | undo |
 | `up` | `nav.up` | move up |
 | `V` | `visual.line` | — *(not implemented)* |
 | `v` | `visual.start` | — *(not implemented)* |
