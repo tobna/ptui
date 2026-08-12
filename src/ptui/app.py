@@ -110,6 +110,9 @@ class PtuiApp(App[None]):
         background: $surface; border: round $border-blurred;
         border-title-color: $text-muted; border-title-style: bold;
         border-subtitle-color: $text-muted;
+        /* One cell instead of Textual's two. `fit_columns` reads the real
+           `scrollbar_size_vertical`, so the freed cell goes to the title. */
+        scrollbar-size-vertical: 1;
     }
     #list-pane { width: 1fr; }
     #info-pane { width: 1fr; padding: 0 1; }
