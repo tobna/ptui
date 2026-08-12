@@ -31,6 +31,11 @@ GLYPHS = {
     # no clearer than a plain arrow and fall back badly where they are missing.
     "sort_desc": ("↓", "↓"),
     "sort_asc": ("↑", "↑"),
+    # Powerline separators for the status bar. No ASCII twin exists — a ">"
+    # between two coloured blocks reads as text, so the fallback is a space
+    # and the blocks simply butt up against each other.
+    "sep_right": (" ", "\ue0b0"),
+    "sep_left": (" ", "\ue0b2"),
     "cursor": (">", ""),  # nf-fa-chevron_right
     "scope": (" ", ""),  # nf-fa-search
     # Document kinds, keyed by `library.kind` - the `type` field, except that an
@@ -104,14 +109,19 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
     """Dismisses with `(value, inverted)`, or None when cancelled."""
 
     DEFAULT_CSS = """
-    SelectList { align: center middle; }
+    SelectList { align: center middle; background: $background 60%; }
     SelectList > Vertical {
         width: 70%; max-width: 100; height: auto; max-height: 80%;
-        border: round $accent; background: $surface;
+        border: round $primary; background: $surface;
     }
-    SelectList #picker-title { padding: 0 1; text-style: bold; }
-    SelectList Input { border: none; padding: 0 1; }
-    SelectList OptionList { height: auto; max-height: 20; border: none; }
+    SelectList #picker-title {
+        padding: 0 1; text-style: bold; background: $primary; color: $background;
+    }
+    SelectList Input, SelectList Input:focus { border: none; padding: 0 1; background: $surface; }
+    SelectList OptionList { height: auto; max-height: 20; border: none; background: $surface; }
+    SelectList OptionList > .option-list--option-highlighted {
+        background: $primary 30%; text-style: bold;
+    }
     """
 
     def __init__(self, items: list[Item], *, title: str, current: Any = None) -> None:
@@ -131,7 +141,12 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
     def on_mount(self) -> None:
         self._populate()
         index = next((i for i, it in enumerate(self.shown) if it.value == self.current), 0)
-        self.query_one(OptionList).highlighted = index
+        options = self.query_one(OptionList)
+        options.highlighted = index
+        # after the refresh: at mount time the list has no geometry yet, so the
+        # scroll lands nowhere and a picker opened on a far-down current value
+        # (21 themes, one library) shows the top of the list instead
+        self.call_after_refresh(options.scroll_to_highlight)
         self.query_one(Input).focus()
 
     def _prompt(self, item: Item, *, here: bool) -> str:
@@ -215,14 +230,14 @@ class AddForm(ModalScreen[dict[str, str] | None]):
     """
 
     DEFAULT_CSS = """
-    AddForm { align: center middle; }
+    AddForm { align: center middle; background: $background 60%; }
     AddForm > Vertical {
         width: 80%; max-width: 110; height: auto;
-        border: round $accent; background: $surface; padding: 0 1;
+        border: round $primary; background: $surface; padding: 0 1;
     }
     AddForm Input { border: none; padding: 0; }
     AddForm .field-label { color: $text-muted; }
-    AddForm #add-preview { padding: 1 0 0 0; }
+    AddForm #add-preview { padding: 1 0 0 0; color: $text-muted; }
     """
 
     def __init__(

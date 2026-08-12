@@ -5,7 +5,7 @@ ptui is a [Textual](https://textual.textualize.io/) TUI for
 read it before changing behaviour; this file is the map of what actually
 exists. `TODO.md` is the backlog from real use: **read it before starting anything.**
 Section A (broken things) is empty; work comes from § B (keys that are bound but
-do nothing), § D (display polish, including themes) and § E (measurements owed
+do nothing), § D (display polish) and § E (measurements owed
 and the wrong assumptions they would correct). Finished entries are deleted from
 it, not struck through.
 
@@ -80,7 +80,7 @@ src/ptui/
   fetch.py           metadata from papis importers: arXiv, DOI, ISBN, .bib, URL
   merge.py           folding duplicates into one: gaps, clashes, survivor choice
   safewrite.py       the only path that writes info.yaml
-  defaults/          shipped config.toml, keys.toml, themes/*.tcss
+  defaults/          shipped config.toml, keys.toml
 scripts/
   keydoc.py          regenerates KEYS.md; tests/test_docs.py fails while stale
   shot.py            headless screenshot of the real app (--text, --icons, --rows)
@@ -124,7 +124,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 111 tests, `uv run pytest`.
+empty. 114 tests, `uv run pytest`.
 
 Built:
 
@@ -153,8 +153,10 @@ Built:
   `safewrite`, typed from papis's own declared key types
 - **`doc.edit`** (`e`) and **`doc.notes`** (`g n`), both `$EDITOR` under
   `app.suspend()`
+- **themes**: Textual's 21 plus `tokyonight-moon`, `theme.picker` (`\ t`),
+  titled panes, a lualine-shaped status bar
 
-Not built. 16 keys are bound to commands that only log "not implemented yet" —
+Not built. 15 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
 (import `actions` first, or the registry is empty and every key looks unbound).
 The clusters: `doc.delete` + `app.undo`/`app.redo` (one piece — a delete with
@@ -338,6 +340,30 @@ both halves of the old bug: escape left the pane on screen looking dead, and
 `4` focused a pane that was never shown, putting the keyboard somewhere
 invisible. The info pane is deliberately *not* included: `z i` is an explicit
 toggle and focusing must not argue with it.
+
+**Themes are Textual's**, not files ptui ships: `App.available_themes` has 21,
+`apply_theme` switches, `theme.picker` (`\ t`) lists them, `[ui] theme` picks
+the startup one. `app.EXTRA_THEMES` registers the few where Textual's namesake
+is a *different* palette — `tokyonight-moon` (the shipped default, LazyVim's
+own) is not Textual's `tokyo-night`, which is the night variant. The old
+`defaults/themes/*.tcss` and `config.theme_dirs` are gone: that stylesheet
+hand-rolled a palette Textual already had, and half of it styled widgets that
+never existed (`#cmdline`, `ConfirmDialog`, `#help-overlay`).
+
+Three things about the chrome that cost time to find:
+
+- **A pane's ID beats `.pane-active` in Textual's specificity**, so the active
+  rule is written `#list-pane.pane-active, …`. Without the ID the focused
+  border silently never lights up.
+- **`DataTable` cells are Rich, not CSS.** The marked-row colour comes from
+  `self.theme_variables["accent"]` — the same table the CSS reads — because a
+  CSS class cannot reach inside a cell.
+- **The status bar is markup, not widgets**: `PtuiApp.blocks()` emits coloured
+  blocks joined by powerline separators, drawing each separator in the previous
+  block's colour on the next one's so the arrow reads as one block flowing into
+  the next. Theme variables work inside markup (`[$accent on $panel]`), which is
+  what keeps the bar in whatever palette is live. `ui.glyph("sep_right")` falls
+  back to a space, so an ASCII terminal gets the same widths without the arrows.
 
 Every `c` verb is `actions._set_field(app, key, value_of, what)` — plan one
 value per target, confirm when there is more than one, write through

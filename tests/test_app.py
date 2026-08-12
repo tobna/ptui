@@ -215,3 +215,48 @@ async def test_sort_reverse_keeps_the_cursor_on_the_document(app):
         await press(pilot, "ctrl+s")
         await settle(pilot)
         assert app.current["title"] == current
+
+
+async def test_theme_picker_lists_textual_themes_and_switches_live(app):
+    from textual.widgets import OptionList
+
+    from ptui import ui
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        assert app.theme == "tokyonight-moon"  # the shipped default, LazyVim's own
+
+        await press(pilot, "\\", "t")
+        assert isinstance(app.screen, ui.SelectList)
+        offered = [item.value for item in app.screen.items]
+        assert {"catppuccin-mocha", "gruvbox", "nord", "rose-pine"} <= set(offered)
+        assert "tokyonight-moon" in offered  # ours, registered on top of Textual's
+        # the picker opens on the theme in use, not on the top of 21 rows
+        assert app.screen.query_one(OptionList).highlighted == offered.index("tokyonight-moon")
+
+        await press(pilot, *"gruvbox", "enter")
+        await settle(pilot)
+        assert app.theme == "gruvbox"
+
+
+async def test_an_unknown_theme_says_so_instead_of_starting_unreadable(app):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        app.apply_theme("no-such-theme")
+        assert app.theme == "tokyonight-moon"
+
+
+async def test_status_bar_shows_the_mode_and_the_counts(app):
+    from textual.widgets import Static
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        bar = lambda: app.query_one("#status-bar", Static).content  # the markup  # noqa: E731
+        assert " LIST " in bar()
+        assert "3 shown / 3 total" in bar()
+
+        await press(pilot, "space")  # a mark adds the marked segment
+        assert "1 marked (1 visible)" in bar()
+
+        await press(pilot, "4")  # the mode block follows the focused pane
+        assert " LOG " in bar()

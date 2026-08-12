@@ -2,8 +2,8 @@
 
 ## Scope of this document
 
-Implementation spec. `config.toml`, `keys.toml` and `themes/*.tcss` are the
-user-facing surface; this document defines invariants, the command registry,
+Implementation spec. `config.toml` and `keys.toml` are the user-facing
+surface; this document defines invariants, the command registry,
 and the data model those files refer to.
 
 Package name `ptui` is a placeholder — `papis-tui` is taken by an existing
@@ -22,7 +22,7 @@ on keychain hints and search aliases.
 - **Documents are identified by `papis_id`**, never folder path. Paths change
   under `papis rename`.
 - **Config lives in `$XDG_CONFIG_HOME/papis/ptui/`** (`config.toml`,
-  `keys.toml`, `themes/*.tcss`). TOML rather than papis's own INI file
+  `keys.toml`). TOML rather than papis's own INI file
   because the attach rules are an ordered list of tables, which configparser
   cannot express. Values papis already owns — library paths, `editor`,
   `opentool`, `use-git`, `add-file-name` — are read from papis config and not
@@ -285,7 +285,9 @@ caller.
 - **Therefore**: destructive batch operations confirm against the _total_
   marked count with a preview list, not the visible count. Marking 200,
   narrowing to 3, pressing delete must not destroy 200 silently.
-- Status bar: `12 marked (4 visible) / 187 shown / 3211 total`.
+- Status bar counts: `12 marked (4 visible) 187 shown / 3211 total`. The marked
+  part appears only when there are marks — an empty selection has nothing to say
+  about itself, and the bar is chrome that is always on screen.
 - `escape` never clears marks (see `escape_chain`); only `m c` does.
 - **Every way of marking has a way of unmarking the same set.** Marking 40
   documents by query and then having to clear all marks to undo it is the
@@ -294,6 +296,28 @@ caller.
   keymap binds the lowercase key to marking and SHIFT to unmarking, per the
   keybinding design contract. `mark.clear` (unmark all) and `mark.invert`
   (self-inverse) already close the set.
+
+## Chrome and themes
+
+The palette is a **Textual theme**, not a stylesheet ptui ships: Textual's own
+set covers everything a hand-rolled `themes/*.tcss` did (catppuccin, gruvbox,
+nord, rosé pine, solarized, light and dark), each one a complete set of the
+variables the layout CSS already speaks. `theme.picker` switches live; `[ui]
+theme` makes it stick. ptui registers extra themes only where Textual's
+equivalent is a different palette — `tokyonight-moon`, the LazyVim default, is
+not Textual's `tokyo-night`.
+
+Required of the chrome, in any theme:
+
+- Panes are titled and bordered; **the focused one is the one in `$primary`**,
+  which is the only indication of where the keyboard is.
+- The status bar is a row of coloured blocks: mode, scope, narrow, doctor on
+  the left; pending chord, sort and counts on the right. Powerline separators
+  come from `ui.glyph`, so an ASCII terminal gets plain blocks at the same
+  width.
+- The hint bar shows **only implemented commands**. It is always on screen, and
+  advertising a key that logs "not implemented yet" there is worse than one
+  hint fewer.
 
 ## Undo
 
@@ -513,7 +537,7 @@ from this. Adding a command must not require touching four places.
 | `doctor.fix`                    | `checks:str?, current:bool`   | every fixable finding on the targets, via safe-write; `checks` fixes one check across the library |
 | `doctor.fix_pick`               |                               | SelectList over this document's findings; `enter` fixes that one |
 | `lib.switch`                    | `name:str?`                   | SelectList over libraries                        |
-| `theme.picker`                  |                               | SelectList over `themes/*.tcss`                  |
+| `theme.picker`                  | `name:str?`                   | SelectList over the registered themes; applies live |
 | `help.show`                     | `filter:str?`                 | generated help overlay                           |
 | `cmdline.open`                  |                               | `:` command line with completion                 |
 | `keymap.check`                  |                               | report conflicts + shadowed prefixes             |
@@ -572,9 +596,9 @@ Two panes; scope query + narrow filter; vim navigation; `doc.open`,
 add flow with destination preview; `files.relocate`; safe-write; log pane;
 `keymap.check`; which-key + hint bar.
 
-**Not in v0**: themes beyond the one built-in, structured editor, undo,
-doctor integration, explore/import mode, picker entry point, saved searches,
-PDF preview, reading status, ratings.
+**Not in v0**: structured editor, undo, explore/import mode, picker entry
+point, saved searches, PDF preview. (Doctor integration, themes, reading
+status and ratings have since landed.)
 
 Ship it, use it daily for two weeks, then extend.
 

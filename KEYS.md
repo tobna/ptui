@@ -33,7 +33,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `\ c` | `app.config_check` | check config |
 | `\ k` | `keymap.check` | check keymap conflicts |
 | `\ s` | `query.save` | save current search *(not implemented)* |
-| `\ t` | `theme.picker` | theme *(not implemented)* |
+| `\ t` | `theme.picker` | theme |
 | `a` | `doc.add` | add document |
 | `b` | `doc.browse` | open URL/DOI |
 | `c T` | `doc.untag` | remove tags |

@@ -13,7 +13,7 @@ confirm_destructive = true
 [ui]
 layout = "auto"               # auto | vertical (side-by-side) | horizontal (stacked)
 split_ratio = 0.6             # the list pane's share of the split axis
-theme = "ink-crimson"         # themes/<name>.tcss
+theme = "tokyonight-moon"     # any Textual theme; `\ t` lists them live
 icons = true                  # nerd-font glyphs; set false over SSH to a bare tty
 mouse = true
 

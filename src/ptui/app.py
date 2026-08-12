@@ -19,6 +19,7 @@ from rich.text import Text
 from textual import events, work
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
+from textual.theme import Theme
 from textual.widgets import DataTable, Input, RichLog, Static
 
 from ptui import (
@@ -33,6 +34,35 @@ from ptui import (
 )
 
 PANES = ("list", "info", "log")
+
+DEFAULT_THEME = "tokyonight-moon"
+"""LazyVim's own default colourscheme. `\\ t` switches, `[ui] theme` makes it stick."""
+
+EXTRA_THEMES = (
+    # Values straight out of tokyonight.nvim's `colors/moon.lua`, not matched by
+    # eye. Textual ships `tokyo-night` already, but that is the *night* variant;
+    # LazyVim defaults to `style = "moon"`, which is a different palette.
+    Theme(
+        name="tokyonight-moon",
+        background="#1e2030",  # bg_dark — the ground the panes sit on
+        surface="#222436",  # bg — the editor background proper
+        panel="#2f334d",  # bg_highlight — status blocks, which-key
+        foreground="#c8d3f5",
+        primary="#82aaff",  # blue: borders, titles, the cursor row
+        secondary="#c099ff",  # magenta
+        accent="#ff966c",  # orange: marks and the hint-bar keys
+        warning="#ffc777",
+        error="#ff757f",
+        success="#c3e88d",
+        boost="#3b4261",
+        dark=True,
+        variables={"text-muted": "#828bb8", "border-blurred": "#3b4261"},
+    ),
+)
+"""Themes ptui adds to Textual's own. One entry is not a plugin system."""
+
+STATUS_BG = "$surface"
+"""The status bar's own background — what the powerline blocks flow out of."""
 
 MIN_FLEX = 12
 """Cells the flexible column keeps. Below this a fixed column is dropped instead —
@@ -73,28 +103,44 @@ class PtuiApp(App[None]):
     keep `ctrl+p` from ever reaching `cmdline.open`. Off now that ours exists."""
 
     CSS = """
-    Screen { layers: base which; }
+    Screen { layers: base which; background: $background; }
     #panes { height: 1fr; }
+
+    #list-pane, #info-pane, #log-pane {
+        background: $surface; border: round $border-blurred;
+        border-title-color: $text-muted; border-title-style: bold;
+        border-subtitle-color: $text-muted;
+    }
     #list-pane { width: 1fr; }
     #info-pane { width: 1fr; padding: 0 1; }
     #log-pane { height: 10; display: none; }
-    #hint-bar, #status-bar { height: 1; }
-    #prompt { display: none; height: 1; border: none; padding: 0 1; }
+    /* ID beats class in Textual's specificity, so the active rule has to carry
+       the ID too — otherwise the pane border never lights up. */
+    #list-pane.pane-active, #info-pane.pane-active, #log-pane.pane-active {
+        border: round $primary; border-title-color: $primary;
+    }
+
+    DataTable > .datatable--header { background: $surface; color: $text-muted; text-style: bold; }
+    DataTable > .datatable--cursor { background: $primary 30%; text-style: bold; }
+    DataTable > .datatable--hover { background: $boost; }
+
+    #status-bar { height: 1; background: $surface; }
+    #hint-bar { height: 1; background: $background; color: $text-muted; }
+    #prompt {
+        display: none; height: 1; border: none; padding: 0 1;
+        background: $panel; color: $text;
+    }
     #prompt.open { display: block; }
     #which-key {
         layer: which; display: none; dock: bottom; height: auto; width: auto;
-        offset: 2 -3; padding: 0 1; border: round $panel;
+        offset: 2 -3; padding: 0 1; background: $surface; border: round $primary;
+        border-title-color: $primary; border-title-style: bold;
     }
     #which-key.open { display: block; }
-    .pane-active { border-left: thick $accent; }
     """
 
     def __init__(self, cfg: config.Config, km: keymap.Keymap) -> None:
-        theme = cfg.get("ui.theme", "")
-        css = next(
-            (d / f"{theme}.tcss" for d in cfg.theme_dirs if (d / f"{theme}.tcss").is_file()), None
-        )
-        super().__init__(css_path=css)
+        super().__init__()
         self.cfg = cfg
         self.km = km
         ui.use_icons(cfg.get("ui.icons", False))  # every glyph goes through ui.glyph
@@ -122,6 +168,18 @@ class PtuiApp(App[None]):
 
     # ── setup ───────────────────────────────────────────────────────────────
 
+    def apply_theme(self, name: str) -> None:
+        """Switch palette. Textual owns most of the themes — 21 of them, light and dark,
+        each a full set of variables the CSS above already speaks. An unknown
+        name says so and keeps the default rather than starting unreadable."""
+        for theme in EXTRA_THEMES:
+            if theme.name not in self.available_themes:
+                self.register_theme(theme)
+        if name and name not in self.available_themes:
+            self.log_line(f"[yellow]no theme {name!r}; try `\\ t`[/]")
+            return
+        self.theme = name or DEFAULT_THEME
+
     def _default_sort(self) -> tuple[str, bool]:
         presets = self.cfg.get("list.sort_presets", [])
         preset = next((p for p in presets if p.get("default")), presets[0] if presets else {})
@@ -130,18 +188,23 @@ class PtuiApp(App[None]):
     def compose(self) -> ComposeResult:
         table = ListTable(id="list-pane", cursor_type="row", zebra_stripes=False)
         table.can_focus = False  # all keys go through our dispatcher
+        table.border_title = "library"
         info = VerticalScroll(Static(id="info"), id="info-pane")
         info.can_focus = False
+        info.border_title = "document"
         with Container(id="panes"):  # apply_split() owns the layout direction
             yield table
             yield info
-        yield RichLog(id="log-pane", markup=True, max_lines=self.cfg.get("log.max_entries", 500))
+        log = RichLog(id="log-pane", markup=True, max_lines=self.cfg.get("log.max_entries", 500))
+        log.border_title = "log"
+        yield log
         yield Static(id="which-key")
         yield Static(id="hint-bar")
         yield Static(id="status-bar")
         yield Input(id="prompt")
 
     def on_mount(self) -> None:
+        self.apply_theme(self.cfg.get("ui.theme", DEFAULT_THEME))
         self.apply_split()
         self._setup_logging()
         for problem in self.km.unknown_commands:
@@ -238,9 +301,10 @@ class PtuiApp(App[None]):
         if not rows:
             return
         panel = self.query_one("#which-key", Static)
+        panel.border_title = " ".join(self.pending)
         panel.update(
             "\n".join(
-                f"[bold]{b.keys[len(' '.join(self.pending)) + 1 :]}[/]  {b.desc or b.cmd}"
+                f"[$accent bold]{b.keys[len(' '.join(self.pending)) + 1 :]}[/]  {b.desc or b.cmd}"
                 for b in rows
             )
         )
@@ -459,6 +523,9 @@ class PtuiApp(App[None]):
             if not term.negate and not term.field
         ]
         height = max(1, self.cfg.get("list.row_height", 1))
+        # DataTable cells are Rich, not CSS-styled, so the theme's colour has to
+        # be fetched by hand — `theme_variables` is the same table the CSS reads.
+        mark_style = f"bold {self.theme_variables.get('accent', '')}".strip()
         for doc in self.rows:
             marked = library.doc_id(doc) in self.marks
             cells = []
@@ -473,9 +540,7 @@ class PtuiApp(App[None]):
                     text = library.fit_lines(text, width, height)
                 else:
                     text = library.fit(text, width)
-                # ponytail: bold marks the row; per-theme colouring needs Rich
-                # styles that CSS classes cannot reach into DataTable cells.
-                cell = Text(text, style="bold" if marked else "")
+                cell = Text(text, style=mark_style if marked else "")
                 if lit:
                     cell.highlight_words(lit, "reverse", case_sensitive=False)
                 cells.append(cell)
@@ -585,35 +650,77 @@ class PtuiApp(App[None]):
             doctor.scan(doc, checks)
         self.call_from_thread(self.refresh_info)
 
+    def blocks(self, segments: list[tuple[str, str, str]], *, rightwards: bool) -> tuple[str, int]:
+        """Coloured blocks joined by powerline separators, plus their cell width.
+
+        The separator is drawn in the *previous* block's colour on the *next*
+        one's, which is what makes the arrow read as one block flowing into the
+        next rather than as a glyph sitting between them. `STATUS_BG` stands in
+        for the bar itself at whichever end the group does not reach.
+        """
+        arrow = ui.glyph("sep_right" if rightwards else "sep_left")
+        out, width, behind = [], 0, STATUS_BG
+        for text, foreground, background in segments:
+            ahead = background if rightwards else behind
+            out.append(f"[{(behind if rightwards else background)} on {ahead}]{arrow}[/]")
+            out.append(f"[{foreground} on {background}]{text}[/]")
+            width += cell_len(arrow) + cell_len(text)
+            behind = background
+        if rightwards:  # close the group back into the bar
+            out.append(f"[{behind} on {STATUS_BG}]{arrow}[/]")
+            width += cell_len(arrow)
+        return "".join(out), width
+
     def refresh_status(self) -> None:
+        """A lualine-shaped bar: mode block, scope and narrow on the left, the
+        counts on the right. Colours are theme variables, so every theme gets
+        the same shape in its own palette."""
         visible_marks = sum(1 for d in self.rows if library.doc_id(d) in self.marks)
-        parts = [
-            f"{ui.glyph('scope')} scope: {self.scope_query or '*'}",
-            f"narrow: {self.narrow_query or '-'}",
-            f"sort: {self.sort_key} {ui.glyph('sort_desc' if self.sort_reverse else 'sort_asc')}",
-            f"{len(self.marks)} marked ({visible_marks} visible) / {len(self.rows)} shown / {len(self.docs)} total",
-        ]
+        arrow = ui.glyph("sort_desc" if self.sort_reverse else "sort_asc")
+        left = [(f" {self.mode.upper()} ", "$background", "$primary")]
+        left.append((f" {ui.glyph('scope')} {self.scope_query or '*'} ", "$text", "$panel"))
+        if self.narrow_query:
+            left.append((f" / {self.narrow_query} ", "$background", "$secondary"))
         if self.doctor_only:
-            parts.insert(1, f"[yellow]{ui.glyph('warning')} doctor[/]")
+            left.append((f" {ui.glyph('warning')} doctor ", "$background", "$warning"))
+
+        right: list[tuple[str, str, str]] = []
         if self.pending:
-            parts.append(f"[bold]{' '.join(self.pending)}-[/]")
-        self.query_one("#status-bar", Static).update(" | ".join(parts))
+            right.append((f" {' '.join(self.pending)}- ", "$background", "$warning"))
+        right.append((f" {self.sort_key} {arrow} ", "$text", "$panel"))
+        marked = f"{len(self.marks)} marked ({visible_marks} visible) " if self.marks else ""
+        right.append(
+            (
+                f" {marked}{len(self.rows)} shown / {len(self.docs)} total ",
+                "$background",
+                "$primary",
+            )
+        )
+
+        head, used = self.blocks(left, rightwards=True)
+        tail, tail_width = self.blocks(right, rightwards=False)
+        gap = max(0, self.size.width - used - tail_width)
+        self.query_one("#status-bar", Static).update(f"{head}[on {STATUS_BG}]{' ' * gap}[/]{tail}")
 
     def refresh_hints(self) -> None:
         if not self.km.option("hint_bar", True):
             return
         wanted = (
-            ["doc.delete", "doc.tag", "export.bibtex", "mark.clear", "files.relocate"]
+            ["doc.tag", "doc.merge", "export.bibtex", "mark.clear", "files.relocate", "doc.delete"]
             if self.marks
             else ["doc.open", "query.narrow", "query.scope", "mark.toggle", "doc.add", "help.show"]
         )
+        # Only what exists: the hint bar is the one piece of chrome that is always
+        # on screen, and advertising a key that logs "not implemented yet" there
+        # is worse than showing one hint fewer.
+        wanted = [name for name in wanted if name in commands.REGISTRY]
         hints = []
         for name in wanted[: self.km.option("hint_bar_max", 6)]:
             keys = self.km.for_command(self.mode, name)
             if keys:
                 cmd = commands.REGISTRY.get(name)
-                hints.append(f"[bold]{keys}[/] {cmd.desc if cmd else name}")
-        self.query_one("#hint-bar", Static).update("  ".join(hints))
+                hints.append(f"[$accent bold]{keys}[/] [dim]{cmd.desc if cmd else name}[/]")
+        self.query_one("#hint-bar", Static).update(" " + "   ".join(hints))
 
     def log_line(self, message: str) -> None:
         """User-visible operation log. Batch outcomes belong here, not in a toast."""

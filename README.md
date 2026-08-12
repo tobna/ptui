@@ -57,12 +57,16 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   (`tags` a list, `year` an int). All batch-aware over marks, batches confirm
   first, every write through the safe-write path. `e` opens `$EDITOR` and tells
   you if you saved YAML papis can no longer parse.
+- **Looks like your editor** — 22 themes, live-switchable with `\ t`: the
+  catppuccin family, gruvbox, nord, rosé pine, solarized, dracula, and
+  `tokyonight-moon` (LazyVim's default) shipped as the out-of-the-box palette.
+  Titled panes, a lualine-shaped status bar, and marks in the theme's accent.
 - **Every command by name** — `:` (or `ctrl+p`) fuzzy-completes over the whole
   command registry with each command's key binding beside it, so the keymap
   teaches itself while you use it.
 
-Not there yet: delete and undo (one piece of work), saved searches, themes, the
-files pane and visual mode. Bindings for them exist and say so when pressed —
+Not there yet: delete and undo (one piece of work), saved searches, the files
+pane and visual mode. Bindings for them exist and say so when pressed —
 see [`TODO.md`](TODO.md).
 
 ## Install
@@ -96,7 +100,6 @@ Config lives in `~/.config/papis/ptui/`:
 | --------------- | --------------------------------------------------- |
 | `config.toml`   | panes, columns, sorting, file-placement rules        |
 | `keys.toml`     | every binding, plus which-key and hint-bar behaviour |
-| `themes/*.tcss` | colours; pick one with `[ui] theme`                  |
 
 The shipped defaults in [`src/ptui/defaults/`](src/ptui/defaults) are the
 reference — copy and edit. Values papis already owns (library paths, `editor`,
@@ -105,7 +108,7 @@ reference — copy and edit. Values papis already owns (library paths, `editor`,
 ## Keys
 
 `j`/`k` move · `o` open · `/` filter · `s` search · `space` mark · `S` sort ·
-`a` add · `i` add from inbox · `E` edit `info.yaml` · `q` quit.
+`a` add · `i` add from inbox · `e` edit `info.yaml` · `\ t` theme · `q` quit.
 
 Prefixes are namespaces, and hold one to see its menu: `g` go · `f` files ·
 `y` yank · `c` change · `m` marks · `z` layout · `d` delete · `\` admin.

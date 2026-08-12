@@ -65,10 +65,6 @@ class Config:
         """Our value if set, else the value papis already owns."""
         return self.get(dotted) or papis.config.get(papis_key)
 
-    @property
-    def theme_dirs(self) -> list[Path]:
-        return [config_dir() / "themes", DEFAULTS_DIR / "themes"]
-
 
 def load(path: Path | None = None) -> Config:
     """Load defaults + user overrides. `path` defaults to `<config_dir>/config.toml`."""

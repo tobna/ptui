@@ -44,15 +44,17 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 ## D. Display polish
 
-- **Themes and general looks.** Ship the catppuccin family (mocha / macchiato /
-  frappé / latte) as `defaults/themes/*.tcss`, plus a couple more with a
-  different feel (gruvbox, nord, rosé pine are the obvious candidates), and make
-  `\ t` `theme.picker` (§ B) the way to switch — a picker over the shipped
-  themes is the same `SelectList` every other picker uses. Beyond the palette,
-  the app should simply look better than it does: borders, the pane titles, the
-  status and hint bars, and how the marked/current row read are all still
-  first-draft. Screenshot before and after (`scripts/shot.py`), and pick the
-  colours from a theme's own published palette rather than by eye.
+- **User-defined themes.** The palette is now a Textual theme and ptui ships one
+  of its own (`tokyonight-moon`), but there is no way for a user to add theirs
+  short of editing `app.EXTRA_THEMES`. A palette file — 12 colours in TOML,
+  registered the same way — would cover it. Wait until someone asks: 22 themes
+  is a lot of palette already.
+
+- **The panes are titled and bordered, the bars are lualine-shaped, and that is
+  as far as the pass went.** Still first-draft: the info pane is a flat list of
+  labelled lines (no sections, no emphasis beyond dim), the log pane has no
+  per-level colour (`log.*` classes existed in the old stylesheet and nothing
+  ever set them), and `AddForm` is a stack of unstyled inputs.
 
 - **Warning glyph on documents with doctor findings** — unblocked: the doctor
   landed and `doctor.CACHE` is exactly the background-pass-plus-cache this asked
