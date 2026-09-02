@@ -272,8 +272,7 @@ def sort_picker(app: Any) -> None:
     presets = app.cfg.get("list.sort_presets", [])
     items = [
         ui.Item(
-            label=f"{p.get('label', p['key'])} "
-            f"{ui.glyph('sort_desc' if p.get('dir') == 'desc' else 'sort_asc')}",
+            label=f"{p.get('label', p['key'])} {ui.glyph('sort_desc' if p.get('dir') == 'desc' else 'sort_asc')}",
             value=p["key"],
             hint=p["key"],
         )
@@ -435,10 +434,7 @@ def files_open_pick(app: Any) -> None:
     if doc is None:
         return
     paths = files_of(app, doc)
-    items = [
-        ui.Item(label=p.name, value=i, hint="" if p.exists() else "missing")
-        for i, p in enumerate(paths)
-    ]
+    items = [ui.Item(label=p.name, value=i, hint="" if p.exists() else "missing") for i, p in enumerate(paths)]
     ui.pick(app, items, title="Open file")(lambda index, _invert: doc_open(app, which=index))
 
 
@@ -681,13 +677,9 @@ def doc_status(app: Any, value: str | None = None) -> None:
         items = [ui.Item(label=status, value=status) for status in STATUSES]
         items.append(ui.Item(label="clear", value="", hint="remove the field"))
         current = app.current.get("reading_status") if app.current else None
-        ui.pick(app, items, title="Reading status", current=current)(
-            lambda status, _invert: doc_status(app, status)
-        )
+        ui.pick(app, items, title="Reading status", current=current)(lambda status, _invert: doc_status(app, status))
         return
-    _set_field(
-        app, "reading_status", lambda _doc: value or None, f"reading_status = {value or '-'}"
-    )
+    _set_field(app, "reading_status", lambda _doc: value or None, f"reading_status = {value or '-'}")
 
 
 @command("doc.rating", "rating")
@@ -697,9 +689,7 @@ def doc_rating(app: Any, value: int | None = None) -> None:
     if value is None:
         items = [ui.Item(label=str(n) if n else "0 — clear", value=n) for n in range(6)]
         current = app.current.get("rating") if app.current else None
-        ui.pick(app, items, title="Rating", current=current)(
-            lambda stars, _invert: doc_rating(app, stars)
-        )
+        ui.pick(app, items, title="Rating", current=current)(lambda stars, _invert: doc_rating(app, stars))
         return
     stars = max(0, min(5, value))
     _set_field(app, "rating", lambda _doc: stars or None, f"rating = {stars or '-'}")
@@ -821,11 +811,7 @@ def add_form(app: Any, path: Path | None, fetched: dict[str, Any] | None = None)
 
     rules = place.Rules.from_config(app.cfg)
     fetched = fetched or {}
-    initial = {
-        field: library.display(fetched.get(field, ""))
-        for field in ui.ADD_FIELDS
-        if fetched.get(field)
-    }
+    initial = {field: library.display(fetched.get(field, "")) for field in ui.ADD_FIELDS if fetched.get(field)}
     initial.setdefault("title", path.stem if path else "")
 
     def preview(data: dict[str, str]) -> str:
@@ -855,9 +841,7 @@ def add_form(app: Any, path: Path | None, fetched: dict[str, Any] | None = None)
     app.push_screen(ui.AddForm(path, initial, preview), confirm)
 
 
-def _add_document(
-    app: Any, path: Path | None, data: dict[str, str], extra: dict[str, Any] | None = None
-) -> None:
+def _add_document(app: Any, path: Path | None, data: dict[str, str], extra: dict[str, Any] | None = None) -> None:
     import papis.commands.add
 
     # The form wins over the fetched record: the user just looked at both.
@@ -954,8 +938,7 @@ def files_relocate(app: Any, force: bool = False) -> None:
                 app.log_line(f"[yellow]{result.status}[/] {result.src.name}: {result.message}")
 
         updated = [
-            r.entry if r.entry and r.status in ("ok", "already") else e
-            for e, r in zip(entries, results, strict=True)
+            r.entry if r.entry and r.status in ("ok", "already") else e for e, r in zip(entries, results, strict=True)
         ]
         if updated == entries:
             continue
@@ -1001,9 +984,7 @@ def help_show(app: Any) -> None:
     running things by name is the `:` command line's job.
     """
     items = []
-    for binding in sorted(
-        app.km.modes.get(app.mode, {}).values(), key=lambda b: (b.chord[0].casefold(), b.keys)
-    ):
+    for binding in sorted(app.km.modes.get(app.mode, {}).values(), key=lambda b: (b.chord[0].casefold(), b.keys)):
         args = " ".join(str(value) for value in binding.args.values())
         note = "" if binding.cmd in REGISTRY else "  (not implemented)"
         label = f"{binding.keys:<10} {binding.desc or binding.cmd}{f' — {args}' if args else ''}"
@@ -1082,9 +1063,7 @@ def theme_picker(app: Any, name: str | None = None) -> None:
         app.apply_theme(name)
         return
     items = [
-        ui.Item(
-            label=theme, value=theme, hint="light" if not app.available_themes[theme].dark else ""
-        )
+        ui.Item(label=theme, value=theme, hint="light" if not app.available_themes[theme].dark else "")
         for theme in sorted(app.available_themes)
     ]
 
@@ -1358,9 +1337,7 @@ def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
     except Exception as exc:
         app.log_line(f"[red]fix failed:[/] {exc}")
         return False
-    app.log_line(
-        f"fixed {finding.name} on {doc.get('ref', '')}: {', '.join(changed) or 'no change'}"
-    )
+    app.log_line(f"fixed {finding.name} on {doc.get('ref', '')}: {', '.join(changed) or 'no change'}")
     doctor.scan(doc, _checks(app))  # the write invalidated the cache; the pane reads it
     app.refresh_rows()
     return True
@@ -1380,9 +1357,7 @@ def doctor_fix(app: Any, current: bool = False) -> None:
         _apply_one(app, doc, finding)
     skipped = len(found) - len(fixable)
     app.log_line(
-        f"doctor: fixed {len(fixable)}, {skipped} with no automatic fix"
-        if found
-        else "doctor: nothing to fix"
+        f"doctor: fixed {len(fixable)}, {skipped} with no automatic fix" if found else "doctor: nothing to fix"
     )
     if skipped:
         app.query_one("#log-pane").display = True
@@ -1437,15 +1412,12 @@ def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
             others = [
                 other.get("ref") or library.doc_id(other)
                 for other in app.docs
-                if other is not doc
-                and any(place.resolve(other, e) == path for e in other.get("files") or [])
+                if other is not doc and any(place.resolve(other, e) == path for e in other.get("files") or [])
             ]
             note = "" if managed else "outside the managed roots"
             if others:
                 note = f"also in {', '.join(others[:3])}"
-            doomed.append(
-                Doomed(doc, entry, path, ui.FileChoice(str(path), managed and not others, note))
-            )
+            doomed.append(Doomed(doc, entry, path, ui.FileChoice(str(path), managed and not others, note)))
     return doomed
 
 
@@ -1532,15 +1504,12 @@ def _delete_apply(app: Any, targets: list[Any], files: list[Doomed]) -> None:
     app.marks.clear()
     reload(app)
     app.log_line(
-        f"deleted {len(targets)} document(s), {len(files)} file(s)"
-        + ("" if strategy == "none" else " — u to undo")
+        f"deleted {len(targets)} document(s), {len(files)} file(s)" + ("" if strategy == "none" else " — u to undo")
     )
     app.query_one("#log-pane").display = True
 
 
-def _delete_with_git(
-    app: Any, folders: list[Path], label: str, moved: list[tuple[Path, Path]]
-) -> undo.Step:
+def _delete_with_git(app: Any, folders: list[Path], label: str, moved: list[tuple[Path, Path]]) -> undo.Step:
     """`git rm` the folders in one commit, and undo by reverting it.
 
     One ptui operation is one commit, so the log reads as a history of what the

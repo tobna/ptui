@@ -151,9 +151,7 @@ def _in_range(value: str, spec: str) -> bool | None:
     if found.group(3):  # a .. b
         return low <= number <= high
     op, bound = found.group(1), low
-    return {">": number > bound, ">=": number >= bound, "<": number < bound}.get(
-        op, number <= bound
-    )
+    return {">": number > bound, ">=": number >= bound, "<": number < bound}.get(op, number <= bound)
 
 
 def match_text(text: str, terms: tuple[Term, ...], mode: str = "substring") -> bool:
@@ -430,9 +428,7 @@ published because somebody recorded a hotel.
 
 def venue(doc: Document) -> str:
     """The conference or journal name, or empty. A city is not a name."""
-    return next(
-        (str(doc[key]).strip() for key in VENUE_KEYS if str(doc.get(key) or "").strip()), ""
-    )
+    return next((str(doc[key]).strip() for key in VENUE_KEYS if str(doc.get(key) or "").strip()), "")
 
 
 def kind(doc: Document) -> str:

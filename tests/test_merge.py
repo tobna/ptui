@@ -109,11 +109,7 @@ def two_copies(tmp_path):
         folder = lib / name
         folder.mkdir()
         (folder / pdf).write_bytes(b"%PDF-1.7\n" + name.encode())
-        lines = [
-            f"{k}: {v!r}" if isinstance(v, str) else f"{k}: {v}"
-            for k, v in data.items()
-            if k != "author_list"
-        ]
+        lines = [f"{k}: {v!r}" if isinstance(v, str) else f"{k}: {v}" for k, v in data.items() if k != "author_list"]
         lines.append("author_list:\n- family: He\n  given: Kaiming")
         (folder / "info.yaml").write_text("# keep me\n" + "\n".join(lines) + f"\nfiles:\n- {pdf}\n")
     import papis.database

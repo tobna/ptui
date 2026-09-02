@@ -149,9 +149,7 @@ def resolve(doc: Document, entry: str) -> Path:
     return path if path.is_absolute() or not folder else Path(folder) / path
 
 
-def target(
-    doc: Document, src: Path, rule: Rule, rules: Rules, *, default: str | None = None
-) -> Path:
+def target(doc: Document, src: Path, rule: Rule, rules: Rules, *, default: str | None = None) -> Path:
     """The path `rule` wants `src` at. Pure — touches nothing.
 
     `default` fills in missing document keys instead of raising; the add-flow
@@ -206,18 +204,14 @@ def place(
             entry = _entry(clash, doc, rule.path_style, previous)
             return PlaceResult("already", src, rule.name, dest=clash, entry=entry)
         if rules.hash_check and _digest(src) == _digest(clash):
-            return PlaceResult(
-                "duplicate", src, rule.name, dest=clash, message="destination is byte-identical"
-            )
+            return PlaceResult("duplicate", src, rule.name, dest=clash, message="destination is byte-identical")
         if rules.collision == "suffix" or force:
             suffixed = _suffixed(dest)
             if suffixed is None:
                 return PlaceResult("conflict", src, rule.name, dest=dest, message="no free suffix")
             dest = suffixed
         else:
-            return PlaceResult(
-                "conflict", src, rule.name, dest=dest, message="destination exists, differs"
-            )
+            return PlaceResult("conflict", src, rule.name, dest=dest, message="destination exists, differs")
 
     entry = _entry(dest, doc, rule.path_style, previous)
     if dry_run:

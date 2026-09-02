@@ -87,9 +87,7 @@ def test_parse_args_maps_a_typed_line_onto_the_signature():
     assert commands.parse_args("sort.by", "year false") == {"key": "year", "reverse": False}
     assert commands.parse_args("nav.down", "5") == {"count": 5}
     assert commands.parse_args("pane.resize", "0.05") == {"delta": 0.05}
-    assert commands.parse_args("export.bibtex", '"/tmp/two words.bib"') == {
-        "target": "/tmp/two words.bib"
-    }
+    assert commands.parse_args("export.bibtex", '"/tmp/two words.bib"') == {"target": "/tmp/two words.bib"}
     assert commands.parse_args("sort.by", "") == {}  # defaults stand
     assert commands.signature("sort.by") == "key [reverse]"
 
@@ -246,9 +244,7 @@ async def test_edit_reports_yaml_it_can_no_longer_parse(app, papis_lib, monkeypa
     import papis.commands.edit
 
     info = papis_lib / "lib" / "doc0" / "info.yaml"
-    monkeypatch.setattr(
-        papis.commands.edit, "run", lambda doc, **kw: info.write_text("title: [unclosed\n")
-    )
+    monkeypatch.setattr(papis.commands.edit, "run", lambda doc, **kw: info.write_text("title: [unclosed\n"))
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = []

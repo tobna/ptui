@@ -111,11 +111,7 @@ def test_relative_entry_style_is_kept(lib):
     doc, src, rules, _ = lib
     rules = dataclasses.replace(
         rules,
-        rules=(
-            place.Rule(
-                name="r", match=("*.pdf",), op="move", dest="{pdf_root}/x.pdf", path_style="keep"
-            ),
-        ),
+        rules=(place.Rule(name="r", match=("*.pdf",), op="move", dest="{pdf_root}/x.pdf", path_style="keep"),),
     )
     result = place.place(doc, src, rules, previous="downloaded file.pdf")
     assert result.entry == "../pdfs/x.pdf"

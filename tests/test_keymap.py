@@ -8,9 +8,7 @@ def test_shipped_keymap_has_no_prefix_conflicts():
 
 
 def test_prefix_conflict_is_reported(tmp_path):
-    (tmp_path / "keys.toml").write_text(
-        '[modes.list]\n"g" = { cmd = "app.quit" }\n"g g" = { cmd = "nav.top" }\n'
-    )
+    (tmp_path / "keys.toml").write_text('[modes.list]\n"g" = { cmd = "app.quit" }\n"g g" = { cmd = "nav.top" }\n')
     conflicts = keymap.load(tmp_path / "keys.toml").conflicts()
     assert len(conflicts) == 1
     assert "'g' shadows 'g g'" in conflicts[0]

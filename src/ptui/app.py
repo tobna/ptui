@@ -278,9 +278,7 @@ class PtuiApp(App[None]):
             record = message.record
             body = escape(record["message"])
             colour = self.theme_variables.get(LOG_LEVELS.get(record["level"].name, ""), "")
-            pane.write(
-                f"[dim]{record['time']:%H:%M:%S}[/] " + (f"[{colour}]{body}[/]" if colour else body)
-            )
+            pane.write(f"[dim]{record['time']:%H:%M:%S}[/] " + (f"[{colour}]{body}[/]" if colour else body))
 
         logger.add(write, level=level, format="{message}")
         log_file = self.cfg.as_path("log.file")
@@ -353,10 +351,7 @@ class PtuiApp(App[None]):
         panel = self.query_one("#which-key", Static)
         panel.border_title = " ".join(self.pending)
         panel.update(
-            "\n".join(
-                f"[$accent bold]{b.keys[len(' '.join(self.pending)) + 1 :]}[/]  {b.desc or b.cmd}"
-                for b in rows
-            )
+            "\n".join(f"[$accent bold]{b.keys[len(' '.join(self.pending)) + 1 :]}[/]  {b.desc or b.cmd}" for b in rows)
         )
         panel.add_class("open")
 
@@ -418,9 +413,7 @@ class PtuiApp(App[None]):
         table = self.query_one(DataTable)
         info = self.query_one("#info-pane")
         share = f"{int(self.split * 100)}%" if info.display else "1fr"
-        table.styles.width, table.styles.height = (
-            (share, "1fr") if self.side_by_side else ("1fr", share)
-        )
+        table.styles.width, table.styles.height = (share, "1fr") if self.side_by_side else ("1fr", share)
         info.styles.width = info.styles.height = "1fr"
         self.call_after_refresh(self.refresh_rows)  # columns refit to the new width
 
@@ -597,9 +590,7 @@ class PtuiApp(App[None]):
                 # long enough to need a second line, and giving every column the
                 # extra rows would just pad the table out.
                 if height > 1 and flex:
-                    text = library.fit_lines(text, room, height).replace(
-                        "\n", "\n" + " " * MARKER_WIDTH
-                    )
+                    text = library.fit_lines(text, room, height).replace("\n", "\n" + " " * MARKER_WIDTH)
                 else:
                     text = library.fit(text, room)
                 cell = Text()
@@ -696,10 +687,7 @@ class PtuiApp(App[None]):
             return f"[{colour}]{show(value)}[/]"
         if key == "rating":
             stars = max(0, min(5, int(value))) if str(value).isdigit() else 0
-            return (
-                f"[$warning]{ui.glyph('star') * stars}[/]"
-                f"[dim]{ui.glyph('star_empty') * (5 - stars)}[/]"
-            )
+            return f"[$warning]{ui.glyph('star') * stars}[/][dim]{ui.glyph('star_empty') * (5 - stars)}[/]"
         if key == "ref":
             return f"[$accent]{show(value)}[/]"
         return show(value)

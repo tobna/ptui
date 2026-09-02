@@ -63,11 +63,7 @@ def findings(doc: Document, checks: list[str] | None = None) -> list[Finding]:
     `LIBRARY_WIDE` checks are excluded — running one against a single document
     is what made a second look invent findings; `scan_library` is their pass.
     """
-    return [
-        error
-        for name in check_names(checks)
-        for error in _doctor.REGISTERED_CHECKS[name].operate(doc)
-    ]
+    return [error for name in check_names(checks) for error in _doctor.REGISTERED_CHECKS[name].operate(doc)]
 
 
 def scan(doc: Document, checks: list[str] | None = None) -> list[Finding]:
@@ -84,9 +80,7 @@ def cached(doc: Document) -> list[Finding] | None:
     return hit[1] if hit and hit[0] == _stamp(doc) else None
 
 
-def scan_library(
-    docs: list[Document], checks: list[str] | None = None
-) -> list[tuple[Document, Finding]]:
+def scan_library(docs: list[Document], checks: list[str] | None = None) -> list[tuple[Document, Finding]]:
     """The `LIBRARY_WIDE` checks, over a whole set, once.
 
     papis's seen-values state is reset first, so the pass sees only these

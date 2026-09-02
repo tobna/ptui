@@ -9,9 +9,7 @@ def test_defaults_load():
 
 
 def test_user_overrides_merge_per_key(tmp_path):
-    (tmp_path / "config.toml").write_text(
-        '[ui]\ntheme = "mine"\n\n[nope]\nx = 1\n\n[ui.also]\ny = 2\n'
-    )
+    (tmp_path / "config.toml").write_text('[ui]\ntheme = "mine"\n\n[nope]\nx = 1\n\n[ui.also]\ny = 2\n')
     cfg = config.load(tmp_path / "config.toml")
     assert cfg.get("ui.theme") == "mine"
     assert cfg.get("ui.layout") == "auto"  # untouched sibling survives
@@ -19,9 +17,7 @@ def test_user_overrides_merge_per_key(tmp_path):
 
 
 def test_lists_are_replaced_not_merged(tmp_path):
-    (tmp_path / "config.toml").write_text(
-        '[[list.columns]]\ntitle = "Only"\nformat = "{doc[ref]}"\n'
-    )
+    (tmp_path / "config.toml").write_text('[[list.columns]]\ntitle = "Only"\nformat = "{doc[ref]}"\n')
     cfg = config.load(tmp_path / "config.toml")
     assert [c["title"] for c in cfg.get("list.columns")] == ["Only"]
 

@@ -11,9 +11,7 @@ def docs(*data):
 
 def test_alias_expansion():
     aliases = {"a": "author:", "t": "title:"}
-    assert library.expand_aliases("a:Nauen t:vision x:y", aliases) == (
-        "author:Nauen title:vision x:y"
-    )
+    assert library.expand_aliases("a:Nauen t:vision x:y", aliases) == ("author:Nauen title:vision x:y")
 
 
 def test_narrow_modes():
@@ -65,10 +63,7 @@ def test_fit_counts_cells_not_characters():
 
 
 def test_fit_backs_off_to_a_word_boundary():
-    assert (
-        library.fit("Multi-Level Monte Carlo Gradient Descent", 34)
-        == "Multi-Level Monte Carlo Gradient…"
-    )
+    assert library.fit("Multi-Level Monte Carlo Gradient Descent", 34) == "Multi-Level Monte Carlo Gradient…"
     # a boundary that would throw away most of the budget is not worth taking
     assert library.fit("Persönlichkeitsdiagnostik unter", 12) == "Persönlichk…"
     # the colon wins over the space: a title's head is the informative part

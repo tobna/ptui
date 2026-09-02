@@ -70,9 +70,7 @@ async def test_z_chords_resize_the_panes(app):
     app.layout_auto = False
     app.side_by_side = True
     async with app.run_test(size=(80, 24)) as pilot:
-        table, info, panes = (
-            app.query_one(f"#{name}") for name in ("list-pane", "info-pane", "panes")
-        )
+        table, info, panes = (app.query_one(f"#{name}") for name in ("list-pane", "info-pane", "panes"))
         await settle(pilot)
         assert table.size.width > info.size.width  # the list is the larger pane
         await press(pilot, "z", "z")  # stacked: the split moves to the other axis
@@ -307,9 +305,7 @@ async def test_the_log_pane_colours_a_record_by_its_level(app):
 
         def colours(text: str) -> set[str]:
             """Every foreground colour on the line holding `text`."""
-            line = next(
-                strip for strip in pane.lines if text in "".join(s.text for s in strip._segments)
-            )
+            line = next(strip for strip in pane.lines if text in "".join(s.text for s in strip._segments))
             # Textual normalises a theme colour (`#ff757f` comes back `#FE757F`),
             # so compare against `theme_variables` — the same source the sink
             # reads — and case-insensitively.
@@ -335,9 +331,7 @@ async def test_log_line_colours_follow_the_theme(app):
         await settle(pilot)
 
         line = next(
-            strip
-            for strip in app.query_one(RichLog).lines
-            if "it broke" in "".join(s.text for s in strip._segments)
+            strip for strip in app.query_one(RichLog).lines if "it broke" in "".join(s.text for s in strip._segments)
         )
         colours = {s.style.color.name.lower() for s in line._segments if s.style and s.style.color}
         assert app.theme_variables["error"].lower() in colours
@@ -355,10 +349,7 @@ async def test_a_log_record_quoting_markup_is_not_swallowed(app):
         logger.warning("key [doc[year]] is odd")  # papis quotes values like this
         await settle(pilot)
         pane = app.query_one(RichLog)
-        assert any(
-            "key [doc[year]] is odd" in "".join(s.text for s in strip._segments)
-            for strip in pane.lines
-        )
+        assert any("key [doc[year]] is odd" in "".join(s.text for s in strip._segments) for strip in pane.lines)
 
 
 async def test_the_info_pane_gives_the_four_meaningful_fields_a_colour(app):
@@ -377,9 +368,7 @@ async def test_the_info_pane_gives_the_four_meaningful_fields_a_colour(app):
         assert "$success" in value("reading_status", "read")
         assert "dim" in value("reading_status", "submitted")  # free strings tolerated
 
-        assert value("rating", 3) == (
-            f"[$warning]{ui.glyph('star') * 3}[/][dim]{ui.glyph('star_empty') * 2}[/]"
-        )
+        assert value("rating", 3) == (f"[$warning]{ui.glyph('star') * 3}[/][dim]{ui.glyph('star_empty') * 2}[/]")
         assert value("rating", 99).count(ui.glyph("star")) == 5  # clamped, not five hundred
 
         # anything else is text, and a bracketed one must survive Textual markup

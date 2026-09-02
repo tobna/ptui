@@ -1,0 +1,23 @@
+# Seeded from ~/.config/ruff/ruff.toml, with the project's own line length and
+# the two deviations this repo needs. A ruff.toml wins over `[tool.ruff]` in
+# pyproject.toml, so those sections are gone from there.
+line-length = 120
+
+[lint]
+# The global set, minus "D": this codebase writes prose docstrings on purpose
+# (and leaves small helpers undocumented), which D205/D401/D103 all fight.
+select = ["E", "F", "B", "NPY", "PD", "TD005", "TD006", "TD007", "SIM", "RET", "ICN", "I", "UP", "RUF"]
+ignore = [
+  "E501",                   # the formatter owns line length
+  "NPY002",
+  "B008",
+  "PD011",
+  "SIM118",
+  "RUF001", "RUF002", "RUF003",  # × and – in prose are intentional
+]
+unfixable = ["B"]
+
+[format]
+exclude = ["*.md"]  # ruff would reformat the python blocks in SPEC.md
+docstring-code-format = true
+docstring-code-line-length = "dynamic"

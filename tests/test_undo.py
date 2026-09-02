@@ -250,9 +250,7 @@ async def test_strategy_none_still_trashes_but_offers_no_undo(papis_lib, monkeyp
 def _git(repo, *args):
     import subprocess
 
-    return subprocess.run(
-        ["git", *args], cwd=repo, capture_output=True, text=True, check=True
-    ).stdout.strip()
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True).stdout.strip()
 
 
 async def test_strategy_git_commits_the_delete_and_undo_reverts_it(git_lib):
@@ -311,9 +309,7 @@ async def test_git_strategy_warns_when_the_pdf_root_is_not_tracked(git_lib, monk
         from textual.widgets import RichLog
 
         await press(pilot, "4")
-        text = "\n".join(
-            "".join(s.text for s in strip._segments) for strip in app.query_one(RichLog).lines
-        )
+        text = "\n".join("".join(s.text for s in strip._segments) for strip in app.query_one(RichLog).lines)
         assert "does not track" in text
 
 

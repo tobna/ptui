@@ -118,9 +118,7 @@ class Item:
     def matches(self, needle: str) -> bool:
         """The same matcher the list uses, so `f o` and `/` behave alike. It has
         to be: a subsequence test over a long file name matched almost anything."""
-        return library.match_text(
-            f"{self.label} {self.hint} {self.haystack}", library.parse_query(needle)
-        )
+        return library.match_text(f"{self.label} {self.hint} {self.haystack}", library.parse_query(needle))
 
 
 class SelectList(ModalScreen[tuple[Any, bool] | None]):
@@ -209,9 +207,7 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
         if binding.cmd in ("nav.down", "nav.up"):
             step = binding.args.get("count", 1) * (1 if binding.cmd == "nav.down" else -1)
             if options.option_count:
-                options.highlighted = max(
-                    0, min(options.option_count - 1, (options.highlighted or 0) + step)
-                )
+                options.highlighted = max(0, min(options.option_count - 1, (options.highlighted or 0) + step))
         elif binding.cmd == "picker.confirm":
             index = options.highlighted
             picked = self.shown[index] if index is not None and self.shown else None
@@ -296,8 +292,7 @@ class ConfirmDelete(ModalScreen[list[int] | None]):
                     )
                 )
             yield Static(
-                "[$accent]space[/] toggle a file   [$accent]enter[/] delete   "
-                "[$accent]escape[/] cancel",
+                "[$accent]space[/] toggle a file   [$accent]enter[/] delete   [$accent]escape[/] cancel",
                 id="delete-keys",
             )
 
@@ -345,9 +340,7 @@ class AddForm(ModalScreen[dict[str, str] | None]):
     AddForm #add-preview { padding: 1 2 0 2; color: $text-muted; }
     """
 
-    def __init__(
-        self, source: Path | None, data: dict[str, str], preview: Callable[[dict], str]
-    ) -> None:
+    def __init__(self, source: Path | None, data: dict[str, str], preview: Callable[[dict], str]) -> None:
         super().__init__()
         self.source = source
         """None for a metadata-only add — an importer that found no PDF."""

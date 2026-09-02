@@ -48,9 +48,7 @@ def params(name: str) -> list[inspect.Parameter]:
 def signature(name: str) -> str:
     """`key [reverse]` — the argument line the `:` prompt shows. Optional
     parameters are bracketed, so what may be left out is visible while typing."""
-    return " ".join(
-        p.name if p.default is inspect.Parameter.empty else f"[{p.name}]" for p in params(name)
-    )
+    return " ".join(p.name if p.default is inspect.Parameter.empty else f"[{p.name}]" for p in params(name))
 
 
 TRUTHY = frozenset({"true", "yes", "on", "1"})
@@ -82,7 +80,4 @@ def parse_args(name: str, text: str) -> dict[str, Any]:
     names = params(name)
     if len(values) > len(names):
         raise ValueError(f"{name} takes at most {len(names)} argument(s): {signature(name)}")
-    return {
-        param.name: _coerce(value, str(param.annotation))
-        for param, value in zip(names, values, strict=False)
-    }
+    return {param.name: _coerce(value, str(param.annotation)) for param, value in zip(names, values, strict=False)}
