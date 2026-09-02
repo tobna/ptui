@@ -119,6 +119,11 @@ Prefixes are namespaces, and hold one to see its menu: `g` go · `f` files ·
 `y` yank · `c` change · `m` marks · `z` layout · `d` delete · `\` admin.
 So `y y` yanks a `\cite{…}`, `f r` files a PDF where it belongs.
 
+Sorted by "recently added" and everything sits in one lump at the bottom?
+papis stopped writing `time-added` in 0.15, so most documents have none. ptui
+stamps it on every document it adds; run `:lib.backfill_dates` once to fill it
+in for the rest, from each `info.yaml`'s modification time.
+
 **[KEYS.md](KEYS.md) lists every binding** — key, command name and what it does,
 per mode, generated from the shipped keymap. `?` shows the same table inside the
 app, for whichever mode you are in.

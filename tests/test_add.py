@@ -56,7 +56,7 @@ async def test_add_from_a_bib_entry_creates_a_document_with_no_file(app, tmp_pat
     """The metadata-only path: an importer found a record but there is no PDF."""
     from conftest import press
 
-    from ptui import actions, ui
+    from ptui import actions, library, ui
 
     bib = tmp_path / "refs.bib"
     bib.write_text(
@@ -80,6 +80,10 @@ async def test_add_from_a_bib_entry_creates_a_document_with_no_file(app, tmp_pat
         assert list(added.get("files") or []) == []
         # a key the form never showed still has to survive the round trip
         assert added["booktitle"] == "CVPR"
+        # papis 0.15 writes no `time-added`, so ptui stamps it — without which a
+        # new document sorts to the *bottom* of "recently added"
+        assert added[library.TIME_ADDED] > "2024-01-01-00:00:00"
+        assert app.docs[0] is added
 
 
 async def test_a_bib_with_several_entries_asks_which_one(app, tmp_path):

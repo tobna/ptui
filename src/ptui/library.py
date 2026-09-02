@@ -17,6 +17,7 @@ import os
 import re
 import shlex
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from rich.cells import cell_len, set_cell_size
@@ -202,6 +203,18 @@ def narrow(
 
 
 # ── sorting ─────────────────────────────────────────────────────────────────
+
+# papis stopped writing `time-added` in 0.15 — nothing in the package mentions
+# the key any more — so ptui stamps it itself, in the format papis used, or the
+# shipped "recently added" sort would have nothing to order by.
+TIME_ADDED = "time-added"
+_STAMP = "%Y-%m-%d-%H:%M:%S"  # sorts lexically, which is why it can be a string
+
+
+def stamp(when: float | None = None) -> str:
+    """`time-added` for now, or for a POSIX timestamp."""
+    moment = datetime.now() if when is None else datetime.fromtimestamp(when)
+    return moment.strftime(_STAMP)
 
 
 def resolve(doc: Document, dotted: str) -> Any:

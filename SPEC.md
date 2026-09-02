@@ -253,11 +253,16 @@ at it. Findings come from each check's own `operate`.
   first author's surname is what people actually want.
 - `list.sort_tiebreak` is the secondary key; ties on `year` are otherwise
   arbitrary and the list order will flicker between runs.
+- **`time-added` is ptui's own stamp.** papis stopped writing the key in 0.15,
+  so the shipped default sort would order nothing: `add` stamps it (papis's
+  format, `%Y-%m-%d-%H:%M:%S`, which sorts lexically) and `lib.backfill_dates`
+  fills it in for documents that predate this from their `info.yaml` mtime.
 
 **Invariant**: sorting applies to the scoped set and is independent of
 narrowing. Changing sort must not clear the narrow filter, and the cursor
 must stay on the same document — preserve cursor by `papis_id` across
-re-sort, exactly as marks are.
+re-sort, exactly as marks are. An edit to the sort key re-sorts: a `c` verb
+that changes `year` while sorted by year moves the row, cursor following.
 
 ## SelectList — shared modal picker
 

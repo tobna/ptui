@@ -259,3 +259,28 @@ async def test_edit_reports_yaml_it_can_no_longer_parse(app, papis_lib, monkeypa
         await settle(pilot)
         assert any("invalid YAML" in message for message in logged)
         assert app.current["title"] == "Attention Is All You Need"  # not reloaded
+
+
+async def test_backfill_stamps_only_the_documents_that_lack_time_added(app, papis_lib):
+    """papis stopped writing the key, so most of a real library has none and the
+    "recently added" sort has nothing to order it by."""
+    from ptui import library, ui
+
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    info.write_text(info.read_text().replace("time-added: 2024-01-01-00:00:00\n", ""))
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        assert app.docs[-1]["ref"] == "Vaswani2017"  # no key: sorted into the tail
+
+        mtime = info.stat().st_mtime  # the write moves it, so read it first
+        actions.lib_backfill_dates(app)
+        await pilot.pause()
+        assert isinstance(app.screen, ui.SelectList)  # it confirms
+        await press(pilot, "enter")
+        await settle(pilot)
+
+        stamped = {d["ref"]: d[library.TIME_ADDED] for d in app.docs}
+        assert stamped["Vaswani2017"] == library.stamp(mtime)
+        assert stamped["He2016"] == "2023-01-01-00:00:00"  # untouched
+        assert app.docs[0]["ref"] == "Vaswani2017"  # and the list re-sorted

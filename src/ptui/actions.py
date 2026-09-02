@@ -315,6 +315,34 @@ def lib_switch(app: Any, name: str | None = None) -> None:
     ui.pick(app, items, title="Library", current=current)(apply)
 
 
+@command("lib.backfill_dates", "stamp missing time-added")
+def lib_backfill_dates(app: Any) -> None:
+    """Give every document in scope that lacks `time-added` the mtime of its
+    `info.yaml`.
+
+    papis 0.15 no longer writes the key, so a library carries a handful of
+    documents from older papis and hundreds without — and "recently added"
+    sorts the whole silent majority into one undifferentiated tail. The mtime
+    is approximate (a later edit moves it) but it is the only ordering on disk,
+    and it is monotone enough for a library nobody has bulk-rewritten.
+    """
+    planned = [
+        (doc, library.stamp(Path(doc.get_info_file()).stat().st_mtime))
+        for doc in app.docs
+        if not doc.get(library.TIME_ADDED)
+    ]
+    if not planned:
+        app.log_line("every document in scope already has time-added")
+        return
+    items = [
+        ui.Item(label=f"stamp {len(planned)} documents from their file dates", value=True),
+        ui.Item(label="cancel", value=False),
+    ]
+    ui.pick(app, items, title=f"backfill time-added — {len(planned)} documents?")(
+        lambda ok, _invert: _set_apply(app, planned, library.TIME_ADDED) if ok else None
+    )
+
+
 # ── marks ───────────────────────────────────────────────────────────────────
 
 
@@ -561,6 +589,14 @@ def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> int:
     return done
 
 
+def _resort(app: Any) -> None:
+    """The edit may have been to the key the list is sorted on — `c f year` while
+    sorted by year has to move the row, not just repaint it. `refresh_rows`
+    keeps the cursor on the document, so it follows wherever it lands."""
+    app.apply_sort()
+    app.refilter()
+
+
 def _set_apply(app: Any, planned: list[tuple[Any, Any]], key: str) -> None:
     """Write, then push the step that puts the old values back.
 
@@ -574,15 +610,15 @@ def _set_apply(app: Any, planned: list[tuple[Any, Any]], key: str) -> None:
 
     def restore() -> None:
         _write_field(app, before, key)
-        app.refresh_rows()
+        _resort(app)
 
     def again() -> None:
         _write_field(app, planned, key)
-        app.refresh_rows()
+        _resort(app)
 
     if done:
         app.history.push(undo.Step(f"set {key} on {done} document(s)", restore, again))
-    app.refresh_rows()
+    _resort(app)
     app.log_line(f"set {key} on {done}/{len(planned)} document(s)")
 
 
@@ -826,6 +862,7 @@ def _add_document(
 
     # The form wins over the fetched record: the user just looked at both.
     data = {**(extra or {}), **_expand(data)}
+    data.setdefault(library.TIME_ADDED, library.stamp())
     try:
         # ponytail: papis copies the source in; the original stays in the inbox
         # rather than being deleted behind the user's back. An empty path list is

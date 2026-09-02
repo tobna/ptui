@@ -131,7 +131,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 142 tests, `uv run pytest`.
+empty. 143 tests, `uv run pytest`.
 
 Built:
 
@@ -447,6 +447,24 @@ an unknown field is a number is how `volume` loses its zero. An empty value
 bad number aborts the batch instead of half-applying it, and a batch of more
 than one confirms first (the picker is the dialog; SPEC's preview list is
 ponytail'd down to the count, which is the whole question for a field set).
+
+**`time-added` is ptui's, not papis's.** papis 0.15 mentions the key nowhere
+(`rg time-added` over the installed package is empty) — `add.run` does not stamp
+it — yet it is the shipped default sort *and* `list.sort_tiebreak`. Without a
+stamp every new document lands in the null tail of "recently added", which is
+how the bug was reported. `_add_document` now does `data.setdefault` with
+`library.stamp()` (papis's own `%Y-%m-%d-%H:%M:%S`, chosen because it sorts
+lexically, so `_comparable`'s string branch is enough), and
+`lib.backfill_dates` — unbound, `:` only — stamps the documents that predate
+that from their `info.yaml` mtime. It plans, confirms through `ui.pick` and
+hands off to `_set_apply`, so the whole backfill is one undoable step. The
+mtime is a ceiling, not a fact: a later edit moves it, and there is nothing
+else on disk to ask.
+
+`_set_apply` ends in `_resort` (`apply_sort` + `refilter`), not a bare
+`refresh_rows`: the value just written may be the sort key — always, for the
+backfill — and `refresh_rows` keeps the cursor on the document, so the row
+moves and the cursor follows it.
 
 `cmdline.open` and `help.show` split by what they list: help renders the current
 mode's *keymap* and only browses, the `:` line renders the *registry* and runs
