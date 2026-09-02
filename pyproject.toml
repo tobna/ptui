@@ -42,3 +42,26 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+# Seeded from the user-level ~/.config/ruff/ruff.toml.
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# That set minus "D": this codebase writes prose docstrings on purpose (and
+# leaves small helpers undocumented), which D205/D401/D103 all fight.
+select = ["E", "F", "B", "NPY", "PD", "TD005", "TD006", "TD007", "SIM", "RET", "ICN", "I", "UP", "RUF"]
+ignore = [
+  "E501",                        # the formatter owns line length
+  "NPY002",
+  "B008",
+  "PD011",
+  "SIM118",
+  "RUF001", "RUF002", "RUF003",  # × and – in prose are intentional
+]
+unfixable = ["B"]
+
+[tool.ruff.format]
+exclude = ["*.md"]  # ruff would reformat the python blocks in SPEC.md
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
