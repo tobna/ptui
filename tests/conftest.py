@@ -51,6 +51,11 @@ def papis_lib(tmp_path, monkeypatch):
     )
     monkeypatch.setenv("PAPIS_CONFIG_DIR", str(config_dir))
     monkeypatch.setenv("PAPIS_LIB", "test")
+    # papis pickles its database index into the *user's* cache dir, under a hash
+    # of the library path — and pytest reuses `tmp_path` names once /tmp is
+    # cleared, so a run inherited an older run's index for the same path and saw
+    # documents whose `files` had already been relocated. Own cache, own tmp.
+    monkeypatch.setenv("PAPIS_CACHE_DIR", str(tmp_path / "cache"))
     papis.config.CURRENT_CONFIGURATION = None
     papis.config.CURRENT_LIBRARY = None
     papis.database.clear_cached()

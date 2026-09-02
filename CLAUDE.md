@@ -291,6 +291,14 @@ that writes outside the library needs the same treatment. It also sets
 thread competed with `settle`'s 0.2 s for the GIL — under load the first press
 landed before the list had rows and the command found no target.
 
+`papis_lib` sets **`PAPIS_CACHE_DIR`** into `tmp_path` for the same reason:
+papis pickles its database index into the user's real cache dir under a hash of
+the *library path*, and pytest reuses `tmp_path` names after `/tmp` is cleared.
+A run then loaded an older run's index for the same path and saw documents whose
+`files` had already been relocated — `test_relocate_moves_files_and_rewrites_
+info_yaml` failing on a library that looked, on disk, untouched. Two runs with
+one `--basetemp` reproduce it.
+
 `fetch.py` fronts papis's importer plugins — 13 importers and 23 downloaders,
 listed by `fetch.available()` from `get_available_importers()`, so a new plugin
 shows up in the `a` picker for free. Three traps, all measured, all commented in
