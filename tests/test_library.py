@@ -104,7 +104,7 @@ def test_flatten_leaves_files_alone():
     doc = docs({"files": ["../a.pdf", "b.pdf"], "tags": ["x", "y"]})[0]
     flat = library.flatten(doc)
     assert flat["files"] == ["../a.pdf", "b.pdf"]  # a list, still
-    assert list(flat["files"])[0] == "../a.pdf"  # not "."
+    assert flat["files"][0] == "../a.pdf"  # a string would index to "."
     assert flat["tags"] == "x, y"  # ordinary lists are still joined
 
 
