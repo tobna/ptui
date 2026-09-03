@@ -84,6 +84,14 @@ interleave eventually. This is the whole defence.
 One function, three callers: the add flow, `files.relocate`, and the doctor
 check `file-not-canonical`. No duplicate logic anywhere.
 
+**The shipped rules move nothing.** `papis add` already copies the source into
+the document folder; every default rule is `op = "in-place"`, so the relocate
+pass after an add is a no-op and the file stays where papis put it. A central
+PDF store is opt-in: set `files.pdf_root` and add a rule with
+`dest = "{pdf_root}/..."`, `op = "move"`. Shipping that as the default meant
+ptui undid papis one line later, and any external mover watching the document
+folder never saw the file.
+
 ```
 place(doc, src_path, rules, *, force=False, dry_run=False) -> PlaceResult
 ```
@@ -329,8 +337,8 @@ Required of the chrome, in any theme:
 Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
 
 - Metadata (`info.yaml`) → per `undo.strategy`.
-- **Files always route through trash**, whatever the strategy. `pdf_root`
-  typically lives outside the library, so git covers none of it.
+- **Files always route through trash**, whatever the strategy. A configured
+  `pdf_root` lives outside the library, so git covers none of it.
 - `strategy = "git"`: check at startup whether the document's files are
   actually tracked (LFS counts; gitignored PDFs do not) and warn once per
   session if not. Do not advertise an undo that isn't one.
@@ -593,11 +601,11 @@ recalling a name).
   checkbox. The ones inside it travel with the folder — there is no decision to
   make, so offering one would be theatre; the dialog says how many they are.
 - Checked by default **only** for files under a managed root
-  (`files.pdf_root` or the document folder). Never default-delete a file in a
-  directory ptui did not place it in.
+  (the document folder, plus `files.pdf_root` if it is configured). Never
+  default-delete a file in a directory ptui did not place it in.
 - Before deleting a path, query the library for other documents referencing
   the same realpath. If found, warn and default to unchecked. With a shared
-  `pdf_root` and a script appending links, two entries pointing at one file
+  root and a script appending links, two entries pointing at one file
   is a realistic accident.
 - "Apply to all N marked documents" for batch deletes: the dialog confirms
   against the **total** marked count with the refs listed, never the visible

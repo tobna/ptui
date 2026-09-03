@@ -175,8 +175,8 @@ ever empties the trash).
 
 `undo.py` is the history and the three strategies; `actions._delete_apply` is
 the one place that removes a document. Whatever `undo.strategy` says, **files
-always route through trash** — `pdf_root` normally sits outside the library, so
-git covers none of it. `trash` moves the folder to `undo.trash_dir` and undo
+always route through trash** — a configured `pdf_root` sits outside the library,
+so git covers none of it. `trash` moves the folder to `undo.trash_dir` and undo
 moves it back, `git` does `git rm` plus one commit per *operation* (the log is
 the history) and undo `git revert`s it, `none` still trashes but records
 nothing and clears the stack, so `u` cannot offer the operation before it.
@@ -284,7 +284,10 @@ covers the dialog defaults, all three strategies, batch-as-one-step, and the
 metadata stack parametrised over every strategy.
 
 The `app` test fixture redirects `pdf_root`, `log.file` **and**
-`undo.trash_dir` into `tmp_path`. The last one was added after a merge test
+`undo.trash_dir` into `tmp_path`, and declares the `files.rules` that move PDFs
+to `pdf_root` — the shipped rules are all `in-place`, so a test that exercises
+relocation has to opt in (lists are replaced wholesale, so it spells out all
+three rules, not just the moving one). The last one was added after a merge test
 quietly filled the developer's real `~/.local/share/ptui/trash`; any new command
 that writes outside the library needs the same treatment. It also sets
 `doctor.scan_on_startup = false`: no test asserts on the startup scan, and the

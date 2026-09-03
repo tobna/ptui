@@ -83,7 +83,15 @@ def build_app(papis_lib, extra: str = ""):
     ptui_config = papis_lib / "ptui.toml"
     ptui_config.write_text(
         f'[export]\nclipboard = "osc52"\n\n'
+        # The shipped rules move nothing (papis add already puts the file in the
+        # document folder). Relocation is opt-in, so the tests that exercise it
+        # have to opt in: a central `pdf_root` plus the rule that fills it.
         f'[files]\npdf_root = "{papis_lib / "pdfs"}"\n'
+        f'[[files.rules]]\nname = "notes stay put"\nmatch = ["*_notes.pdf", "*-notes.pdf"]\nop = "in-place"\n'
+        f'[[files.rules]]\nname = "pdfs to central root"\nmatch = ["*.pdf"]\n'
+        f'dest = "{{pdf_root}}/{{doc[year]}}_{{doc[author_list][0][family]}}_{{doc[title]:.40}}.pdf"\n'
+        f'op = "move"\npath_style = "absolute"\nslugify = true\n'
+        f'[[files.rules]]\nname = "everything else"\nmatch = ["*"]\nop = "in-place"\n'
         f'[log]\nfile = ""\n'
         # No startup doctor scan: it is a thread nothing here asserts on, and it
         # competed with the 0.2s `settle` for the GIL — under load the first

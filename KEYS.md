@@ -107,7 +107,7 @@ The files pane. Not built yet, so these bindings only log.
 | `j` | `nav.down` | move down |
 | `K` | `files.reorder` to=-1 | — *(not implemented)* |
 | `k` | `nav.up` | move up |
-| `m` | `files.relocate` | move to pdf_root |
+| `m` | `files.relocate` | apply placement rules |
 | `p` | `files.repoint` | fix broken path *(not implemented)* |
 | `r` | `files.rename` | rename to scheme *(not implemented)* |
 | `x` | `files.detach` | remove from list, keep file *(not implemented)* |

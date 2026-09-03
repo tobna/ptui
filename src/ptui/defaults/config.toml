@@ -110,9 +110,14 @@ clear_on_filter = false       # marks are papis_id-keyed and survive filters
 # File placement. Rules are ordered; FIRST MATCH WINS.
 # An unmatched file falls through to [files.default] — which is
 # in-place, so ptui never relocates something it does not understand.
+#
+# By default nothing moves: `papis add` already copies the file into the
+# document folder, and every rule here is in-place, so the relocate pass that
+# runs after an add is a no-op. Set `pdf_root` and add a rule with
+# `dest = "{pdf_root}/..."`, `op = "move"` only if you actually want the PDFs
+# to live outside the library.
 # ---------------------------------------------------------------
 [files]
-pdf_root = "~/papers/pdfs"
 collision = "skip"            # skip | suffix | ask
 hash_check = true             # detect byte-identical duplicates
 follow_symlinks = true
@@ -133,14 +138,6 @@ name = "notes stay put"
 match = ["*_notes.pdf", "*-notes.pdf"]
 op = "in-place"
 path_style = "keep"           # keep | absolute | relative-doc
-
-[[files.rules]]
-name = "pdfs to central root"
-match = ["*.pdf"]
-dest = "{pdf_root}/{doc[year]}_{doc[author_list][0][family]}_{doc[title]:.40}.pdf"
-op = "move"                   # move | copy | link | hardlink | in-place
-path_style = "absolute"
-slugify = true                # ascii-fold, strip punctuation, collapse spaces
 
 [[files.rules]]
 name = "everything else"

@@ -138,7 +138,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "k"        = { cmd = "nav.up" }
 "enter"    = { cmd = "doc.open" }
 "r"        = { cmd = "files.rename",   desc = "rename to scheme" }
-"m"        = { cmd = "files.relocate", desc = "move to pdf_root" }
+"m"        = { cmd = "files.relocate", desc = "apply placement rules" }
 "p"        = { cmd = "files.repoint",  desc = "fix broken path" }
 "x"        = { cmd = "files.detach",   desc = "remove from list, keep file" }
 "K"        = { cmd = "files.reorder", args = { to = -1 } }
