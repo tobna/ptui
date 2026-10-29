@@ -280,3 +280,50 @@ async def test_backfill_stamps_only_the_documents_that_lack_time_added(app, papi
         assert stamped["Vaswani2017"] == library.stamp(mtime)
         assert stamped["He2016"] == "2023-01-01-00:00:00"  # untouched
         assert app.docs[0]["ref"] == "Vaswani2017"  # and the list re-sorted
+
+
+async def test_attach_from_inbox_is_papis_addto(app, papis_lib):
+    import yaml
+
+    inbox = papis_lib / "inbox"
+    inbox.mkdir()
+    (inbox / "supplement.pdf").write_bytes(b"supp")
+    app.cfg.data["files"]["inbox"] = str(inbox)
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        info.write_text(info.read_text() + "note: edited since loading\n")
+        await press(pilot, "f", "a")  # on doc0: "a file on disk…", then the inbox
+        await press(pilot, "down", "enter")
+        actions.files_attach(app, str(inbox / "supplement.pdf"))  # twice is a no-op
+
+    data = yaml.safe_load(info.read_text())
+    assert data["files"] == ["supplement.pdf"]
+    assert data["note"] == "edited since loading"  # addto wrote a reloaded copy
+    assert (info.parent / "supplement.pdf").read_bytes() == b"supp"
+    assert not (papis_lib / "pdfs").exists()  # the fixture's move rule did not run
+    assert (inbox / "supplement.pdf").exists()  # copied, never moved
+
+
+async def test_attach_a_url_keeps_existing_files_and_drops_the_download(app, papis_lib, monkeypatch):
+    import papis.paths
+    import yaml
+
+    _attach(papis_lib, "paper.pdf")
+    download = papis_lib / "code.zip"
+
+    def fake(uris):  # addto calls it again on the local copy, which passes through
+        download.write_bytes(b"zip")
+        return [str(download) if papis.paths.is_remote_file(u) else u for u in uris]
+
+    monkeypatch.setattr(papis.paths, "download_remote_files", fake)
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        actions.files_attach(app, "https://example.org/code.zip")
+        await pilot.pause(0.3)
+
+    folder = papis_lib / "lib" / "doc0"
+    assert yaml.safe_load((folder / "info.yaml").read_text())["files"] == ["paper.pdf", "code.zip"]
+    assert (folder / "code.zip").read_bytes() == b"zip"
+    assert not download.exists()

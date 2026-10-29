@@ -234,6 +234,13 @@ def place(
     return PlaceResult("ok", src, rule.name, dest=dest, entry=entry)
 
 
+def holding(doc: Document, src: Path) -> Path | None:
+    """The file of `doc` with the same bytes as `src`, if it already has one."""
+    digest = _digest(src)
+    held = (resolve(doc, entry) for entry in doc.get("files") or [])
+    return next((path for path in held if path.is_file() and _digest(path) == digest), None)
+
+
 def rollback(result: PlaceResult) -> None:
     """Undo a successful `place()` — call this when the `info.yaml` write fails."""
     if not result.moved or result.dest is None:

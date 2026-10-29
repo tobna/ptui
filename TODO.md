@@ -16,7 +16,7 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
   with nothing behind it. A TOML file of name -> (scope, sort) and two commands.
 - `g m` `view.marked` — `m o` (`mark.show_only`) already does this; either bind
   `g m` to it or drop the command from the registry.
-- `f a` `files.attach`, `f n` `files.normalize`, and the `[modes.files]` verbs
+- `f n` `files.normalize`, and the `[modes.files]` verbs
   (`files.rename`, `files.repoint`, `files.detach`, `files.reorder`) — there is
   no files pane yet.
 
@@ -95,17 +95,14 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 ## F. New features asked for
 
-1. **"Add to"** — attach a file to an _existing_ document (`files.attach`,
-   already in the registry and bound to `f a`), routed through `place()`.
-
-2. **The `:` line's own commands** — specified in `SPEC.md` § "Commands that
+1. **The `:` line's own commands** — specified in `SPEC.md` § "Commands that
    exist for the `:` line", none of them implemented. They need no key: the
    argument is the command. In the order they are worth building:
    `doctor.fix checks`, `config.set key value` (session-only, nothing written
    to `config.toml`), `mark.query q [unmark]`, then `nav.goto ref`,
    `doc.add source uri`, `query.save name`. (`doc.set` is built.)
 
-3. **An unmark for every mark.** `mark.all_filtered` and the new `mark.query`
+2. **An unmark for every mark.** `mark.all_filtered` and the new `mark.query`
    take `unmark:bool=false`; the keymap gives the SHIFT variant to unmarking
    (`m a` / `m A`, and `m q` / `m Q` when the query one lands), per the
    keybinding design contract. `mark.clear` and `mark.invert` already close the

@@ -135,6 +135,9 @@ def prompt_result(app: Any, kind: str, value: str) -> None:
     """Dispatch a prompt whose result is not a query."""
     if kind == "add":
         add_form(app, Path(value).expanduser())
+    elif kind == "attach":
+        if value.strip():
+            files_attach(app, value.strip())
     elif kind == "set":
         # `key value with spaces` — the value is the rest of the line, not a
         # shell word: this is a prompt, and quoting a title would be absurd.
@@ -738,19 +741,27 @@ def _add_from_file(app: Any, source: str) -> None:
     if source == "prompt":
         app.open_prompt("add", "path to a file")
     elif source == "inbox":
-        inbox = app.cfg.as_path("files.inbox")
-        if inbox is None or not inbox.is_dir():
-            app.log_line(f"[yellow]inbox not found:[/] {inbox}")
-            return
-        entries = sorted(
-            (p for p in inbox.iterdir() if p.is_file()),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
-        items = [ui.Item(label=p.name, value=str(p), hint=_age(p)) for p in entries]
-        ui.pick(app, items, title=f"Add from {inbox}")(lambda path, _i: add_form(app, Path(path)))
+        items = _inbox(app)
+        if items is not None:
+            inbox = app.cfg.as_path("files.inbox")
+            ui.pick(app, items, title=f"Add from {inbox}")(lambda path, _i: add_form(app, Path(path)))
     else:
         add_form(app, Path(source).expanduser())
+
+
+def _inbox(app: Any) -> list[ui.Item] | None:
+    """The inbox, newest first — the file you just downloaded is the one you want.
+    None, with a log line, when there is no inbox."""
+    inbox = app.cfg.as_path("files.inbox")
+    if inbox is None or not inbox.is_dir():
+        app.log_line(f"[yellow]inbox not found:[/] {inbox}")
+        return None
+    entries = sorted(
+        (p for p in inbox.iterdir() if p.is_file()),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return [ui.Item(label=p.name, value=str(p), hint=_age(p)) for p in entries]
 
 
 def _age(path: Path) -> str:
@@ -956,6 +967,79 @@ def files_relocate(app: Any, force: bool = False) -> None:
     app.log_line(f"relocate: {summary or 'nothing to do'}")
     if tally.get("conflict") or tally.get("error"):
         app.query_one("#log-pane").display = True
+
+
+@command("files.attach", "attach file")
+def files_attach(app: Any, path: str | None = None) -> None:
+    """Add a file or a URL to the current document — `papis addto`, verbatim.
+
+    papis copies it into the document folder under its own name and leaves the
+    source alone; no placement rules run. Marks are ignored: one file belongs to
+    one document. With no `path` this picks from the inbox, or asks for one.
+    """
+    import papis.paths
+
+    doc = app.current
+    if doc is None:
+        return
+    if path is None:
+        items = [ui.Item(label="a file on disk or a URL…", value="", hint="path"), *(_inbox(app) or [])]
+        ui.pick(app, items, title=f"Attach to {doc.get('ref', '')}")(
+            lambda src, _i: files_attach(app, src) if src else app.open_prompt("attach", "path or URL to attach")
+        )
+    elif papis.paths.is_remote_file(path):
+        app.log_line(f"[dim]downloading {path}…[/]")
+        app.run_worker(lambda: _download(app, doc, path), thread=True, group="attach")
+    else:
+        _attach(app, doc, Path(path).expanduser())
+
+
+def _download(app: Any, doc: Any, url: str) -> None:
+    """Thread worker: a download takes seconds and would freeze the app."""
+    import papis.paths
+
+    try:
+        local = papis.paths.download_remote_files([url])[0]
+    except Exception as exc:
+        app.call_from_thread(app.log_line, f"[red]download failed:[/] {exc}")
+        return
+    if local is None:  # papis logged why
+        app.call_from_thread(app.log_line, f"[red]download failed:[/] {url}")
+        return
+    app.call_from_thread(_attach, app, doc, Path(local), downloaded=True)
+
+
+def _attach(app: Any, doc: Any, src: Path, *, downloaded: bool = False) -> None:
+    import papis.commands.addto
+
+    ref = doc.get("ref", "")
+    before: list[str] = []
+    try:
+        if not src.is_file():
+            app.log_line(f"[red]no such file:[/] {src}")
+            return
+        # addto writes this in-memory copy back whole, past `safewrite`: start
+        # from what is on disk, or an edit made since loading is lost.
+        doc.load()
+        if (held := place.holding(doc, src)) is not None:
+            app.log_line(f"[yellow]{ref} already has {src.name} (as {held.name})[/]")
+            return
+        before = list(doc.get("files") or [])
+        papis.commands.addto.run(doc, [str(src)], git=bool(app.cfg.papis("edit.use_git", "use-git")))
+    except Exception as exc:
+        app.log_line(f"[red]attach failed:[/] {exc}")
+        return
+    finally:
+        doc.load()  # whatever addto left in memory, show what is on disk
+        if downloaded:
+            src.unlink(missing_ok=True)
+
+    added = [entry for entry in doc.get("files") or [] if entry not in before]
+    app.refresh_rows()
+    if added:
+        app.log_line(f"attached {', '.join(added)} to {ref}")
+    else:
+        app.log_line(f"[yellow]nothing attached to {ref}; see the papis log above[/]")
 
 
 # ── app ─────────────────────────────────────────────────────────────────────

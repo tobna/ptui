@@ -79,6 +79,16 @@ desync with an external script that appends to `files`.
 Papis has no locking. Two ptui instances, or ptui plus a user script, will
 interleave eventually. This is the whole defence.
 
+**`files.attach` is the deliberate exception: it is `papis addto`.** papis
+copies the file (or a downloaded URL) into the document folder under its own
+`add-file-name`, leaves the source where it is, runs none of ptui's placement
+rules, and rewrites `info.yaml` itself — so steps 1–3 do not apply and comments
+do not survive. Attaching must give exactly what `papis addto` gives, so ptui
+narrows the risk instead of re-implementing it: the document is reloaded from
+disk right before the call, so an edit made since loading is not overwritten,
+and again after it. A file byte-identical to one the document already has is
+skipped rather than added as a `-a` copy.
+
 ## File placement — `place()`
 
 One function, three callers: the add flow, `files.relocate`, and the doctor
@@ -540,7 +550,7 @@ from this. Adding a command must not require touching four places.
 | `doc.status`                    | `value:str?`                  | `reading_status`                                 |
 | `doc.rating`                    | `value:int?`                  | 0–5                                              |
 | `files.relocate`                | `force:bool=false`            | `place()` over all files                         |
-| `files.attach`                  | `path:str?`                   | from path, clipboard, or inbox                   |
+| `files.attach`                  | `path:str?`                   | `papis addto` on the cursor's document; a path or URL, none → a path prompt, then the inbox |
 | `files.detach`                  | `index:int`                   | drop from list, keep file                        |
 | `files.repoint`                 | `index:int`                   | fix broken path via SelectList                   |
 | `files.rename`                  | `index:int`                   | rename to scheme in place                        |

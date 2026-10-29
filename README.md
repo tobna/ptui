@@ -28,13 +28,14 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   in, generated from `keys.toml` so it can never drift.
 - **Marks that survive** — marks are keyed by document, not by row, so sorting
   and filtering never lose them. Batch operations confirm against the real count.
-- **Safe by construction** — every write re-checks `info.yaml`'s mtime, writes
-  atomically, and leaves unknown keys and comments untouched. Files move via
-  `os.link`, never a clobbering `mv`.
+- **Safe by construction** — every write ptui makes re-checks `info.yaml`'s
+  mtime, writes atomically, and leaves unknown keys and comments untouched.
+  Files move via `os.link`, never a clobbering `mv`.
 - **Add from anywhere papis can reach** — `a` lists the sources: a file, the
   inbox, an arXiv id, a DOI, an ISBN, a `.bib`, a publisher URL, or a PDF to read
   an id out of. arXiv adds fetch the paper too. The list comes from papis's own
-  importer plugins, so installing one adds a row.
+  importer plugins, so installing one adds a row. `f a` attaches a file or URL
+  to the document you are on, exactly as `papis addto` would.
 - **Merge duplicates** — mark the copies, `m m`, and keep the citekey you want.
   Fields only one record had are filled in, real disagreements ask, attachments
   are unioned, and the folded-in folders go to the trash rather than the void.

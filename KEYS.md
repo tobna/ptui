@@ -54,7 +54,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `enter` | `doc.open` | open file |
 | `escape` | `app.escape` | cancel |
 | `f R` | `files.relocate` force=True | relocate (force) |
-| `f a` | `files.attach` | attach file *(not implemented)* |
+| `f a` | `files.attach` | attach file |
 | `f n` | `files.normalize` | normalize path styles *(not implemented)* |
 | `f o` | `files.open_pick` | open which file… |
 | `f r` | `files.relocate` | relocate + rename to scheme |

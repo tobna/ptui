@@ -131,7 +131,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 143 tests, `uv run pytest`.
+empty. 145 tests, `uv run pytest`.
 
 Built:
 
@@ -164,8 +164,10 @@ Built:
   titled panes, a lualine-shaped status bar, the doctor's exception marker
 - **`doc.delete` (`d d`) + `app.undo`/`app.redo`** (`u` / `ctrl+r`): the
   checkbox dialog, and all three `undo.strategy` values
+- **`files.attach`** (`f a`): `papis addto` on the cursor's document — a
+  path, a URL, or the inbox
 
-Not built. 12 keys are bound to commands that only log "not implemented yet" —
+Not built. 11 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
 (import `actions` first, or the registry is empty and every key looks unbound).
 The clusters: `view.marked`, saved searches (`view.saved`, `query.save`),
@@ -503,6 +505,19 @@ itself — one of the few writes not going through `safewrite`, for the same
 reason `papis.commands.add.run` does not: it is papis's own API. Both suspend
 the app, which `App.run_test` refuses, so a test needs
 `monkeypatch.setattr(app, "suspend", contextlib.nullcontext)`.
+
+**`files.attach` is `papis.commands.addto.run`, on purpose** (SPEC § Safe
+write): it must give exactly what `papis addto` gives — papis's file name, the
+source left alone, no `place()` rules. addto writes ptui's *in-memory* document
+back whole with PyYAML, so `_attach` calls `doc.load()` right before it (or an
+edit made since loading is overwritten) and again in `finally`. Comments in
+`info.yaml` do not survive it. `place.holding` skips a byte-identical file,
+which addto would add again as `-a`. A URL is downloaded in a thread worker
+(`_download`) and the temp file removed after; addto never sees the URL. Not
+undoable — `u` after an attach undoes the step before it. Testing trap: addto
+imports `papis.paths.download_remote_files` at call time, so monkeypatching it
+for a fake download also catches addto's own call on the local copy — the fake
+has to pass non-URLs through unchanged.
 
 `escape` and the help key are dispatched above the keymap (`app.on_key`):
 outside `[modes.list]` escape drops any pending chord and returns to the list,
