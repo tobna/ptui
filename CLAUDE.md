@@ -26,6 +26,10 @@ it, not struck through.
    list — anything papis decides is read from papis at run time, so a papis
    release changes ptui with it. Before writing logic, look for the papis
    function that already does it; a copy is a bug waiting for the next release.
+   Deliberate exceptions, decided — do not "fix" them: `/` is ptui's own quick
+   filter (papis's grammar is `s`); `c f` on `files`/`notes` writes through
+   `safewrite` and renames nothing on disk, unlike `papis update`; `[doctor]
+   checks = []` runs every registered check, not `doctor-default-checks`.
 4. **Verify every papis API call against the installed version** (`uv run python -c ...`).
    The internal API moves between minor releases (0.16 moved the doctor checks
    to `papis.doctor`), so `pyproject.toml` pins `papis>=0.16.1,<0.17`, and

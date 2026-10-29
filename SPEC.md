@@ -31,7 +31,11 @@ on keychain hints and search aliases.
   already decides something — field types, the scope query grammar, check
   names, file names, the `time-added` format — ptui asks papis at run time, so
   a papis release changes ptui with it. A ptui copy of papis logic is a bug
-  waiting for the next papis release.
+  waiting for the next papis release. Three deliberate exceptions: the `/`
+  narrow is ptui's quick filter with its own grammar (papis's is the `s`
+  scope); `doc.set` on `files`/`notes` goes through the safe-write helper and
+  renames nothing on disk, unlike papis 0.16's `update`; and `[doctor] checks =
+  []` means every registered check rather than papis's `doctor-default-checks`.
 - **Papis version**: pinned `>=0.16.1,<0.17` in `pyproject.toml`. The ceiling is
   deliberate — the internal API moves between minor releases (0.16 moved the
   doctor checks to `papis.doctor`) and an upstream client/server refactor is in
