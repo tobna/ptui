@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from conftest import press, settle
 
 from ptui import actions, clip
@@ -76,6 +78,21 @@ async def test_open_reports_a_missing_file_instead_of_launching(app, papis_lib, 
         await settle(pilot)
         await press(pilot, "o")
     assert opened == []
+
+
+async def test_open_pick_opens_a_lone_file_without_asking(app, papis_lib, monkeypatch):
+    import papis.utils
+
+    from ptui import ui
+
+    _attach(papis_lib)
+    opened = []
+    monkeypatch.setattr(papis.utils, "open_file", lambda *a, **k: opened.append(a))
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "f", "o")
+        assert not isinstance(app.screen, ui.SelectList)
+    assert [Path(a[0]).name for a in opened] == ["downloaded paper.pdf"]
 
 
 def test_parse_args_maps_a_typed_line_onto_the_signature():

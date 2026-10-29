@@ -437,6 +437,9 @@ def files_open_pick(app: Any) -> None:
     if doc is None:
         return
     paths = files_of(app, doc)
+    if len(paths) < 2:  # nothing to choose between: open it, or say there is none
+        doc_open(app)
+        return
     items = [ui.Item(label=p.name, value=i, hint="" if p.exists() else "missing") for i, p in enumerate(paths)]
     ui.pick(app, items, title="Open file")(lambda index, _invert: doc_open(app, which=index))
 

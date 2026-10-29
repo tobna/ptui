@@ -555,7 +555,7 @@ from this. Adding a command must not require touching four places.
 | `files.repoint`                 | `index:int`                   | fix broken path via SelectList                   |
 | `files.rename`                  | `index:int`                   | rename to scheme in place                        |
 | `files.reorder`                 | `index:int, to:int`           | first entry is "the" file                        |
-| `files.open_pick`               |                               | SelectList over this doc's files                 |
+| `files.open_pick`               |                               | SelectList over this doc's files; a lone file opens directly |
 | `files.normalize`               |                               | rewrite path styles — explicit only              |
 | `export.bibtex`                 | `target:str?`                 | marked or current → file/clipboard               |
 | `export.citekey`                |                               | per `export.citekey_format`                      |
