@@ -9,6 +9,8 @@ def test_check_names_defaults_to_every_registered_check():
     assert "refs" in doctor.check_names([])
     assert doctor.check_names(["refs", "nope"]) == ["refs"]  # unknown names dropped
     assert doctor.unknown_checks(["refs", "nope"]) == ["nope"]
+    assert doctor.check_names(["key-type"]) == ["field-type"]  # papis's rename still works
+    assert doctor.unknown_checks(["key-type"]) == []
 
 
 def test_library_wide_checks_are_kept_out_of_the_per_document_set():
@@ -97,7 +99,7 @@ def test_fix_persists_only_what_the_check_changed(tmp_path, papis_lib):
 def test_fix_without_a_fix_action_writes_nothing(tmp_path, papis_lib):
     doc, info = broken_doc(tmp_path)
     before = info.read_text()
-    unfixable = doctor.Finding("made-up", str(info), "ref", "no fix here", "", None, doc)
+    unfixable = doctor.Finding("made-up", str(info), "ref", "no fix here", None, doc)
     assert doctor.fix(doc, unfixable) == []
     assert info.read_text() == before
 

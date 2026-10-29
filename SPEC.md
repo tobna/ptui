@@ -27,11 +27,17 @@ on keychain hints and search aliases.
   cannot express. Values papis already owns — library paths, `editor`,
   `opentool`, `use-git`, `add-file-name` — are read from papis config and not
   duplicated; `config.toml` may override per key.
-- **Papis version**: pinned `>=0.15.0,<0.16` in `pyproject.toml`. The ceiling is
-  deliberate — papis already warns about API it removes in 0.16. Raise it only
-  after running the suite against a real 0.16. The internal
-  API changed between 0.14 and 0.15 and an upstream client/server refactor is
-  in progress. Feature-detect (`hasattr`) rather than version-sniff where
+- **ptui is a frontend: papis behaviour is not re-implemented.** Where papis
+  already decides something — field types, the scope query grammar, check
+  names, file names, the `time-added` format — ptui asks papis at run time, so
+  a papis release changes ptui with it. A ptui copy of papis logic is a bug
+  waiting for the next papis release.
+- **Papis version**: pinned `>=0.16.1,<0.17` in `pyproject.toml`. The ceiling is
+  deliberate — the internal API moves between minor releases (0.16 moved the
+  doctor checks to `papis.doctor`) and an upstream client/server refactor is in
+  progress. Raise it only after running the suite against a real 0.17; pytest
+  fails on any `DeprecationWarning` raised from ptui code, which is how papis
+  announces its next removals. Feature-detect (`hasattr`) rather than version-sniff where
   practical; fail loudly with a clear message otherwise.
   **ACTION FOR IMPLEMENTER: verify every papis API call against the installed
   version before use. Do not trust this document's API names.**
@@ -271,9 +277,10 @@ at it. Findings come from each check's own `operate`.
   first author's surname is what people actually want.
 - `list.sort_tiebreak` is the secondary key; ties on `year` are otherwise
   arbitrary and the list order will flicker between runs.
-- **`time-added` is ptui's own stamp.** papis stopped writing the key in 0.15,
-  so the shipped default sort would order nothing: `add` stamps it (papis's
-  format, `%Y-%m-%d-%H:%M:%S`, which sorts lexically) and `lib.backfill_dates`
+- **ptui stamps `time-added` itself.** papis writes the key only in `papis
+  add`'s command line, not in the `add.run()` ptui calls, so the shipped
+  default sort would order nothing: `add` stamps it when papis's `time-stamp`
+  is on (papis's `papis.strings.time_format`, which sorts lexically) and `lib.backfill_dates`
   fills it in for documents that predate this from their `info.yaml` mtime.
 
 **Invariant**: sorting applies to the scoped set and is independent of
@@ -590,7 +597,7 @@ them: the value is arbitrary text.
 | typed                                | why no key replaces it                                                    |
 | ------------------------------------ | ------------------------------------------------------------------------- |
 | `:doc.set reading_status read`       | arbitrary key *and* value, batch-aware over marks — pure text             |
-| `:doctor.fix key-type-check`         | `! f` is all-or-nothing; one check across the library is the real workflow |
+| `:doctor.fix field-type`             | `! f` is all-or-nothing; one check across the library is the real workflow |
 | `:config.set list.row_height 2`      | try a setting without editing `config.toml` and restarting; session only  |
 | `:mark.query year:>2023 -survey`     | marks by query without disturbing the current narrow, which `m a` destroys |
 | `:doc.tag to-read cvpr`              | a picker over the existing vocabulary cannot add a *new* tag              |

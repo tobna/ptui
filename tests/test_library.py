@@ -12,6 +12,18 @@ def docs(*data):
 def test_alias_expansion():
     aliases = {"a": "author:", "t": "title:"}
     assert library.expand_aliases("a:Nauen t:vision x:y", aliases) == ("author:Nauen title:vision x:y")
+    assert library.expand_aliases("(a:Nauen OR t:x) NOT ta:y", aliases) == "(author:Nauen OR title:x) NOT ta:y"
+
+
+def test_scope_speaks_papis_query_grammar():
+    """The scope query goes to papis untouched, so its grammar (OR, NOT, groups,
+    since 0.16) is ptui's too — with no parser here to keep in step."""
+
+    def titles(query):
+        return sorted(doc["title"] for doc in library.scope(query))
+
+    assert titles("author:Vaswani OR author:He") == ["Attention Is All You Need", "Deep Residual Learning"]
+    assert titles("NOT (author:Vaswani OR author:He)") == ["A Neural Probabilistic Language Model"]
 
 
 def test_narrow_modes():
@@ -225,7 +237,7 @@ def test_p90_ignores_the_one_long_outlier():
 
 
 def test_discover_keys():
-    assert library.discover_keys(docs({"year": 1}, {"title": "x", "tags": []})) == [
+    assert library.discover_keys(docs({"year": 1}, {"title": "x", "tags": ["a"]})) == [
         "tags",
         "title",
         "year",

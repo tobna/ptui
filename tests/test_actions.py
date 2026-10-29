@@ -58,6 +58,14 @@ async def test_citekey_yank_is_batch_aware(app, monkeypatch):
         assert yanked[-1] == "\\cite{Vaswani2017} \\cite{He2016}"
 
 
+async def test_bibtex_export_writes_papis_own_entry(app, tmp_path):
+    out = tmp_path / "out.bib"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        actions.export_bibtex(app, str(out))
+    assert "Vaswani2017" in out.read_text()
+
+
 async def test_main_file_comes_before_notes(app, papis_lib):
     _attach(papis_lib, "paper.pdf")
     _attach(papis_lib, "paper_notes.pdf")

@@ -50,6 +50,9 @@ def papis_lib(tmp_path, monkeypatch):
         f"[settings]\ndatabase-backend = papis\ndefault-library = test\n\n[test]\ndir = {docs}\n"
     )
     monkeypatch.setenv("PAPIS_CONFIG_DIR", str(config_dir))
+    # papis 0.16 treats `$XDG_CONFIG_HOME/papis` as a deprecated location and
+    # *copies* it into a config dir that does not exist yet — the user's real one.
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
     monkeypatch.setenv("PAPIS_LIB", "test")
     # papis pickles its database index into the *user's* cache dir, under a hash
     # of the library path — and pytest reuses `tmp_path` names once /tmp is

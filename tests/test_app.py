@@ -268,10 +268,9 @@ async def test_a_document_with_doctor_findings_is_marked_in_the_list(app, monkey
     from ptui import doctor, ui
 
     broken = doctor.Finding(
-        name="key-type",
+        name="field-type",
         path=None,
         msg="year is a str",
-        suggestion_cmd="",
         fix_action=None,
         payload="",
         doc=None,

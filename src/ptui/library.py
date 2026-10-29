@@ -29,7 +29,9 @@ os.environ.setdefault("PAPIS_NP", "0")
 
 import papis.config
 import papis.database
+import papis.document
 import papis.id
+import papis.strings
 from papis.document import Document
 
 ID_KEY = papis.id.ID_KEY_NAME
@@ -40,13 +42,13 @@ def doc_id(doc: Document) -> str:
     return str(doc.get(ID_KEY, doc.get_main_folder() or id(doc)))
 
 
+_ALIAS = re.compile(r"(^|[\s(])([^\s:()]+):")
+
+
 def expand_aliases(query: str, aliases: dict[str, str]) -> str:
-    """`a:Nauen` -> `author:Nauen`, per `[query.aliases]`."""
-    words = []
-    for word in query.split():
-        prefix, sep, rest = word.partition(":")
-        words.append(aliases[prefix] + rest if sep and prefix in aliases else word)
-    return " ".join(words)
+    """`a:Nauen` -> `author:Nauen`, per `[query.aliases]` — also right after a
+    `(`, since papis's own query grammar groups with parentheses."""
+    return _ALIAS.sub(lambda m: m[1] + aliases[m[2]] if m[2] in aliases else m[0], query)
 
 
 def scope(query: str, library: str | None = None) -> list[Document]:
@@ -202,17 +204,17 @@ def narrow(
 
 # ── sorting ─────────────────────────────────────────────────────────────────
 
-# papis stopped writing `time-added` in 0.15 — nothing in the package mentions
-# the key any more — so ptui stamps it itself, in the format papis used, or the
+# papis stamps `time-added` in the `papis add` command line, not in the
+# `add.run()` ptui calls — so ptui stamps it itself, in papis's own format, or the
 # shipped "recently added" sort would have nothing to order by.
 TIME_ADDED = "time-added"
-_STAMP = "%Y-%m-%d-%H:%M:%S"  # sorts lexically, which is why it can be a string
 
 
 def stamp(when: float | None = None) -> str:
-    """`time-added` for now, or for a POSIX timestamp."""
+    """`time-added` for now, or for a POSIX timestamp. papis's format sorts
+    lexically, which is why the value can stay a string."""
     moment = datetime.now() if when is None else datetime.fromtimestamp(when)
-    return moment.strftime(_STAMP)
+    return moment.strftime(papis.strings.time_format)
 
 
 def resolve(doc: Document, dotted: str) -> Any:
@@ -350,19 +352,14 @@ _LIST_SPLIT = re.compile(r"[,\s]+")
 
 
 def key_types() -> dict[str, str]:
-    """The type papis declares for each key, from its **own** doctor config
-    (`doctor-key-type-keys`: `tags:list`, `year:int`, `files:list`, …).
+    """The type papis declares for each key (`document-field-types`:
+    `tags:list`, `year:int`, `files:list`, …).
 
-    Read from papis rather than kept in a table here, so setting a field and
-    the `key-type` check can never disagree — a `tags` written as a string is
+    Asked of papis rather than kept in a table here, so setting a field and
+    the `field-type` check can never disagree — a `tags` written as a string is
     exactly what that check exists to complain about.
     """
-    types = {}
-    for entry in papis.config.getlist("key-type-keys", section="doctor"):
-        key, _, kind = str(entry).partition(":")
-        if kind:
-            types[key.strip()] = kind.strip()
-    return types
+    return {key: cls.__name__ for key, cls in papis.document.get_document_field_types().items()}
 
 
 def typed(key: str, text: str, current: Any = None) -> Any:

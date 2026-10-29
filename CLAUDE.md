@@ -21,16 +21,23 @@ it, not struck through.
    fails while it is stale. (`.claude/` is local-only and not tracked.)
 2. **`SPEC.md` wins over intuition.** If the code must deviate, change the spec
    in the same commit and say why.
-3. **Verify every papis API call against the installed version** (`uv run python -c ...`).
-   The internal API moved between 0.14 and 0.15, so `pyproject.toml` pins
-   `papis>=0.15.0,<0.16`; papis already warns about API it drops in 0.16. Do not
+3. **ptui is a frontend: ask papis, do not re-implement it.** Field types,
+   the scope query grammar, check names, the `time-added` format, the downloader
+   list — anything papis decides is read from papis at run time, so a papis
+   release changes ptui with it. Before writing logic, look for the papis
+   function that already does it; a copy is a bug waiting for the next release.
+4. **Verify every papis API call against the installed version** (`uv run python -c ...`).
+   The internal API moves between minor releases (0.16 moved the doctor checks
+   to `papis.doctor`), so `pyproject.toml` pins `papis>=0.16.1,<0.17`, and
+   pytest turns any `DeprecationWarning` raised from ptui into an error — that is
+   how papis announces its next removals. Do not
    trust API names from `SPEC.md` or from memory — several in this file were
    wrong until checked (`papis.arxiv.get_data` silently drops `journal_ref`,
    `doctor.run` defaults to `fix=True`).
-4. **Never touch `info.yaml` outside the safe-write helper.** Papis caches;
+5. **Never touch `info.yaml` outside the safe-write helper.** Papis caches;
    direct writes desync it. Unknown keys and comments must survive a write.
-5. **Documents are identified by `papis_id`, never by folder path.**
-6. Commit in standalone steps. No AI/Claude mentions in commit messages.
+6. **Documents are identified by `papis_id`, never by folder path.**
+7. Commit in standalone steps. No AI/Claude mentions in commit messages.
 
 ## Toolchain
 
@@ -108,6 +115,9 @@ per key.
 
 ## papis and Textual gotchas (learned the hard way)
 
+- **`rg` skips `.venv`**: uv writes a `.venv/.gitignore` of `*`, so searching
+  the installed papis needs `rg -uu`. An empty result without it proves nothing
+  — this file once said papis never mentions `time-added`, for exactly that reason.
 - **`PAPIS_NP=0`** is set in `library.py`. Papis forks a process pool to build
   its cache; inside a TUI that copies the whole app and dies on Textual's
   redirected file descriptors (`ValueError: bad value(s) in fds_to_keep`).
@@ -131,7 +141,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 146 tests, `uv run pytest`.
+empty. 148 tests, `uv run pytest`.
 
 Built:
 
@@ -258,7 +268,10 @@ terms, ANDed by `match_doc`, so typing more always narrows. A term may be bare,
 `-negated`, `"quoted"`, `field:value` (dotted paths work — `resolve` handles
 them) or a numeric range (`year:>2023`, `year:2020..2024`). Aliases come from
 `[query.aliases]`, the same table the scope prompt uses, and are expanded inside
-`parse_query` — do not expand them again at the call site. `shlex` does the
+`parse_query` — do not expand them again at the call site. The scope prompt
+itself has no grammar of its own: the expanded string goes to papis's
+`db.query`, so `OR`, `NOT` and parentheses (papis 0.16) work there, and
+`expand_aliases` also expands right after a `(`. `shlex` does the
 quoting and raises on the half-typed quote you always have, so an unterminated
 query is retried closed. `match_text` is the same matcher over one blob, which is
 what `ui.Item.matches` uses: **one matcher for `/` and every picker filter**.
@@ -304,11 +317,15 @@ A run then loaded an older run's index for the same path and saw documents whose
 info_yaml` failing on a library that looked, on disk, untouched. Two runs with
 one `--basetemp` reproduce it.
 
-`fetch.py` fronts papis's importer plugins — 13 importers and 23 downloaders,
-listed by `fetch.available()` from `get_available_importers()`, so a new plugin
-shows up in the `a` picker for free. Three traps, all measured, all commented in
+`papis_lib` also points `XDG_CONFIG_HOME` into `tmp_path`: papis 0.16 treats
+`$XDG_CONFIG_HOME/papis` as a deprecated location and *copies* it into a
+`PAPIS_CONFIG_DIR` that does not exist yet — the developer's real config.
+
+`fetch.py` fronts papis's importer plugins, listed by `fetch.available()` from
+`get_available_importers()` and `fetch.downloaders()`, so a new plugin shows up
+in the `a` picker for free. Three traps, all measured, all commented in
 the module: **matching hits the network** (the `doi` importer's `match()` GETs
-doi.org for any string and raises on a file path, so never call
+doi.org for any string that is not an existing path, so never call
 `get_matching_importers_by_uri` on arbitrary input — pick by name); the
 `fallback` downloader matches anything, so URL dispatch is http(s) only;
 constructors differ per importer, so `cls.match(uri)` is the only generic way in.
@@ -322,7 +339,10 @@ form has no box for (abstract, eprint, venue…) into the document.
 
 `doctor.py` never calls `papis.commands.doctor.run()` — that takes `fix=True`
 by **default** and mutates the document as a side effect of looking at it.
-Findings come from `REGISTERED_CHECKS[name].operate(doc)`, which is read-only.
+The checks themselves live in `papis.doctor` since 0.16, and findings come from
+`REGISTERED_CHECKS[name].operate(doc)`, which is read-only. Configured check
+names go through papis's `DEPRECATED_CHECK_NAMES`, so `key-type` still means
+`field-type`, as it does on papis's own command line.
 A fix runs the check's own `fix_action` (which mutates the in-memory `Document`),
 diffs the keys it touched, and writes only those through `safewrite`; on any
 failure the document is reloaded, or it would keep an edit that never landed.
@@ -341,7 +361,7 @@ made the reader dismiss a modal to see the next finding.
 `doctor.LIBRARY_WIDE` is the split that fixes the phantom findings:
 `duplicated_keys_check` accumulates into papis's module-level
 `DUPLICATED_KEYS_SEEN`, so the second look at one document sees its own values
-from the first. It is the **only** stateful registered check in papis 0.15 —
+from the first. It is the **only** stateful registered check in papis 0.16 —
 `duplicated-values` looks for repeats *inside* one list field and is
 per-document. `findings()` excludes the library-wide set; `scan_library()` is
 their one pass and clears papis's state first.
@@ -447,13 +467,14 @@ value per target, confirm when there is more than one, write through
 subtracts and returns `None` when the last tag goes, so the key goes with it.
 `doc.rating` writes an int by hand because papis declares no type for it, and 0
 clears. `actions.tags_of` normalises whatever is in the file, since `tags: a, b`
-is legal YAML that papis's own `key-type` check would call wrong.
+is legal YAML that papis's own `field-type` check would call wrong.
 
 `doc.set` decides the *type* of what it writes through `library.typed`, and the
-types come from papis's own `doctor-key-type-keys` (`tags:list`, `year:int`,
-read with `papis.config.getlist("key-type-keys", section="doctor")`) rather than
-a table here — otherwise setting `tags` to a string is exactly what the
-`key-type` doctor check exists to complain about. Undeclared keys keep the type
+types come from papis's own `document-field-types` (`tags:list`, `year:int`,
+read with `papis.document.get_document_field_types()`, which also honours the
+deprecated `doctor-key-type-keys`) rather than a table here — otherwise setting
+`tags` to a string is exactly what the `field-type` doctor check exists to
+complain about. Undeclared keys keep the type
 already stored under them, and everything else stays text: guessing that `04` in
 an unknown field is a number is how `volume` loses its zero. An empty value
 **removes** the key. Every value is computed before anything is written, so a
@@ -461,13 +482,13 @@ bad number aborts the batch instead of half-applying it, and a batch of more
 than one confirms first (the picker is the dialog; SPEC's preview list is
 ponytail'd down to the count, which is the whole question for a field set).
 
-**`time-added` is ptui's, not papis's.** papis 0.15 mentions the key nowhere
-(`rg time-added` over the installed package is empty) — `add.run` does not stamp
-it — yet it is the shipped default sort *and* `list.sort_tiebreak`. Without a
+**ptui stamps `time-added` itself.** papis does it only in `papis add`'s click
+`cli()` (behind `time-stamp`), and `add.run`, which ptui calls, does not — yet
+the key is the shipped default sort *and* `list.sort_tiebreak`. Without a
 stamp every new document lands in the null tail of "recently added", which is
-how the bug was reported. `_add_document` now does `data.setdefault` with
-`library.stamp()` (papis's own `%Y-%m-%d-%H:%M:%S`, chosen because it sorts
-lexically, so `_comparable`'s string branch is enough), and
+how the bug was reported. `_add_document` does `data.setdefault` with
+`library.stamp()` when papis's `time-stamp` is on (`papis.strings.time_format`,
+which sorts lexically, so `_comparable`'s string branch is enough), and
 `lib.backfill_dates` — unbound, `:` only — stamps the documents that predate
 that from their `info.yaml` mtime. It plans, confirms through `ui.pick` and
 hands off to `_set_apply`, so the whole backfill is one undoable step. The

@@ -322,8 +322,8 @@ def lib_backfill_dates(app: Any) -> None:
     """Give every document in scope that lacks `time-added` the mtime of its
     `info.yaml`.
 
-    papis 0.15 no longer writes the key, so a library carries a handful of
-    documents from older papis and hundreds without — and "recently added"
+    Only `papis add`'s command line writes the key, so a library carries
+    documents stamped by it and hundreds without — and "recently added"
     sorts the whole silent majority into one undifferentiated tail. The mtime
     is approximate (a later edit moves it) but it is the only ordering on disk,
     and it is monotone enough for a library nobody has bulk-rewritten.
@@ -729,7 +729,7 @@ def _add_source_picker(app: Any) -> None:
     items = [
         ui.Item(label="a file on disk…", value="", hint="path"),
         ui.Item(label=f"the inbox ({inbox})", value="inbox", hint="newest first"),
-        ui.Item(label="a URL from any publisher…", value="url", hint="23 downloaders"),
+        ui.Item(label="a URL from any publisher…", value="url", hint=f"{len(fetch.downloaders())} downloaders"),
         ui.Item(label="a .bib file…", value="bib", hint="choose an entry"),
     ]
     items += [
@@ -857,10 +857,12 @@ def add_form(app: Any, path: Path | None, fetched: dict[str, Any] | None = None)
 
 def _add_document(app: Any, path: Path | None, data: dict[str, str], extra: dict[str, Any] | None = None) -> None:
     import papis.commands.add
+    import papis.config
 
     # The form wins over the fetched record: the user just looked at both.
     data = {**(extra or {}), **_expand(data)}
-    data.setdefault(library.TIME_ADDED, library.stamp())
+    if papis.config.getboolean("time-stamp"):  # what `papis add` itself obeys
+        data.setdefault(library.TIME_ADDED, library.stamp())
     try:
         # ponytail: papis copies the source in; the original stays in the inbox
         # rather than being deleted behind the user's back. An empty path list is
@@ -923,9 +925,9 @@ def export_url(app: Any) -> None:
 
 @command("export.bibtex", "bibtex")
 def export_bibtex(app: Any, target: str | None = None) -> None:
-    import papis.bibtex
+    import papis.exporters.bibtex
 
-    entries = [papis.bibtex.to_bibtex(doc) for doc in app.targets]
+    entries = [papis.exporters.bibtex.to_bibtex(doc) for doc in app.targets]
     text = "\n".join(e for e in entries if e)
     if target:
         Path(target).expanduser().write_text(text)
@@ -1413,8 +1415,6 @@ def doctor_fix_pick(app: Any) -> None:
 def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
     if finding.fix_action is None:
         app.log_line(f"[yellow]no automatic fix for[/] {finding.name}: {finding.msg}")
-        if finding.suggestion_cmd:
-            app.log_line(f"[dim]papis suggests:[/] {finding.suggestion_cmd}")
         return False
     try:
         changed = doctor.fix(doc, finding)
@@ -1462,7 +1462,7 @@ def library_dir(app: Any) -> Path:
     import papis.config
 
     name = app.cfg.get("general.library") or papis.config.get_lib_name()
-    return Path(papis.config.get_lib_from_name(name).paths[0])
+    return Path(papis.config.get_lib_from_name(name).path)
 
 
 @dataclass(frozen=True, slots=True)

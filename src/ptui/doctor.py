@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import papis.commands.doctor as _doctor
+import papis.doctor as _doctor
 from papis.document import Document
 
 from ptui import library, safewrite
@@ -23,7 +23,7 @@ LIBRARY_WIDE = frozenset({"duplicated-keys"})
 `duplicated_keys_check` accumulates every value it has seen into papis's
 module-level `DUPLICATED_KEYS_SEEN`, so a *second* look at the same document
 finds its own values from the first and invents a finding. Measured against
-papis 0.15: it is the only registered check with module state — despite its
+papis 0.16: it is the only registered check with module state — despite its
 name, `duplicated-values` looks for repeats *inside* one list field and is
 per-document and stateless.
 """
@@ -47,13 +47,14 @@ def check_names(configured: list[str] | None = None, *, library_wide: bool = Fal
     selects everything else.
     """
     known = set(_doctor.registered_checks_names())
+    configured = [_doctor.DEPRECATED_CHECK_NAMES.get(n, n) for n in configured or []]  # `key-type` -> `field-type`
     names = sorted(known) if not configured else [n for n in configured if n in known]
     return [name for name in names if (name in LIBRARY_WIDE) == library_wide]
 
 
 def unknown_checks(configured: list[str] | None) -> list[str]:
     """Configured names papis does not know — worth telling the user about once."""
-    known = set(_doctor.registered_checks_names())
+    known = set(_doctor.registered_checks_names()) | set(_doctor.DEPRECATED_CHECK_NAMES)
     return [name for name in configured or [] if name not in known]
 
 

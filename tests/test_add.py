@@ -80,7 +80,7 @@ async def test_add_from_a_bib_entry_creates_a_document_with_no_file(app, tmp_pat
         assert list(added.get("files") or []) == []
         # a key the form never showed still has to survive the round trip
         assert added["booktitle"] == "CVPR"
-        # papis 0.15 writes no `time-added`, so ptui stamps it — without which a
+        # papis's `add.run()` writes no `time-added`, so ptui stamps it — without which a
         # new document sorts to the *bottom* of "recently added"
         assert added[library.TIME_ADDED] > "2024-01-01-00:00:00"
         assert app.docs[0] is added

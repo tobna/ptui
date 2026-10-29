@@ -1,7 +1,7 @@
 """Metadata from wherever papis can already get it.
 
-papis ships an importer plugin system — 13 importers and 23 downloaders here —
-and this module is a thin front for it. Nothing parses a response, nothing
+papis ships an importer plugin system (`available()`, `downloaders()`) and
+this module is a thin front for it. Nothing parses a response, nothing
 downloads a PDF: `Importer.fetch()` already fills `ctx.data` and, for arXiv and
 the publisher downloaders, `ctx.files` with a PDF it retrieved itself.
 
@@ -9,13 +9,14 @@ Two traps, both found by measurement and both the reason this does not simply
 call `papis.importer.get_matching_importers_by_uri`:
 
 * **Matching hits the network.** The `doi` importer's `match()` calls
-  `validate_doi`, which HTTP-GETs doi.org — for *any* string, including a local
-  file path — and raises `InvalidURL` rather than declining. So the importer is
-  chosen by name from what the user picked, never by asking all of them.
+  `validate_doi`, which HTTP-GETs doi.org for any string that is not an existing
+  path (papis 0.16 stopped it for paths, papis#1201). So the importer is chosen
+  by name from what the user picked, never by asking all of them.
 * **The `fallback` downloader will try to GET a filesystem path.** URL dispatch
   is therefore restricted to `http://` and `https://`.
 
-Everything here except `available` and `bib_entries` touches the network.
+Everything here except `available`, `downloaders` and `bib_entries` touches the
+network.
 """
 
 from __future__ import annotations
@@ -56,6 +57,13 @@ def available() -> list[str]:
     return [name for name in SOURCES if name in known]
 
 
+def downloaders() -> list[str]:
+    """Every downloader papis registers — what `from_url` can dispatch to."""
+    import papis.downloaders
+
+    return papis.downloaders.get_available_downloaders()
+
+
 def fetch(name: str, uri: str) -> tuple[dict[str, Any], list[Path]]:
     """Run one named importer. Returns its metadata and any file it downloaded.
 
@@ -75,7 +83,7 @@ def fetch(name: str, uri: str) -> tuple[dict[str, Any], list[Path]]:
 
 
 def from_url(url: str) -> tuple[dict[str, Any], list[Path]]:
-    """Let papis pick a downloader for a publisher URL — 23 of them ship with it.
+    """Let papis pick one of its `downloaders()` for a publisher URL.
 
     `http(s)` only: `fallback` matches anything and would try to GET a path.
     """

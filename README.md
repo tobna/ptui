@@ -9,7 +9,7 @@
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/python-3.13%2B-blue">
   <img alt="Built with Textual" src="https://img.shields.io/badge/built%20with-Textual-5a5aff">
-  <img alt="papis" src="https://img.shields.io/badge/papis-0.15.x-b8283c">
+  <img alt="papis" src="https://img.shields.io/badge/papis-0.16.x-b8283c">
 </p>
 
 ---
@@ -121,9 +121,10 @@ Prefixes are namespaces, and hold one to see its menu: `g` go · `f` files ·
 So `y y` yanks a `\cite{…}`, `f r` files a PDF where it belongs.
 
 Sorted by "recently added" and everything sits in one lump at the bottom?
-papis stopped writing `time-added` in 0.15, so most documents have none. ptui
-stamps it on every document it adds; run `:lib.backfill_dates` once to fill it
-in for the rest, from each `info.yaml`'s modification time.
+papis stamps `time-added` only from `papis add` on the command line, so
+documents that arrived any other way have none. ptui stamps it on every document
+it adds (unless papis's `time-stamp` is off); run `:lib.backfill_dates` once to
+fill it in for the rest, from each `info.yaml`'s modification time.
 
 **[KEYS.md](KEYS.md) lists every binding** — key, command name and what it does,
 per mode, generated from the shipped keymap. `?` shows the same table inside the
