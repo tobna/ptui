@@ -144,6 +144,8 @@ escape_chain = ["modal", "visual", "narrow"]
 "up"       = { cmd = "nav.up" }
 "enter"    = { cmd = "doc.open", desc = "open this file" }
 "o"        = { cmd = "doc.open", desc = "open this file" }
+"u"        = { cmd = "app.undo" }
+"ctrl+r"   = { cmd = "app.redo" }
 "1"        = { cmd = "pane.focus", args = { pane = "list" } }
 "2"        = { cmd = "pane.focus", args = { pane = "info" } }
 "4"        = { cmd = "pane.focus", args = { pane = "log" } }
@@ -165,6 +167,8 @@ escape_chain = ["modal", "visual", "narrow"]
 "j"        = { cmd = "nav.down" }
 "k"        = { cmd = "nav.up" }
 "e"        = { cmd = "doc.edit" }
+"u"        = { cmd = "app.undo" }
+"ctrl+r"   = { cmd = "app.redo" }
 "1"        = { cmd = "pane.focus", args = { pane = "list" } }
 "2"        = { cmd = "pane.focus", args = { pane = "info" } }
 "3"        = { cmd = "pane.focus", args = { pane = "files" } }

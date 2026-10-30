@@ -1212,6 +1212,51 @@ def files_relocate(app: Any, force: bool = False) -> None:
         app.query_one("#log-pane").display = True
 
 
+def _file_entry(app: Any, index: int | None) -> tuple[Any, list[str], int] | None:
+    """The current document, a copy of its `files`, and which entry: `index`, or
+    the files pane's cursor."""
+    doc = app.current
+    entries = list(doc.get("files") or []) if doc is not None else []
+    if not entries:
+        app.log_line("[yellow]no files attached[/]")
+        return None
+    at = app.file_index if index is None else index
+    if not 0 <= at < len(entries):
+        app.log_line(f"[yellow]no file {at}; this document has {len(entries)}[/]")
+        return None
+    return doc, entries, at
+
+
+@command("files.detach", "remove from the list, keep the file")
+def files_detach(app: Any, index: int | None = None) -> None:
+    """Drop one `files` entry and leave the file where it is — the half `papis rm
+    --file` does not offer, since it deletes the file too. One undo step."""
+    found = _file_entry(app, index)
+    if found is None:
+        return
+    doc, entries, at = found
+    gone = entries.pop(at)
+    _fields_apply(app, doc, {"files": entries or None})
+    app.log_line(f"detached {gone}; the file is still at {place.resolve(doc, gone)}")
+
+
+@command("files.reorder", "move a file up or down")
+def files_reorder(app: Any, index: int | None = None, to: int = 1) -> None:
+    """Move one entry `to` places, -1 being up. The first entry is "the" file:
+    what `o` opens and what the naming rules call the main one."""
+    found = _file_entry(app, index)
+    if found is None:
+        return
+    doc, entries, at = found
+    target = max(0, min(len(entries) - 1, at + to))
+    if target == at:
+        return
+    entries.insert(target, entries.pop(at))
+    _fields_apply(app, doc, {"files": entries})
+    app.file_index = target  # the cursor stays on the file it moved
+    app.refresh_files()
+
+
 @command("files.attach", "attach file")
 def files_attach(app: Any, path: str | None = None) -> None:
     """Add a file or a URL to the current document — `papis addto`, verbatim.

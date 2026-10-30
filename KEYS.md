@@ -109,12 +109,13 @@ The files pane. Not built yet, so these bindings only log.
 | `1` | `pane.focus` pane=list | focus a pane |
 | `2` | `pane.focus` pane=info | focus a pane |
 | `4` | `pane.focus` pane=log | focus a pane |
+| `ctrl+r` | `app.redo` | redo |
 | `down` | `nav.down` | move down |
 | `enter` | `doc.open` | open this file |
 | `g o` | `app.log` | operation log |
-| `J` | `files.reorder` to=1 | — *(not implemented)* |
+| `J` | `files.reorder` to=1 | move a file up or down |
 | `j` | `nav.down` | move down |
-| `K` | `files.reorder` to=-1 | — *(not implemented)* |
+| `K` | `files.reorder` to=-1 | move a file up or down |
 | `k` | `nav.up` | move up |
 | `m` | `files.relocate` | apply placement rules |
 | `o` | `doc.open` | open this file |
@@ -122,8 +123,9 @@ The files pane. Not built yet, so these bindings only log.
 | `r` | `files.rename` | rename to scheme *(not implemented)* |
 | `shift+tab` | `pane.cycle` back=True | next pane |
 | `tab` | `pane.cycle` | next pane |
+| `u` | `app.undo` | undo |
 | `up` | `nav.up` | move up |
-| `x` | `files.detach` | remove from list, keep file *(not implemented)* |
+| `x` | `files.detach` | remove from list, keep file |
 | `z f` | `pane.toggle` pane=files | close the files pane |
 
 ## `[modes.info]`
@@ -136,12 +138,14 @@ The info pane, focused with `2` or `tab`.
 | `2` | `pane.focus` pane=info | focus a pane |
 | `3` | `pane.focus` pane=files | focus a pane |
 | `4` | `pane.focus` pane=log | focus a pane |
+| `ctrl+r` | `app.redo` | redo |
 | `e` | `doc.edit` | edit |
 | `g o` | `app.log` | operation log |
 | `j` | `nav.down` | move down |
 | `k` | `nav.up` | move up |
 | `shift+tab` | `pane.cycle` back=True | next pane |
 | `tab` | `pane.cycle` | next pane |
+| `u` | `app.undo` | undo |
 
 ## `[modes.log]`
 

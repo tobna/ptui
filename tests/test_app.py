@@ -636,3 +636,19 @@ async def test_the_files_pane_lists_the_entries_and_opens_the_one_under_its_curs
         assert opened[-1].endswith("paper_supp.pdf")
         await press(pilot, "escape")
         assert not pane.display  # transient, like the log
+
+
+async def test_detach_keeps_the_file_and_reorder_moves_the_cursor_with_it(app, papis_lib):
+    _give_files(papis_lib, "a.pdf", "b.pdf", "c.pdf")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "3", "J")  # a.pdf down one
+        assert app.current["files"] == ["b.pdf", "a.pdf", "c.pdf"]
+        assert app.file_index == 1
+        await press(pilot, "x")  # detach a.pdf
+        assert app.current["files"] == ["b.pdf", "c.pdf"]
+        assert (papis_lib / "lib" / "doc0" / "a.pdf").exists()
+        await press(pilot, "u")
+        assert app.current["files"] == ["b.pdf", "a.pdf", "c.pdf"]
+        await press(pilot, "u")
+        assert app.current["files"] == ["a.pdf", "b.pdf", "c.pdf"]
