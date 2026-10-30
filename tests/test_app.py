@@ -581,3 +581,26 @@ async def test_the_first_header_sits_over_its_values_not_over_the_mark(papis_lib
         header = str(app.query_one("DataTable").ordered_columns[0].label)
         cell = str(app.query_one("DataTable").get_row_at(0)[0])
         assert header.index("Year") == cell.index("2017")
+
+
+async def test_a_startup_query_papis_rejects_opens_the_whole_library(papis_lib):
+    from conftest import build_app
+
+    app = build_app(papis_lib)
+    app.scope_query = "year:>2000"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        assert len(app.docs) == 3
+        assert app.scope_query == ""
+
+
+async def test_an_unknown_library_is_one_readable_sentence(app):
+    from textual.widgets import RichLog
+
+    async with app.run_test(size=(300, 40)) as pilot:
+        await press(pilot, "4")
+        app.run_command("lib.switch", {"name": "no-such-library"})
+        await settle(pilot)
+        text = "\n".join(line.text for line in app.query_one(RichLog).lines)
+        assert "Library 'no-such-library' does not seem to exist. To add a library" in text
+        assert "('" not in text

@@ -31,6 +31,7 @@ import papis.bibtex
 import papis.config
 import papis.database
 import papis.document
+import papis.exceptions
 import papis.id
 import papis.strings
 from papis.document import Document
@@ -73,7 +74,10 @@ def use(name: str) -> None:
     ptui's copy of the name filed a new document in the library left behind.
     `PAPIS_LIB` too: `get_lib()` re-applies it on every call, so it would win.
     """
-    papis.config.set_lib_from_name(name)
+    try:
+        papis.config.set_lib_from_name(name)
+    except papis.exceptions.InvalidLibraryError as exc:  # its args are two sentences, printed as a tuple
+        raise ValueError(" ".join(str(arg).strip() for arg in exc.args)) from exc
     os.environ["PAPIS_LIB"] = name
 
 

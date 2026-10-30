@@ -127,6 +127,9 @@ def scope(app: Any, query: str) -> None:
         # name the query whose results are on screen, not the one that failed.
         app.log_line(f"[red]query failed:[/] {query}: {(str(exc).splitlines() or [repr(exc)])[0]}")
         app.query_one("#log-pane").display = True
+        if query and not app.docs:  # the startup query: the library beats an empty screen
+            app.scope_query = ""
+            scope(app, "")
         return
     app.scope_query = query
     if expanded != query:
