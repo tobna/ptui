@@ -770,15 +770,19 @@ def doc_rating(app: Any, value: int | None = None) -> None:
 
 
 @command("doc.add", "add document")
-def doc_add(app: Any, source: str | None = None) -> None:
+def doc_add(app: Any, source: str | None = None, uri: str | None = None) -> None:
     """Pick where the document comes from, confirm the metadata, then add it.
 
     With no `source` this lists every source papis can serve — a file, the inbox,
     a URL, and each registered importer — so a new papis plugin appears without a
-    change here. `source` names one directly, which is how `i` reaches the inbox.
+    change here. `source` names one directly, which is how `i` reaches the inbox,
+    and `uri` skips its prompt too: `:doc.add arxiv 2607.00687` is the
+    paste-a-number path.
     """
     if source is None:
         _add_source_picker(app)
+    elif uri is not None and (source in ("url", "bib") or source in fetch.SOURCES):
+        _import(app, source, uri)
     elif source == "url":
         app.open_prompt("import:url", "a publisher URL")
     elif source == "bib":

@@ -120,3 +120,24 @@ async def test_switching_library_sends_a_new_document_to_that_library(app, papis
         assert [d["title"] for d in app.docs] == ["Lands Here"]
         assert any(other.glob("*/info.yaml"))
         assert len(list((papis_lib / "lib").glob("*/info.yaml"))) == 3  # the old one is untouched
+
+
+async def test_doc_add_with_a_uri_skips_both_prompts(app, monkeypatch):
+    """`:doc.add arxiv 2607.00687` goes straight to the form, prefilled."""
+    from ptui import actions, fetch, ui
+
+    asked = []
+
+    def fake(name, uri):
+        asked.append((name, uri))
+        return {"title": "Fetched Title", "year": 2026, "eprint": "2607.00687"}, []
+
+    monkeypatch.setattr(fetch, "fetch", fake)
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
+        actions.cmdline_run(app, "doc.add", "arxiv 2607.00687")
+        await app.workers.wait_for_complete()
+        await pilot.pause(0.2)
+        assert asked == [("arxiv", "2607.00687")]
+        assert isinstance(app.screen, ui.AddForm)
+        assert app.screen.query_one("#add-title").value == "Fetched Title"
