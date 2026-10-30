@@ -244,6 +244,12 @@ class PtuiApp(App[None]):
         self._setup_logging()
         for problem in self.km.unknown_commands:
             self.log_line(f"[yellow]keys.toml:[/] {problem}")
+        if name := self.cfg.get("general.library"):  # `-l` or [general] library
+            try:
+                library.use(name)
+            except Exception as exc:
+                self.log_line(f"[red]library {name!r}:[/] {exc}")
+                self.cfg.data["general"]["library"] = ""
         actions.reload(self)
         # After the library is loaded, not before: column widths come from the
         # p90 of real values, and an empty list makes every column look narrower

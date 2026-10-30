@@ -99,3 +99,24 @@ async def test_a_bib_with_several_entries_asks_which_one(app, tmp_path):
         await pilot.pause(0.3)
         assert isinstance(app.screen, ui.SelectList)
         assert [item.label for item in app.screen.items] == ["First One", "Second One"]
+
+
+async def test_switching_library_sends_a_new_document_to_that_library(app, papis_lib):
+    """`papis add` writes into papis's *current* library, so switching only ptui's
+    copy of the name filed the new document in the old one."""
+    import papis.config
+
+    from ptui import actions
+
+    other = papis_lib / "other"
+    other.mkdir()
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
+        app.run_command("lib.switch", {"name": str(other)})
+        assert app.docs == []
+        actions._add_document(app, None, {"title": "Lands Here"})
+        await pilot.pause(0.3)
+        assert papis.config.get_lib().path == str(other)
+        assert [d["title"] for d in app.docs] == ["Lands Here"]
+        assert any(other.glob("*/info.yaml"))
+        assert len(list((papis_lib / "lib").glob("*/info.yaml"))) == 3  # the old one is untouched

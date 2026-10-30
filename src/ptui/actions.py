@@ -305,6 +305,7 @@ def lib_switch(app: Any, name: str | None = None) -> None:
     import papis.config
 
     def apply(library_name: str, _inverted: bool = False) -> None:
+        library.use(library_name)  # raises on an unknown name, before anything changed
         app.cfg.data["general"]["library"] = library_name
         app.marks.clear()
         reload(app)

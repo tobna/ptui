@@ -51,6 +51,18 @@ def expand_aliases(query: str, aliases: dict[str, str]) -> str:
     return _ALIAS.sub(lambda m: m[1] + aliases[m[2]] if m[2] in aliases else m[0], query)
 
 
+def use(name: str) -> None:
+    """Make `name` (a configured library or a folder) papis's current library.
+
+    ptui's own queries pass the name explicitly, but `papis add`, `addto` and
+    every `papis.database.get()` resolve the *current* one — switching only
+    ptui's copy of the name filed a new document in the library left behind.
+    `PAPIS_LIB` too: `get_lib()` re-applies it on every call, so it would win.
+    """
+    papis.config.set_lib_from_name(name)
+    os.environ["PAPIS_LIB"] = name
+
+
 def scope(query: str, library: str | None = None) -> list[Document]:
     db = papis.database.get(library or None)
     return db.query(query) if query.strip() else db.get_all_documents()
