@@ -447,6 +447,13 @@ Three things about the chrome that cost time to find:
   like a tag. Escaping every `[` is the one thing that survives `[Extended]`,
   `[doc[year]]` and `[bold]` alike. `RichLog` is the exception: it parses Rich
   markup, where `escape` is right.
+- **papis logs through the stdlib, ptui through loguru.** `_setup_logging`
+  strips the `papis` logger's handlers and installs `PapisToLoguru`: under
+  `papis ptui`, papis's `StreamHandler` holds the terminal's stderr from before
+  Textual started and printed over the screen. papis WARNING and up reach the
+  pane (prefixed with the papis module), everything reaches `log.file`. The
+  pane sink hops to the app thread itself — papis logs from worker threads.
+  Pytest's `caplog` sees no papis record for the same reason; add a loguru sink.
 - **`RichLog` parses Rich markup, not Textual's**, so `$error` means nothing in
   the log pane: `LOG_LEVELS` maps a loguru level to a theme variable and the
   sink looks the hex up in `theme_variables`. Record text is escaped there —

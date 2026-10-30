@@ -396,16 +396,41 @@ async def test_the_info_pane_renders_a_real_document(app):
         assert "[$secondary]test[/]" in text  # the fixture's one tag, as a chip
 
 
-async def test_a_missing_nested_key_renders_blank_without_a_papis_warning(app, caplog):
+async def test_a_missing_nested_key_renders_blank_without_a_papis_warning(app):
     """`default=""` made papis log a warning *with a traceback* for every such
     cell on every redraw — and build the document's description to do it."""
     import papis.document
+    import papis.format
+    from loguru import logger
 
     doc = papis.document.from_data({"title": "No authors"})
     column = {"title": "Author", "format": "{doc[author_list][0][family]}", "width": 18}
     async with app.run_test():
+        seen: list[str] = []
+        logger.add(seen.append, format="{message}")  # papis's records arrive through loguru
         assert app.cell_text(doc, column) == ""
-    assert "Could not format" not in caplog.text
+        papis.format.format(column["format"], doc, default="")  # the old call, for contrast
+    assert len(seen) == 1
+    assert "Could not format" in seen[0]
+
+
+async def test_papis_records_reach_the_log_pane_not_the_terminal(app):
+    """Under `papis ptui` papis's StreamHandler held the real stderr and wrote over
+    the screen; standalone, its warnings went nowhere at all."""
+    import logging
+
+    from textual.widgets import RichLog
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        papis_log = logging.getLogger("papis")
+        assert not [h for h in papis_log.handlers if isinstance(h, logging.StreamHandler)]
+        logging.getLogger("papis.downloaders").warning("could not fetch [the thing]")
+        logging.getLogger("papis.add").info("chatter")
+        await press(pilot, "4")
+        lines = [line.text for line in app.query_one(RichLog).lines]
+        assert any("papis.downloaders: could not fetch [the thing]" in line for line in lines)
+        assert not any("chatter" in line for line in lines)  # INFO stays in the file
 
 
 async def test_an_edit_shows_up_in_the_cached_cells(app):

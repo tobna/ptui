@@ -8,6 +8,8 @@ live and the help, hint bar and which-key panel all derive from the same table.
 from __future__ import annotations
 
 import asyncio
+import logging
+import threading
 from typing import Any
 
 import papis.format
@@ -112,6 +114,19 @@ INFO_FIELDS = (
     "rating",
 )
 """Info-pane fields, in order. Each needs a `field.<name>` entry in `ui.GLYPHS`."""
+
+
+class PapisToLoguru(logging.Handler):
+    """papis's stdlib records, re-emitted through loguru and so into the log
+    pane and `log.file`, tagged so the pane can keep papis's INFO out."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level: str | int = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+        message = f"{record.name}: {record.getMessage()}"
+        logger.bind(papis=True).opt(exception=record.exc_info).log(level, message)
 
 
 class ListTable(DataTable):
@@ -289,13 +304,36 @@ class PtuiApp(App[None]):
             record = message.record
             body = escape(record["message"])
             colour = self.theme_variables.get(LOG_LEVELS.get(record["level"].name, ""), "")
-            pane.write(f"[dim]{record['time']:%H:%M:%S}[/] " + (f"[{colour}]{body}[/]" if colour else body))
+            line = f"[dim]{record['time']:%H:%M:%S}[/] " + (f"[{colour}]{body}[/]" if colour else body)
+            # papis logs from the importer and download threads too, and a widget
+            # may only be touched from the app's own
+            if self._thread_id == threading.get_ident():
+                pane.write(line)
+            else:
+                self.call_from_thread(pane.write, line)
 
-        logger.add(write, level=level, format="{message}")
+        # papis's INFO chatter goes to the file only; its warnings are the
+        # "see the papis log" that attach and add point at.
+        logger.add(
+            write,
+            level=level,
+            format="{message}",
+            filter=lambda record: "papis" not in record["extra"] or record["level"].no >= logging.WARNING,
+        )
         log_file = self.cfg.as_path("log.file")
         if log_file:
             log_file.parent.mkdir(parents=True, exist_ok=True)
             logger.add(log_file, level=level, rotation="1 MB", retention=3)
+
+        # papis logs through the stdlib. Under `papis ptui` its handler holds the
+        # terminal's stderr from before Textual started and would print over the
+        # screen; standalone, its records went nowhere. Both now land here.
+        papis_log = logging.getLogger("papis")
+        for handler in list(papis_log.handlers):
+            papis_log.removeHandler(handler)
+        papis_log.addHandler(PapisToLoguru())
+        papis_log.setLevel(level)
+        papis_log.propagate = False
 
     # ── key dispatch ────────────────────────────────────────────────────────
 
