@@ -39,17 +39,18 @@ def test_library_wide_scan_is_repeatable_and_reports_the_second_document():
     assert len(doctor.scan_library(docs)) == 1  # state reset, so a re-run is identical
 
 
-def test_the_cache_goes_stale_when_info_yaml_is_written(tmp_path, papis_lib):
+def test_a_written_document_is_rechecked_on_the_next_look(tmp_path, papis_lib):
+    """Not "not checked": one document is ~2 ms, so a stale entry is re-scanned
+    with the checks it was scanned with, and an edit shows its effect at once."""
     doc, _info = broken_doc(tmp_path)
-    assert doctor.cached(doc) is None  # never scanned
-    found = doctor.scan(doc)
+    assert doctor.cached(doc) is None  # never scanned: unknown, not clean
+    found = doctor.scan(doc, ["refs"])
     assert doctor.cached(doc) == found
-    assert any(f.name == "refs" for f in found)
+    assert [f.name for f in found] == ["refs"]
 
-    refs = next(f for f in found if f.name == "refs" and f.fix_action)
-    doctor.fix(doc, refs)
-    assert doctor.cached(doc) is None  # the write invalidated it; unknown, not clean
-    assert not any(f.name == "refs" for f in doctor.scan(doc))
+    doctor.fix(doc, found[0])
+    assert doctor.cached(doc) == []  # re-checked against the written file
+    assert doctor.CACHE[doc["papis_id"]][2] == ["refs"]  # with the same checks
 
 
 def test_findings_are_read_only(tmp_path):
@@ -210,3 +211,28 @@ async def test_a_fix_that_changes_nothing_is_not_counted_as_fixed(app):
         app.query_one(RichLog).display = True
         await pilot.pause(0.2)
         assert "changed nothing" in app.query_one(RichLog).lines[-1].text
+
+
+async def test_the_startup_scan_marks_the_rows_it_found_something_on(papis_lib):
+    """The scan used to repaint only the info pane, so the list's markers showed
+    up row by row as other redraws happened to reach them."""
+    from conftest import build_app, settle
+
+    from ptui import ui
+
+    app = build_app(papis_lib)
+    app.cfg.data["doctor"]["scan_on_startup"] = True
+    async with app.run_test() as pilot:
+        await app.workers.wait_for_complete()
+        await settle(pilot)
+        title = next(i for i, (column, _) in enumerate(app._fit) if not column["width"])
+        cells = [str(app.query_one("DataTable").get_row_at(row)[title]) for row in range(3)]
+        assert all(cell.startswith(ui.glyph("warning")) for cell in cells)  # bare fixtures trip bibtex-type
+
+
+async def test_an_unchecked_document_does_not_claim_zero_findings(app):
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
+        pane = str(app.query_one("#info").render())
+        assert "not checked" in pane
+        assert "(0)" not in pane

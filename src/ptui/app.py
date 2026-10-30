@@ -796,9 +796,9 @@ class PtuiApp(App[None]):
         found = doctor.cached(doc)
         if found == []:
             return []
-        head = ["", f"[dim]{ui.glyph('field.doctor')}   doctor ({len(found or [])})[/]"]
         if found is None:
-            return [*head, "  [dim]not checked[/]"]
+            return ["", f"[dim]{ui.glyph('field.doctor')}   doctor[/]", "  [dim]not checked[/]"]
+        head = ["", f"[dim]{ui.glyph('field.doctor')}   doctor ({len(found)})[/]"]
         # `literal`: a finding quotes the offending value, and a `[...]`-shaped
         # one is otherwise swallowed by Static.update
         return [
@@ -822,7 +822,7 @@ class PtuiApp(App[None]):
         checks = self.cfg.get("doctor.checks", [])
         for doc in list(self.docs):
             doctor.scan(doc, checks)
-        self.call_from_thread(self.refresh_info)
+        self.call_from_thread(self.refresh_rows)  # the markers live in the rows
 
     def blocks(self, segments: list[tuple[str, str, str]], *, rightwards: bool) -> tuple[str, int]:
         """Coloured blocks joined by powerline separators, plus their cell width.

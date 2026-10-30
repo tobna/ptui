@@ -384,13 +384,16 @@ from the first. It is the **only** stateful registered check in papis 0.16 —
 per-document. `findings()` excludes the library-wide set; `scan_library()` is
 their one pass and clears papis's state first.
 
-`doctor.CACHE` maps `papis_id` -> (`info.yaml` mtime, findings), filled by
-`PtuiApp.scan_library` (a thread worker at startup, ~1.7 s for 754 documents,
-off with `[doctor] scan_on_startup`). Staleness is the mtime, not a
-notification: every write goes through `safewrite` or `place`, both touch the
-file, and a `stat` cannot be forgotten at a new call site the way an
-invalidation call can. `cached()` returning `None` means *unknown*, which the
-info pane renders as "not checked" — never as clean.
+`doctor.CACHE` maps `papis_id` -> (`info.yaml` mtime, findings, checks),
+filled by `PtuiApp.scan_library` (a thread worker at startup, ~1.7 s for 754
+documents, off with `[doctor] scan_on_startup`), which repaints the rows when it
+is done. Staleness is the mtime, not a notification: every write goes through
+`safewrite` or `place`, both touch the file, and a `stat` cannot be forgotten at
+a new call site the way an invalidation call can. A stale entry is re-scanned
+inside `cached()` with the checks it was scanned with, so an edit's effect on
+the findings shows at once. `None` means *never scanned*, which the info pane
+renders as "not checked" — never as clean. The cache is module state keyed by
+`papis_id`, so the `papis_lib` fixture clears it: every fixture reuses `id0`.
 
 `library.venue()` is the conference or journal **name**: first non-empty of
 `booktitle`, `journal`, `journaltitle`. It deliberately ignores the `venue` key —
@@ -470,8 +473,8 @@ Three things about the chrome that cost time to find:
   gives up, so titles stay aligned whether or not a document has anything wrong
   with it — and `header()` indents that column's title by the same amount, or
   `Title` sits two cells left of every title under it. It reads
-  `doctor.cached(doc)`, where **`None` means *not checked* and must not draw the
-  same glyph as clean**. It is the only exception marker there will be: a
+  `doctor.cached(doc)`; a never-scanned document draws nothing, and the info
+  pane is where "not checked" is said. It is the only exception marker there will be: a
   missing file is already a doctor finding (papis's `files` check), and how many
   files a document has is information, not an exception.
 - **A pane's ID beats `.pane-active` in Textual's specificity**, so the active

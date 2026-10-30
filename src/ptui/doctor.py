@@ -26,8 +26,8 @@ name, `duplicated-values` looks for repeats *inside* one list field and is
 per-document and stateless.
 """
 
-CACHE: dict[str, tuple[int, list[Finding]]] = {}
-"""`papis_id` -> (`info.yaml` mtime, findings) from the last scan.
+CACHE: dict[str, tuple[int, list[Finding], list[str] | None]] = {}
+"""`papis_id` -> (`info.yaml` mtime, findings, the checks that found them).
 
 Stamped with the mtime rather than invalidated by whoever writes: every write
 goes through `safewrite` or `place`, and both of them touch the file, so a
@@ -68,15 +68,22 @@ def findings(doc: Document, checks: list[str] | None = None) -> list[Finding]:
 def scan(doc: Document, checks: list[str] | None = None) -> list[Finding]:
     """`findings`, cached against `info.yaml`'s mtime for the info pane to read."""
     found = findings(doc, checks)
-    CACHE[library.doc_id(doc)] = (library.mtime(doc), found)
+    CACHE[library.doc_id(doc)] = (library.mtime(doc), found, checks)
     return found
 
 
 def cached(doc: Document) -> list[Finding] | None:
-    """The last scan of this document, or `None` if it was never scanned or has
-    been written since. `None` is "unknown", which is not the same as "clean"."""
+    """This document's findings, or `None` if it was never scanned — "unknown",
+    which is not the same as "clean".
+
+    A document written since its scan is re-checked here, with the checks it
+    was scanned with: one document costs ~2 ms, and an edit should show its
+    effect on the findings at once rather than read "not checked" until `! d`.
+    """
     hit = CACHE.get(library.doc_id(doc))
-    return hit[1] if hit and hit[0] == library.mtime(doc) else None
+    if hit is None:
+        return None
+    return hit[1] if hit[0] == library.mtime(doc) else scan(doc, hit[2])
 
 
 def scan_library(docs: list[Document], checks: list[str] | None = None) -> list[tuple[Document, Finding]]:
