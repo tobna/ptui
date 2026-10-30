@@ -597,10 +597,10 @@ async def test_a_startup_query_papis_rejects_opens_the_whole_library(papis_lib):
 async def test_an_unknown_library_is_one_readable_sentence(app):
     from textual.widgets import RichLog
 
-    async with app.run_test(size=(300, 40)) as pilot:
+    async with app.run_test() as pilot:
         await press(pilot, "4")
         app.run_command("lib.switch", {"name": "no-such-library"})
         await settle(pilot)
-        text = "\n".join(line.text for line in app.query_one(RichLog).lines)
+        text = " ".join(" ".join(line.text for line in app.query_one(RichLog).lines).split())
         assert "Library 'no-such-library' does not seem to exist. To add a library" in text
         assert "('" not in text
