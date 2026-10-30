@@ -241,6 +241,21 @@ genuinely disagree.
   from the cache. `papis rm` pairs the two and so does ptui.
 - Finding duplicates is a **separate job** from merging them; ptui merges what
   you marked and does not go looking.
+- `author` is never asked about next to `author_list`: it is derived from
+  whichever list is kept, the way papis derives it on import. Values are
+  compared as text, so a YAML `'2016'` against a fetched `2016` is no question.
+
+**Updating from a source is the same merge**, with the fetched record as the
+other document. `papis update --auto` overwrites every key the source has —
+its own code says `FIXME: add interactive merging to avoid overwriting user
+changes` — so a title fixed by hand reverts on the next update. `doc.refresh`
+(`c u`) fills what the document lacks and asks about each real disagreement,
+and the result is one write and one undo step. The sources come from the
+document, without the network: papis's own data matching (the DOI; the title,
+for Crossref — offered last, since a title search can find the wrong paper),
+plus arXiv for an arXiv id. Data only, never the PDF; the fetched `ref` and
+`citations` are dropped (the ref is the library's own, citations have their own
+file in papis).
 
 ## Doctor — a report, not a chooser
 
@@ -603,6 +618,7 @@ from this. Adding a command must not require touching four places.
 | `doc.delete`                    | `force:bool=false`            | delete dialog; `force` skips it                  |
 | `doc.add`                       | `source:str?, uri:str?`       | add flow; `source="inbox"` picks from inbox dir; `uri` skips both modals (`:doc.add arxiv 2607.00687`) |
 | `doc.set`                       | `key:str, value:str`          | set a field, batch-aware                         |
+| `doc.refresh`                   | `source:str?`                 | refetch from DOI / arXiv / Crossref and merge, one undo step |
 | `doc.tag` / `doc.untag`         | `tags:str`                    | batch-aware                                      |
 | `doc.status`                    | `value:str?`                  | `reading_status`                                 |
 | `doc.rating`                    | `value:int?`                  | 0–5                                              |

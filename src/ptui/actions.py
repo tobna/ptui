@@ -1808,29 +1808,37 @@ def doc_merge(app: Any) -> None:
 
 
 def _merge_conflicts(app: Any, survivor: Any, others: list[Any]) -> None:
-    """Ask about each genuine clash, then confirm. Recursive: one modal per key."""
     plan = merge.plan(survivor, others)
-    group = [survivor, *others]
+    names = [str(doc.get("ref") or doc.get("title", "?")) for doc in [survivor, *others]]
+    _ask_clashes(app, plan, names, lambda resolved: _merge_apply(app, plan, resolved))
+
+
+def _ask_clashes(app: Any, plan: Any, names: list[str], done: Callable[[dict[str, Any]], None]) -> None:
+    """Ask about each genuine clash, then hand the answers to `done`. Recursive:
+    one modal per key. `names` label the records, survivor first."""
+    import papis.document
+
+    group = [plan.survivor, *plan.others]
     resolved: dict[str, Any] = {}
+
+    def show(key: str, value: Any) -> str:
+        if key == "author_list":  # a list of dicts; the author string is what anyone reads
+            return papis.document.author_list_to_author({"author_list": value})
+        return library.display(value)
 
     def ask(remaining: list[str]) -> None:
         if not remaining:
-            _merge_apply(app, plan, resolved)
+            done(resolved)
             return
         key, rest = remaining[0], remaining[1:]
         values = plan.clashes[key]
         items = [
-            ui.Item(label=library.display(value), value=("value", index), hint=key)
-            for index, value in enumerate(values)
+            ui.Item(label=show(key, value), value=("value", index), hint=key) for index, value in enumerate(values)
         ]
-        # the shortcut: stop being asked and take this document's side throughout
+        # the shortcut: stop being asked and take this record's side throughout
         items += [
-            ui.Item(
-                label=f"keep everything else from {doc.get('ref') or doc.get('title', '?')}",
-                value=("all", position),
-                hint="resolves the rest",
-            )
-            for position, doc in enumerate(group)
+            ui.Item(label=f"keep everything else from {name}", value=("all", position), hint="resolves the rest")
+            for position, name in enumerate(names)
         ]
 
         def chose(choice: tuple[str, int], _invert: bool) -> None:
@@ -1843,11 +1851,69 @@ def _merge_conflicts(app: Any, survivor: Any, others: list[Any]) -> None:
             for pending in [key, *rest]:
                 if winner.get(pending) not in (None, "", [], {}):
                     resolved[pending] = winner.get(pending)
-            _merge_apply(app, plan, resolved)
+            done(resolved)
 
         ui.pick(app, items, title=f"{key} — {len(remaining)} left")(chose)
 
     ask(plan.questions)
+
+
+@command("doc.refresh", "update from a source")
+def doc_refresh(app: Any, source: str = "") -> None:
+    """Fetch the document again and fold in what is new — `papis update --auto`
+    without its FIXME: papis overwrites every key the source has, so a title you
+    fixed by hand reverts. Here a key the document lacks is filled, and each real
+    disagreement is one question, one write and one undo step for all of it.
+    The sources come from the document itself: its DOI, its arXiv id, its title.
+    """
+    doc = app.current
+    if doc is None:
+        return
+    importers = [imp for imp in fetch.refetchers(doc) if source in ("", imp.name)]
+    if not importers:
+        app.log_line(f"[yellow]nothing to refetch {doc.get('ref', '')} from{f' with {source}' if source else ''}[/]")
+        return
+    if len(importers) == 1:
+        _refresh_fetch(app, doc, importers[0])
+        return
+    hints = {"crossref": "a title search: check what it found"}
+    items = [
+        ui.Item(label=imp.name, value=index, hint=hints.get(imp.name, str(imp.uri)))
+        for index, imp in enumerate(importers)
+    ]
+    ui.pick(app, items, title=f"Update {doc.get('ref', '')} from")(
+        lambda index, _i: _refresh_fetch(app, doc, importers[index])
+    )
+
+
+def _refresh_fetch(app: Any, doc: Any, importer: Any) -> None:
+    app.log_line(f"[dim]fetching {doc.get('ref', '')} from {importer.name}…[/]")
+
+    def job() -> None:
+        try:
+            data = fetch.refetch(importer)
+        except Exception as exc:
+            app.call_from_thread(app.log_line, f"[red]{importer.name} failed:[/] {exc}")
+            return
+        app.call_from_thread(_refresh_merge, app, doc, importer.name, data)
+
+    app.run_worker(job, thread=True, group="import")
+
+
+def _refresh_merge(app: Any, doc: Any, source: str, data: dict[str, Any]) -> None:
+    plan = merge.plan(doc, [data])
+    if not plan.gaps and not plan.clashes:
+        app.log_line(f"{source}: nothing new for {doc.get('ref', '')}")
+        return
+
+    def apply(resolved: dict[str, Any]) -> None:
+        changes = {k: v for k, v in merge.resolve(plan, resolved).items() if str(v) != str(doc.get(k))}
+        if changes:
+            _fields_apply(app, doc, changes)
+        else:
+            app.log_line(f"{source}: kept {doc.get('ref', '')} as it was")
+
+    _ask_clashes(app, plan, ["this document", source], apply)
 
 
 def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:

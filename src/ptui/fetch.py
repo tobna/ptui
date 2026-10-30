@@ -15,8 +15,8 @@ call `papis.importer.get_matching_importers_by_uri`:
 * **The `fallback` downloader will try to GET a filesystem path.** URL dispatch
   is therefore restricted to `http://` and `https://`.
 
-Everything here except `available`, `downloaders` and `bib_entries` touches the
-network.
+Everything here except `available`, `downloaders`, `refetchers` and
+`bib_entries` touches the network.
 """
 
 from __future__ import annotations
@@ -104,6 +104,37 @@ def from_url(url: str) -> tuple[dict[str, Any], list[Path]]:
             return dict(importer.ctx.data), [Path(f) for f in importer.ctx.files or []]
     detail = "; ".join(errors[:3]) or "no importer matched"
     raise ValueError(f"nothing could read {url} ({detail})")
+
+
+def refetchers(doc: dict[str, Any]) -> list[Any]:
+    """The importers that can fetch `doc` again, built from its own data with no
+    network: papis's data matching (the DOI; the title, for Crossref), plus arXiv
+    for an arXiv id — that importer matches no data of its own."""
+    import papis.importer
+
+    found = papis.importer.get_matching_importers_by_doc(doc)
+    eprint = doc.get("eprint") if str(doc.get("eprinttype") or "arxiv").casefold() == "arxiv" else None
+    for hint in (doc.get("arxivid"), eprint, doc.get("url")):
+        arxiv = papis.importer.get_importer_by_name("arxiv").match(str(hint)) if hint else None
+        if arxiv is not None:
+            found.append(arxiv)
+            break
+    order = ["doi", "arxiv", "crossref"]  # authority first; a title search last
+    return sorted(found, key=lambda imp: order.index(imp.name) if imp.name in order else len(order))
+
+
+def refetch(importer: Any) -> dict[str, Any]:
+    """Metadata only, never the PDF — the document already has its files. Network."""
+    import papis.importer
+
+    done = papis.importer.fetch_importers([importer], download_files=False)
+    data = dict(done[0].ctx.data or {}) if done else {}
+    if not data:
+        raise ValueError(f"{importer.name} found nothing for {importer.uri}")
+    # the ref is the library's own; citations live in papis's citations file
+    for key in ("ref", "citations", "files"):
+        data.pop(key, None)
+    return data
 
 
 def bib_entries(path: Path) -> list[dict[str, Any]]:

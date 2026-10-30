@@ -2,7 +2,7 @@ from pathlib import Path
 
 from conftest import press, settle
 
-from ptui import actions, clip
+from ptui import actions, clip, fetch
 
 
 def _attach(papis_lib, name: str = "downloaded paper.pdf", body: bytes = b"pdf") -> None:
@@ -434,6 +434,53 @@ async def test_query_prompts_share_a_history_that_up_and_down_walk(app, papis_li
         assert prompt.value == "neural"
         await press(pilot, "down", "down")  # past the newest: what was being typed
         assert prompt.value == "draft"
+
+
+def test_refetchers_come_from_the_document_itself_without_the_network():
+    names = lambda data: [imp.name for imp in fetch.refetchers(data)]  # noqa: E731
+    assert names({"title": "T", "doi": "10.1/x"}) == ["doi", "crossref"]
+    assert names({"title": "T", "eprint": "1706.03762", "eprinttype": "arXiv"}) == ["arxiv", "crossref"]
+    assert names({"title": "T", "eprint": "rJ4km2R5t7", "eprinttype": "openreview"}) == ["crossref"]
+    assert names({}) == []
+
+
+async def test_refresh_fills_gaps_asks_each_clash_and_undoes_in_one_step(app, papis_lib, monkeypatch):
+    from ptui import ui
+
+    fetched = {
+        "title": "Attention is All you Need",  # the publisher's capitalisation: a question
+        "year": 2017,  # stored as an int already: no question
+        "author_list": [{"family": "Vaswani", "given": "X"}],
+        "doi": "10.5555/3295222.3295349",  # a gap: filled without asking
+        "citations": [{"doi": "10.1/y"}],  # never into info.yaml
+    }
+
+    def fetch_importers(importers, download_files):  # the network, and nothing else
+        assert not download_files
+        for importer in importers:
+            importer.ctx.data = dict(fetched)
+        return list(importers)
+
+    monkeypatch.setattr("papis.importer.fetch_importers", fetch_importers)
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "c", "u")  # title only: Crossref is the one source
+        await settle(pilot)
+        assert isinstance(app.screen, ui.SelectList)
+        assert [item.label for item in app.screen.items][:2] == [
+            "Attention Is All You Need",
+            "Attention is All you Need",
+        ]
+        await press(pilot, "enter")  # keep ours
+        await settle(pilot)
+        text = info.read_text()
+        assert "doi: 10.5555/3295222.3295349" in text
+        assert "title: Attention Is All You Need" in text
+        assert "citations" not in text
+        await press(pilot, "u")
+        await settle(pilot)
+        assert "doi" not in info.read_text()
 
 
 async def test_config_set_applies_for_the_session_and_checks_the_value(app):

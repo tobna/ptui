@@ -28,6 +28,9 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   in, generated from `keys.toml` so it can never drift.
 - **Picks up where you left off** — the scope, sort and cursor of your last
   session in each library (`general.persist_state`).
+- **Update without losing your edits** — `c u` refetches a document from its
+  DOI, arXiv id or title and merges: missing fields are filled, and every real
+  disagreement is a question. `papis update --auto` just overwrites.
 - **Read before you open** — the info pane shows the abstract under the
   metadata; `J`/`K` scroll it without leaving the list.
 - **Marks that survive** — marks are keyed by document, not by row, so sorting

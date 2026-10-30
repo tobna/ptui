@@ -156,7 +156,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 207 tests, `uv run pytest`.
+empty. 210 tests, `uv run pytest`.
 
 Built:
 
@@ -207,6 +207,13 @@ Built:
   gone, so the cursor comes from `app._info_of`, not `app.current`. The test
   fixture turns `persist_state` off, or two sessions in one test leak into
   each other
+- **`doc.refresh`** (`c u`): `fetch.refetchers` builds importers from the
+  document (papis `get_matching_importers_by_doc` + arXiv by id, no network),
+  `fetch.refetch` runs papis's `fetch_importers(download_files=False)` in a
+  thread worker, then `merge.plan` with the fetched dict as the other record
+  and `actions._ask_clashes` — the loop `doc.merge` uses too — into
+  `_fields_apply`. Tests stub `papis.importer.fetch_importers`, not
+  `fetch.refetch`, so ptui's own filtering still runs
 - **visual mode**: `visual.start` (`v`, `V` with `unmark`) — `app.visual` holds
   the anchor and the marks from before, and `_move` recomputes the marks as
   base ± the range, so a verb pressed mid-range acts on what is drawn. A

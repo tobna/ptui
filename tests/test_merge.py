@@ -187,3 +187,18 @@ async def test_merge_needs_two_marks(app):
         from ptui import ui
 
         assert not isinstance(app.screen, ui.SelectList)  # nothing opened
+
+
+def test_author_follows_author_list_and_a_year_as_text_is_no_question():
+    """A refetch stores `author` *and* `author_list`: asking both is one question
+    twice. A YAML `'2016'` against a fetched `2016` is not a disagreement."""
+    stored = dict(PUBLISHED, author="He, K.", year="2016")
+    fetched = {
+        "author_list": [{"family": "He", "given": "Kaiming"}, {"family": "Zhang", "given": "X."}],
+        "author": "He, Kaiming and Zhang, X.",
+        "year": 2016,
+    }
+    p = merge.plan(*docs(stored), [fetched])
+    assert set(p.clashes) == {"author_list"}
+    data = merge.resolve(p, {"author_list": fetched["author_list"]})
+    assert data["author"] == "He, Kaiming and Zhang, X."

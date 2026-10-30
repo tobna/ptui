@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+import papis.document
 from papis.document import Document
 
 SKIPPED = frozenset({"papis_id", "files", "time-added", "ref", "_papis_local_folder"})
@@ -61,13 +62,14 @@ class Plan:
 
 
 def _values(docs: list[Document], key: str) -> list[Any]:
-    """Distinct values for `key`, in document order, blanks ignored."""
+    """Distinct values for `key`, in document order, blanks ignored. Compared as
+    text: a fetched `year: 2017` and a stored `year: '2017'` are no question."""
     out: list[Any] = []
     for doc in docs:
         value = doc.get(key)
         if value in (None, "", [], {}):
             continue
-        if value not in out:
+        if str(value) not in {str(seen) for seen in out}:
             out.append(value)
     return out
 
@@ -76,6 +78,8 @@ def plan(survivor: Document, others: list[Document]) -> Plan:
     """Work out which keys fill a gap and which need a decision."""
     group = [survivor, *others]
     keys = {key for doc in group for key in doc if key not in SKIPPED and not key.startswith("_")}
+    if "author_list" in keys:  # `author` is derived from it in `resolve`, not asked twice
+        keys.discard("author")
 
     gaps: dict[str, Any] = {}
     clashes: dict[str, list[Any]] = {}
@@ -107,6 +111,8 @@ def resolve(plan: Plan, choices: dict[str, Any]) -> dict[str, Any]:
             data[key] = choices[key]
     if plan.time_added and plan.time_added != str(plan.survivor.get("time-added") or ""):
         data["time-added"] = plan.time_added
+    if "author_list" in data:
+        data["author"] = papis.document.author_list_to_author(data)
     return data
 
 

@@ -89,6 +89,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "c s"      = { cmd = "doc.status", desc = "reading status" }
 "c r"      = { cmd = "doc.rating", desc = "rating" }
 "c f"      = { cmd = "doc.set",    desc = "set any field" }
+"c u"      = { cmd = "doc.refresh", desc = "update from DOI / arXiv / Crossref" }
 
 # ————— y : yank / export ————————————————————————
 "y y"      = { cmd = "export.citekey", desc = "\\cite{ref}" }

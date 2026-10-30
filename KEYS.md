@@ -41,6 +41,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `c r` | `doc.rating` | rating |
 | `c s` | `doc.status` | reading status |
 | `c t` | `doc.tag` | add tags |
+| `c u` | `doc.refresh` | update from DOI / arXiv / Crossref |
 | `ctrl+a` | `mark.all_filtered` | mark all (alias of m a) |
 | `ctrl+d` | `nav.page_down` | page down |
 | `ctrl+p` | `cmdline.open` | run a command by name |
