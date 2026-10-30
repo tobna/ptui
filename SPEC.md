@@ -457,6 +457,11 @@ toast that vanishes.
   which layout they want, a resize must not argue. There is no third
   single-pane state — the list pane can never be hidden anyway, and `z i` hides
   the info pane on demand.
+- The **info pane** reads top to bottom: title, the common fields, files,
+  doctor findings, and the abstract last, so a long one never pushes the
+  findings out of view. It scrolls by half a pane with `J`/`K` from the list —
+  reading an abstract must not mean leaving it — and another document starts
+  at its top.
 - The **files pane** lists the current document's `files` in stored order — the
   first entry is "the" file — and is where the file verbs act, on the entry
   under its own cursor (`j`/`k` there move it). Like the log it is transient.

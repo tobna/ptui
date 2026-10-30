@@ -28,6 +28,8 @@ escape_chain = ["modal", "visual", "narrow"]
 "up"       = { cmd = "nav.up" }
 "ctrl+d"   = { cmd = "nav.page_down" }
 "ctrl+u"   = { cmd = "nav.page_up" }
+"J"        = { cmd = "info.scroll", desc = "scroll info down" }
+"K"        = { cmd = "info.scroll", args = { up = true }, desc = "scroll info up" }
 "G"        = { cmd = "nav.bottom" }
 
 # — panes ——————————————————————————————————
@@ -166,6 +168,10 @@ escape_chain = ["modal", "visual", "narrow"]
 [modes.info]
 "j"        = { cmd = "nav.down" }
 "k"        = { cmd = "nav.up" }
+"ctrl+d"   = { cmd = "info.scroll" }
+"ctrl+u"   = { cmd = "info.scroll", args = { up = true } }
+"J"        = { cmd = "info.scroll" }
+"K"        = { cmd = "info.scroll", args = { up = true } }
 "e"        = { cmd = "doc.edit" }
 "u"        = { cmd = "app.undo" }
 "ctrl+r"   = { cmd = "app.redo" }

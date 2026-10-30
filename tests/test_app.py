@@ -427,6 +427,27 @@ async def test_a_long_info_value_wraps_under_itself_not_under_its_label(app):
         assert lines[head + 1].strip()  # the continuation, not a blank line
 
 
+async def test_the_abstract_closes_the_info_pane_and_j_k_scroll_it_from_the_list(app):
+    from textual.widgets import Static
+
+    from ptui import actions
+
+    async with app.run_test(size=(80, 20)) as pilot:
+        await settle(pilot)
+        actions.doc_set(app, "abstract", "We   propose\na new " + "simple network architecture " * 30)
+        await settle(pilot)
+        plain = app.query_one("#info", Static).content.plain
+        assert "We propose a new simple" in plain  # the source's hard wraps are gone
+        assert plain.rstrip().endswith("architecture")  # last: never above the files or findings
+        pane = app.query_one("#info-pane")
+        await press(pilot, "J")
+        assert pane.scroll_y > 0
+        await press(pilot, "K")
+        assert pane.scroll_y == 0
+        await press(pilot, "J", "j")  # another document reads from its top
+        assert pane.scroll_y == 0
+
+
 async def test_a_missing_nested_key_renders_blank_without_a_papis_warning(app):
     """`default=""` made papis log a warning *with a traceback* for every such
     cell on every redraw — and build the document's description to do it."""

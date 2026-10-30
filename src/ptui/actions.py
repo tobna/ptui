@@ -71,6 +71,14 @@ def nav_page_up(app: Any) -> None:
     _move(app, -max(1, _table(app).size.height - 2))
 
 
+@command("info.scroll", "scroll the info pane")
+def info_scroll(app: Any, up: bool = False) -> None:
+    """Half a pane, from wherever the keyboard is — an abstract is read from the list."""
+    pane = app.query_one("#info-pane")
+    half = max(1, pane.size.height // 2)
+    pane.scroll_relative(y=-half if up else half, animate=False)
+
+
 _CITE = re.compile(r"\\\w*cite\w*\*?(?:\[[^]]*\])*\{([^}]*)\}")
 
 

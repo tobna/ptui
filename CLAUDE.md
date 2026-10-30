@@ -154,7 +154,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 204 tests, `uv run pytest`.
+empty. 205 tests, `uv run pytest`.
 
 Built:
 
@@ -193,6 +193,10 @@ Built:
 - **the files pane** (`3`): `files.detach` (`x`), `files.reorder` (`K`/`J`),
   `files.repoint` (`p`), `files.rename` (`r`), `files.normalize` (`f n`) —
   each on the entry under `app.file_index`, each one undo step
+- **the abstract** closes the info pane (whitespace collapsed — fetched ones
+  keep the source's hard wraps); `info.scroll` (`J`/`K` in the list,
+  `ctrl+d`/`ctrl+u` in the pane) scrolls `#info-pane` by half its height, and
+  `refresh_info` scrolls home when the document changes (`app._info_of`)
 - **visual mode**: `visual.start` (`v`, `V` with `unmark`) — `app.visual` holds
   the anchor and the marks from before, and `_move` recomputes the marks as
   base ± the range, so a verb pressed mid-range acts on what is drawn. A

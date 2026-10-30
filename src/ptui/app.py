@@ -237,6 +237,7 @@ class PtuiApp(App[None]):
         self.file_index = 0
         """The files pane's cursor: an index into the current document's `files`."""
         self._files_of: str | None = None
+        self._info_of: str | None = None
 
     # ── setup ───────────────────────────────────────────────────────────────
 
@@ -837,7 +838,14 @@ class PtuiApp(App[None]):
                 mark = " " if ok else f"[$error]{ui.glyph('warning')}[/]"
                 lines.append((f"  {mark} ", ui.literal(str(entry))))
         lines += self.doctor_lines(self.current)
+        # Last, so a long one never pushes the files or the findings out of view.
+        if doc.get("abstract"):
+            text = " ".join(str(doc["abstract"]).split())  # fetched ones keep the source's hard wraps
+            lines += ["", f"[dim]{ui.glyph('field.abstract')} abstract[/]", show(text)]
         self.refresh_files()
+        if library.doc_id(self.current) != self._info_of:  # another document reads from its top
+            self._info_of = library.doc_id(self.current)
+            self.query_one("#info-pane").scroll_home(animate=False)
         pane.update(
             Content("\n").join(
                 self.hang(*line) if isinstance(line, tuple) else Content.from_markup(line) for line in lines
@@ -1003,6 +1011,8 @@ class PtuiApp(App[None]):
             return
         if self.mode == "files":
             wanted = ["doc.open", "files.rename", "files.repoint", "files.detach", "files.reorder", "files.normalize"]
+        elif self.mode == "info":
+            wanted = ["nav.down", "info.scroll", "doc.edit", "app.undo", "pane.cycle"]
         elif self.marks:
             wanted = ["doc.tag", "doc.merge", "export.bibtex", "mark.clear", "files.relocate", "doc.delete"]
         else:

@@ -67,7 +67,9 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `g r` | `nav.goto` | go to a citekey |
 | `g s` | `query.load` | saved searches |
 | `i` | `doc.add` source=inbox | add from inbox |
+| `J` | `info.scroll` | scroll info down |
 | `j` | `nav.down` | move down |
+| `K` | `info.scroll` up=True | scroll info up |
 | `k` | `nav.up` | move up |
 | `m A` | `mark.all_filtered` unmark=True | unmark all filtered |
 | `m Q` | `mark.query` unmark=True | unmark by query |
@@ -138,10 +140,14 @@ The info pane, focused with `2` or `tab`.
 | `2` | `pane.focus` pane=info | focus a pane |
 | `3` | `pane.focus` pane=files | focus a pane |
 | `4` | `pane.focus` pane=log | focus a pane |
+| `ctrl+d` | `info.scroll` | scroll the info pane |
 | `ctrl+r` | `app.redo` | redo |
+| `ctrl+u` | `info.scroll` up=True | scroll the info pane |
 | `e` | `doc.edit` | edit |
 | `g o` | `app.log` | operation log |
+| `J` | `info.scroll` | scroll the info pane |
 | `j` | `nav.down` | move down |
+| `K` | `info.scroll` up=True | scroll the info pane |
 | `k` | `nav.up` | move up |
 | `shift+tab` | `pane.cycle` back=True | next pane |
 | `tab` | `pane.cycle` | next pane |
