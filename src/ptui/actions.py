@@ -1531,7 +1531,7 @@ def doc_delete(app: Any, force: bool = False) -> None:
         _delete_apply(app, targets, [d for d in doomed if d.choice.checked])
         return
 
-    shown = [f"  {doc.get('ref') or library.doc_id(doc)}" for doc in targets[:10]]
+    shown = [f"  {ui.literal(str(doc.get('ref') or library.doc_id(doc)))}" for doc in targets[:10]]
     if len(targets) > 10:
         shown.append(f"  [dim]… and {len(targets) - 10} more[/]")
     inside = sum(len(doc.get("files") or []) for doc in targets) - len(doomed)

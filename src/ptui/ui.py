@@ -150,7 +150,7 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
 
     def compose(self) -> ComposeResult:
         with Vertical():
-            yield Static(self.title_text, id="picker-title")
+            yield Static(literal(self.title_text), id="picker-title")
             yield Input(placeholder="filter")
             yield OptionList()
 
@@ -169,8 +169,11 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
         """The cursor points at the row you are on — every picker has one of those,
         while only some are opened with a `current` value. That one is marked by
         being bold, not by the cursor, or the two would fight for the same cell."""
-        label = f"[bold]{item.label}[/]" if item.value == self.current else item.label
-        hint = f"  [dim]{item.hint}[/]" if item.hint else ""
+        # `literal`: labels are file names, titles and refs, and `[weird].pdf`
+        # is text, not a tag
+        label = literal(item.label)
+        label = f"[bold]{label}[/]" if item.value == self.current else label
+        hint = f"  [dim]{literal(item.hint)}[/]" if item.hint else ""
         return f"{glyph('cursor') if here else ' '} {label}{hint}"
 
     def _populate(self) -> None:
@@ -284,7 +287,7 @@ class ConfirmDelete(ModalScreen[list[int] | None]):
                 yield SelectionList[int](
                     *(
                         (
-                            f"{choice.label}{f'  [dim]{choice.note}[/]' if choice.note else ''}",
+                            f"{literal(choice.label)}{f'  [dim]{literal(choice.note)}[/]' if choice.note else ''}",
                             index,
                             choice.checked,
                         )

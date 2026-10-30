@@ -98,3 +98,20 @@ def test_literal_survives_everything_textual_would_eat():
     assert ui.literal("key [doc[year]] is odd") == r"key \[doc\[year]] is odd"
     assert ui.literal("a [bold]x[/] b") == r"a \[bold]x\[/] b"
     assert ui.literal("nothing to do") == "nothing to do"
+
+
+async def test_a_picker_shows_brackets_in_labels_hints_and_titles(app):
+    """Inbox file names, titles and refs went through markup: `other [weird]
+    name.pdf` was listed as `other  name.pdf`."""
+    from textual.content import Content
+    from textual.widgets import Static
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        item = ui.Item(label="other [weird] name.pdf", value=1, hint="[draft]")
+        app.push_screen(ui.SelectList([item], title="Attach to [x]", current=1))
+        await settle(pilot)
+        prompt = str(app.screen.query_one(OptionList).get_option_at_index(0).prompt)
+        assert "other [weird] name.pdf" in Content.from_markup(prompt).plain
+        assert "[draft]" in Content.from_markup(prompt).plain
+        assert "Attach to [x]" in str(app.screen.query_one("#picker-title", Static).render())
