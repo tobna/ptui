@@ -175,9 +175,10 @@ async def test_help_opens_in_every_mode_and_lists_effective_bindings(app):
         assert isinstance(app.screen, ui.SelectList)
         assert any(label.startswith("f r") and "relocate" in label for label in labels)
         assert any("(not implemented)" in label for label in labels)  # honest about d d
+        assert any(label.startswith("! d") and "current=true" in label for label in labels)  # not a bare True
         await press(pilot, "escape")
 
-        await press(pilot, "4", "?")  # the log mode binds nothing at all
+        await press(pilot, "4", "?")  # the log mode binds only the pane keys
         assert isinstance(app.screen, ui.SelectList)
         assert app.screen.items[0].label.startswith("escape")
 

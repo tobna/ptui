@@ -1079,7 +1079,10 @@ def help_show(app: Any) -> None:
     """
     items = []
     for binding in sorted(app.km.modes.get(app.mode, {}).values(), key=lambda b: (b.chord[0].casefold(), b.keys)):
-        args = " ".join(str(value) for value in binding.args.values())
+        # as keys.toml spells them: `current=true` says what `True` alone does not
+        args = " ".join(
+            f"{key}={str(value).lower() if isinstance(value, bool) else value}" for key, value in binding.args.items()
+        )
         note = "" if binding.cmd in REGISTRY else "  (not implemented)"
         label = f"{binding.keys:<10} {binding.desc or binding.cmd}{f' — {args}' if args else ''}"
         hint = "" if binding.desc in ("", binding.cmd) else binding.cmd  # no echo of the label
