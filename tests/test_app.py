@@ -195,7 +195,7 @@ async def test_cmdline_runs_a_command_by_name_and_shows_its_keys(app):
 
         await press(pilot, *"mark.all")  # fuzzy completion narrows to one row
         assert [i.value for i in app.screen.shown] == ["mark.all_filtered"]
-        await press(pilot, "enter")
+        await press(pilot, "enter", "enter")  # `[unmark]` gets the prompt; empty keeps the default
         assert len(app.marks) == 3  # it ran, not just closed
 
 
