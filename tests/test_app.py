@@ -699,3 +699,18 @@ async def test_rename_leaves_a_supplement_its_name(app, papis_lib):
         papis.config.set("add-file-name", "{doc[year]}-{doc[author_list][0][family]}")
         await press(pilot, "3", "r")
         assert app.current["files"] == ["paper_supp.pdf"]
+
+
+async def test_normalize_writes_the_canonical_style_and_drops_duplicates(app, papis_lib):
+    # not .pdf: the fixture's rules ask for absolute paths there, and do get them
+    folder = papis_lib / "lib" / "doc0"
+    for name in ("a.djvu", "b.djvu"):
+        (folder / name).write_bytes(b"x")
+    info = folder / "info.yaml"
+    info.write_text(info.read_text() + f"files:\n- ./a.djvu\n- {folder / 'b.djvu'}\n- a.djvu\n")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "f", "n")
+        assert app.current["files"] == ["a.djvu", "b.djvu"]
+        await press(pilot, "u")
+        assert app.current["files"] == ["./a.djvu", str(folder / "b.djvu"), "a.djvu"]

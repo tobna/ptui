@@ -78,8 +78,13 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   `g s` lists them next to the ones in `config.toml`. `g r` jumps to a pasted
   `\cite{key}`; `m q` marks by query without touching the view.
 
-Not there yet: the files pane and visual mode. Bindings for them exist and say
-so when pressed — see [`TODO.md`](TODO.md).
+- **A files pane** — `3` lists the document's files in order; `x` detaches one
+  (the file stays), `K`/`J` reorder, `p` repoints a broken path at a file in the
+  folder, `r` renames to papis's own `add-file-name` scheme, `f n` tidies path
+  styles. Every one of them is a single `u` away from undone.
+
+Not there yet: visual mode. Its bindings exist and say so when pressed — see
+[`TODO.md`](TODO.md).
 
 ## Install
 

@@ -189,12 +189,14 @@ Built:
   checkbox dialog, and all three `undo.strategy` values
 - **`files.attach`** (`f a`): `papis addto` on the cursor's document — a
   path, a URL, or the inbox
+- **the files pane** (`3`): `files.detach` (`x`), `files.reorder` (`K`/`J`),
+  `files.repoint` (`p`), `files.rename` (`r`), `files.normalize` (`f n`) —
+  each on the entry under `app.file_index`, each one undo step
 
-Not built. 3 keys are bound to commands that only log "not implemented yet" —
+Not built. 2 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
 (import `actions` first, or the registry is empty and every key looks unbound).
-The clusters: visual mode (`v`/`V`), and the files pane with its
-`[modes.files]` verbs. Shipped
+They are visual mode (`v`/`V`). Shipped
 but read by nothing yet: the keys `tests/test_config.py::test_every_shipped_key_is_read_somewhere`
 lists — each backlog item that lands takes its key off that list.
 

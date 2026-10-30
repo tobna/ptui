@@ -1283,9 +1283,9 @@ def files_repoint(app: Any, index: int | None = None, path: str | None = None) -
     loose = sorted(p for p in folder.iterdir() if p.is_file() and p.name != "info.yaml" and p not in held)
     items = [ui.Item(label="a path…", value="", hint="type it"), *(ui.Item(label=p.name, value=str(p)) for p in loose)]
     ui.pick(app, items, title=f"{entries[at]} -> ?")(
-        lambda chosen, _i: files_repoint(app, at, chosen)
-        if chosen
-        else app.open_prompt(f"repoint:{at}", f"path for {entries[at]}")
+        lambda chosen, _i: (
+            files_repoint(app, at, chosen) if chosen else app.open_prompt(f"repoint:{at}", f"path for {entries[at]}")
+        )
     )
 
 
@@ -1356,6 +1356,43 @@ def files_rename(app: Any, index: int | None = None) -> None:
         )
     )
     app.log_line(f"renamed {src.name} -> {dest.name}")
+
+
+@command("files.normalize", "normalize path styles")
+def files_normalize(app: Any) -> None:
+    """Rewrite every `files` entry of the targets in the style its placement rule
+    asks for — under `keep`, relative inside the document folder and absolute
+    outside it — and drop entries that point at the same file twice. Explicit
+    only: nothing else in ptui changes a path's style. One undo step."""
+    rules = place.Rules.from_config(app.cfg)
+    planned = []
+    for doc in app.targets:
+        folder = Path(doc.get_main_folder() or ".")
+        entries, seen, new = list(doc.get("files") or []), set(), []
+        for entry in entries:
+            path = place.resolve(doc, entry).resolve()
+            if path in seen:
+                continue
+            seen.add(path)
+            style = rules.first_match(path).path_style
+            if style == "keep":
+                style = "relative-doc" if folder.resolve() in path.parents else "absolute"
+            new.append(place._entry(path, doc, style, None))
+        if new != entries:
+            planned.append((doc, new))
+    if not planned:
+        app.log_line("every path is already in its style")
+        return
+    if len(planned) == 1:
+        _set_apply(app, planned, "files")
+        return
+    items = [
+        ui.Item(label=f"rewrite the files of {len(planned)} documents", value=True),
+        ui.Item(label="cancel", value=False),
+    ]
+    ui.pick(app, items, title=f"normalize paths — {len(planned)} documents?")(
+        lambda ok, _invert: _set_apply(app, planned, "files") if ok else None
+    )
 
 
 @command("files.attach", "attach file")

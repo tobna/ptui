@@ -12,7 +12,7 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 ## B. Bound but not implemented (they log "not implemented yet")
 
-- `f n` `files.normalize`. (The files pane and its verbs are built.)
+- `v` / `V` — visual mode, the last bound keys with nothing behind them.
 
 ## C. Decisions that change the defaults (and so SPEC)
 

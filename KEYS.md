@@ -55,7 +55,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `escape` | `app.escape` | cancel |
 | `f R` | `files.relocate` force=True | relocate (force) |
 | `f a` | `files.attach` | attach file |
-| `f n` | `files.normalize` | normalize path styles *(not implemented)* |
+| `f n` | `files.normalize` | normalize path styles |
 | `f o` | `files.open_pick` | open which file… |
 | `f r` | `files.relocate` | relocate + rename to scheme |
 | `G` | `nav.bottom` | last document |
@@ -119,8 +119,8 @@ The files pane. Not built yet, so these bindings only log.
 | `k` | `nav.up` | move up |
 | `m` | `files.relocate` | apply placement rules |
 | `o` | `doc.open` | open this file |
-| `p` | `files.repoint` | fix broken path *(not implemented)* |
-| `r` | `files.rename` | rename to scheme *(not implemented)* |
+| `p` | `files.repoint` | fix broken path |
+| `r` | `files.rename` | rename to scheme |
 | `shift+tab` | `pane.cycle` back=True | next pane |
 | `tab` | `pane.cycle` | next pane |
 | `u` | `app.undo` | undo |
