@@ -655,12 +655,79 @@ def _resync(app: Any, doc: Any) -> None:
 
 @command("doc.edit", "edit")
 def doc_edit(app: Any) -> None:
-    """`edit.mode` decides which editor. The structured one is not built (SPEC
-    § Editing), so `editor` is the shipped default and this is `doc.edit_raw`
-    with a note when the config still asks for the form."""
-    if app.cfg.get("edit.mode", "editor") == "structured":
-        app.log_line("[yellow]the structured editor is not built yet; opening $EDITOR[/]")
-    doc_edit_raw(app)
+    """`edit.mode` decides: `structured` is a form over `edit.structured_fields`,
+    `editor` is `$EDITOR` on the whole `info.yaml` — what `E` always is.
+
+    The form cannot emit invalid YAML: every value goes through `library.typed`
+    (papis's declared field types) and the safe write. Emptying a field removes
+    it, and the whole edit is one undo step.
+    """
+    import papis.document
+
+    doc = app.current
+    if doc is None:
+        return
+    if app.cfg.get("edit.mode", "structured") != "structured":
+        doc_edit_raw(app)
+        return
+    fields = tuple(app.cfg.get("edit.structured_fields") or ui.ADD_FIELDS)
+
+    def text(field: str) -> str:
+        if field == "author_list":
+            return papis.document.author_list_to_author(doc) if doc.get("author_list") else str(doc.get("author") or "")
+        value = doc.get(field)
+        return "" if value is None else library.display(value)
+
+    initial = {field: text(field) for field in fields}
+
+    def confirm(data: dict[str, str] | None) -> None:
+        if data is None:
+            return
+        changes: dict[str, Any] = {}
+        try:
+            for field, value in data.items():
+                if value == initial[field]:
+                    continue
+                if field == "author_list":  # both keys, as papis's own add writes them
+                    changes["author"] = value or None
+                    changes["author_list"] = papis.document.split_authors_name([value]) if value else None
+                else:
+                    changes[field] = library.typed(field, value, doc.get(field))
+        except ValueError as exc:  # `year = soon`: nothing is written
+            app.log_line(f"[red]{exc}[/]")
+            return
+        if changes:
+            _fields_apply(app, doc, changes)
+
+    ref = doc.get("ref") or doc.get("title", "")
+    app.push_screen(
+        ui.EditForm(f"Edit {ref}  (enter saves, escape cancels, E for the whole file)", fields, initial), confirm
+    )
+
+
+def _fields_apply(app: Any, doc: Any, changes: dict[str, Any]) -> None:
+    """Several keys of one document, one write and one undo step. `None` removes."""
+    before = {key: doc.get(key) for key in changes}
+
+    def write(values: dict[str, Any]) -> None:
+        def mutate(data: Any) -> None:
+            for key, value in values.items():
+                if value is None:
+                    safewrite.drop(data, key)
+                else:
+                    safewrite.put(data, key, value)
+
+        safewrite.edit(doc, mutate)
+        _resort(app)
+
+    try:
+        write(changes)
+    except safewrite.StaleError:
+        app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
+        return
+    label = f"edit {', '.join(changes)} of {doc.get('ref', '')}"
+    app.history.push(undo.Step(label, lambda: write(before), lambda: write(changes)))
+    app.log_line(label)
 
 
 @command("doc.notes", "notes")

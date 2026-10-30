@@ -33,10 +33,6 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
      loses to ASCII on any doubt, and `config.get("ui.icons")` stops being a bool
      — `ui.use_icons()` is the only caller, so that stays a one-line change.
 
-2. **The structured editor is still unbuilt.** `edit.mode` now ships as
-   `"editor"`, so `e` and `E` are the same command and `structured_fields` is
-   read by nothing. Either build the form or drop the mode and the config key.
-
 ## D. Display polish
 
 - **User-defined themes.** The palette is now a Textual theme and ptui ships one

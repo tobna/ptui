@@ -56,8 +56,9 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   already there), `c T` removes them, `c s` sets the reading status, `c r` the
   rating, and `c f` any field at all, with the type papis declares for it
   (`tags` a list, `year` an int). All batch-aware over marks, batches confirm
-  first, every write through the safe-write path. `e` opens `$EDITOR` and tells
-  you if you saved YAML papis can no longer parse.
+  first, every write through the safe-write path. `e` opens a form over the
+  common fields (typed, one undo step), `E` the whole `info.yaml` in `$EDITOR`,
+  telling you if you saved YAML papis can no longer parse.
 - **Looks like your editor** — 22 themes, live-switchable with `\ t`: the
   catppuccin family, gruvbox, nord, rosé pine, solarized, dracula, and
   `tokyonight-moon` (LazyVim's default) shipped as the out-of-the-box palette.

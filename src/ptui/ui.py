@@ -311,9 +311,11 @@ class ConfirmDelete(ModalScreen[list[int] | None]):
         self.dismiss(None)
 
 
-# ponytail: a fixed field list. `edit.structured_fields` belongs to the
-# structured editor (post-v0), and `author_list` is not a one-line text field.
+# ponytail: a fixed field list for adding; editing reads `edit.structured_fields`.
 ADD_FIELDS = ("title", "author", "year", "ref", "tags", "doi")
+
+FIELD_LABELS = {"author_list": "author"}
+"""`author_list` is edited as papis's one-line `author` string."""
 
 
 class AddForm(ModalScreen[dict[str, str] | None]):
@@ -344,21 +346,31 @@ class AddForm(ModalScreen[dict[str, str] | None]):
     AddForm #add-preview { padding: 1 2 0 2; color: $text-muted; }
     """
 
-    def __init__(self, source: Path | None, data: dict[str, str], preview: Callable[[dict], str]) -> None:
+    def __init__(
+        self,
+        source: Path | None,
+        data: dict[str, str],
+        preview: Callable[[dict], str] | None,
+        *,
+        fields: tuple[str, ...] = ADD_FIELDS,
+        title: str = "",
+    ) -> None:
         super().__init__()
         self.source = source
         """None for a metadata-only add — an importer that found no PDF."""
         self.data = data
         self.preview = preview
+        self.fields = fields
+        self.title_text = title
 
     def compose(self) -> ComposeResult:
         with Vertical():
             what = self.source.name if self.source else "from metadata"
             # `literal`: a file name may hold brackets, and this is the one
             # string here that goes through markup.
-            yield Static(f"Add {literal(what)}", id="picker-title")
-            for field_name in ADD_FIELDS:
-                yield Static(field_name, classes="field-label")
+            yield Static(literal(self.title_text or f"Add {what}"), id="picker-title")
+            for field_name in self.fields:
+                yield Static(FIELD_LABELS.get(field_name, field_name), classes="field-label")
                 yield Input(value=str(self.data.get(field_name, "")), id=f"add-{field_name}")
             # markup=False: a destination path is full of `[doc[year]]`-shaped
             # text that Textual would otherwise read as markup.
@@ -371,12 +383,13 @@ class AddForm(ModalScreen[dict[str, str] | None]):
     def _values(self) -> dict[str, str]:
         return {
             name: self.query_one(f"#add-{name}", Input).value.strip()
-            for name in ADD_FIELDS
+            for name in self.fields
             if self.query_one(f"#add-{name}", Input).value.strip()
         }
 
     def _refresh_preview(self) -> None:
-        self.query_one("#add-preview", Static).update(self.preview(self._values()))
+        if self.preview is not None:
+            self.query_one("#add-preview", Static).update(self.preview(self._values()))
 
     def on_input_changed(self, _: Input.Changed) -> None:
         self._refresh_preview()
@@ -388,3 +401,17 @@ class AddForm(ModalScreen[dict[str, str] | None]):
         if event.key == "escape":
             self.dismiss(None)
             event.stop()
+
+
+class EditForm(AddForm):
+    """The add form over a document's own fields — `doc.edit` in `structured`
+    mode. Every field comes back, empty ones included: emptying a field is how
+    it is removed."""
+
+    DEFAULT_CSS = "EditForm #add-preview { display: none; }  /* nothing is placed */"
+
+    def __init__(self, title: str, fields: tuple[str, ...], data: dict[str, str]) -> None:
+        super().__init__(None, data, None, fields=fields, title=title)
+
+    def _values(self) -> dict[str, str]:
+        return {name: self.query_one(f"#add-{name}", Input).value.strip() for name in self.fields}

@@ -180,8 +180,8 @@ Built:
 - **the `c` namespace**: `doc.set` (`c f`), `doc.tag`/`doc.untag` (`c t`/`c T`),
   `doc.status` (`c s`), `doc.rating` (`c r`) — one field on every target through
   `safewrite`, typed from papis's own declared key types
-- **`doc.edit`** (`e`) and **`doc.notes`** (`g n`), both `$EDITOR` under
-  `app.suspend()`
+- **`doc.edit`** (`e`), a form over the common fields, and **`doc.edit_raw`**
+  (`E`) / **`doc.notes`** (`g n`), both `$EDITOR` under `app.suspend()`
 - **themes**: Textual's 21 plus `tokyonight-moon`, `theme.picker` (`\ t`),
   titled panes, a lualine-shaped status bar, the doctor's exception marker
 - **`doc.delete` (`d d`) + `app.undo`/`app.redo`** (`u` / `ctrl+r`): the
@@ -557,9 +557,12 @@ truthy. Too many arguments, an unclosed quote and a bad number all raise
 
 `doc.edit_raw` re-parses `info.yaml` after `$EDITOR` returns and **does not
 reload** when it no longer parses: papis cannot load it either, so reloading
-would redraw the document as having lost every field. `doc.edit` is the same
-thing plus a note when `edit.mode` still says `structured` — that editor is not
-built, and `editor` is now the shipped default (SPEC § Editing). `doc.notes`
+would redraw the document as having lost every field. `doc.edit` (`e`) is the
+structured editor by default: `ui.EditForm`, the add form's layout over
+`edit.structured_fields`, returning every field (empty means remove) into
+`actions._fields_apply` — one safe write and one undo step for all the keys.
+`author_list` is edited as papis's `author` string and written back as both.
+`edit.mode = "editor"` makes `e` the same as `E`. `doc.notes`
 hands off to `papis.commands.edit.edit_notes`, which writes the `notes` key
 itself — one of the few writes not going through `safewrite`, for the same
 reason `papis.commands.add.run` does not: it is papis's own API. Both suspend
