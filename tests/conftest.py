@@ -107,7 +107,9 @@ def build_app(papis_lib, extra: str = ""):
         # competed with the 0.2s `settle` for the GIL — under load the first
         # press landed before the list had rows, and the command found no target.
         f"[doctor]\nscan_on_startup = false\n"
-        f'[undo]\ntrash_dir = "{papis_lib / "trash"}"\n' + extra
+        f'[undo]\ntrash_dir = "{papis_lib / "trash"}"\n'
+        f'[query]\nsaved_file = "{papis_lib / "saved.json"}"\n'
+        f'history_file = "{papis_lib / "history"}"\n' + extra
     )
     return PtuiApp(config.load(ptui_config), keymap.load(papis_lib / "no-keys.toml"))
 

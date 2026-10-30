@@ -12,10 +12,6 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 ## B. Bound but not implemented (they log "not implemented yet")
 
-- `g s` `view.saved`, `\ s` `query.save` — saved searches, the last namespace
-  with nothing behind it. A TOML file of name -> (scope, sort) and two commands.
-- `g m` `view.marked` — `m o` (`mark.show_only`) already does this; either bind
-  `g m` to it or drop the command from the registry.
 - `f n` `files.normalize`, and the `[modes.files]` verbs
   (`files.rename`, `files.repoint`, `files.detach`, `files.reorder`) — there is
   no files pane yet.
@@ -95,10 +91,7 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 ## F. New features asked for
 
-1. **The `:` line's own commands** — specified in `SPEC.md` § "Commands that
-   exist for the `:` line". They need no key: the argument is the command.
-   Still to build: `query.save name` (with saved searches, § B). Everything
-   else in that table is built.
+Nothing open: the `:` commands of `SPEC.md` are all built.
 
 ## G. Packaging
 

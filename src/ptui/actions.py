@@ -6,6 +6,7 @@ app module, so `app.py` can import this at load time to register everything.
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -144,8 +145,9 @@ def app_log(app: Any) -> None:
 # ── queries ─────────────────────────────────────────────────────────────────
 
 
-def scope(app: Any, query: str) -> None:
-    """Run a papis query and rebuild the scoped set. Marks survive by design."""
+def scope(app: Any, query: str) -> bool:
+    """Run a papis query and rebuild the scoped set. Marks survive by design.
+    False when papis rejected the query and the old scope is still on screen."""
     aliases = app.cfg.get("query.aliases", {})
     expanded = library.expand_aliases(query, aliases)
     try:
@@ -158,12 +160,101 @@ def scope(app: Any, query: str) -> None:
         if query and not app.docs:  # the startup query: the library beats an empty screen
             app.scope_query = ""
             scope(app, "")
-        return
+        return False
     app.scope_query = query
     if expanded != query:
         app.log_line(f"[dim]scope -> {expanded}[/]")
     app.apply_sort()
     app.refilter()
+    return True
+
+
+# ── saved searches ──────────────────────────────────────────────────────────
+
+
+def _saved_file(app: Any) -> dict[str, dict[str, Any]]:
+    """What `query.save` wrote. JSON, in the state dir: ptui never rewrites
+    `config.toml`, and the standard library cannot write TOML anyway."""
+    path = app.cfg.as_path("query.saved_file")
+    try:
+        return json.loads(path.read_text()) if path else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def saved_searches(app: Any) -> dict[str, dict[str, Any]]:
+    """`[query.saved]` from `config.toml`, then what `query.save` wrote — a name
+    saved from the app wins. A plain string is a scope with no sort."""
+    out = {
+        name: value if isinstance(value, dict) else {"scope": str(value)}
+        for name, value in app.cfg.get("query.saved", {}).items()
+    }
+    out.update(_saved_file(app))
+    return out
+
+
+def _write_saved(app: Any, saved: dict[str, dict[str, Any]]) -> None:
+    path = app.cfg.as_path("query.saved_file")
+    if path is None:
+        raise ValueError("query.saved_file is not set")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.ptui.tmp")
+    tmp.write_text(json.dumps(saved, indent=2, ensure_ascii=False) + "\n")
+    tmp.replace(path)
+
+
+@command("query.save", "save the current search")
+def query_save(app: Any, name: str | None = None) -> None:
+    """Save the scope and the sort under a name, for `g s`. The narrow is not
+    part of it: it is the per-keystroke layer, and a saved search is a place."""
+    if name is None:
+        app.open_prompt("save", "name for this search (scope + sort)")
+        return
+    saved = _saved_file(app)
+    replaced = name in saved_searches(app)
+    saved[name] = {"scope": app.scope_query, "sort": app.sort_key, "reverse": app.sort_reverse}
+    _write_saved(app, saved)
+    app.log_line(f"{'replaced' if replaced else 'saved'} {name}: {app.scope_query or '*'}, by {app.sort_key}")
+
+
+@command("query.load", "saved searches")
+def query_load(app: Any, name: str | None = None) -> None:
+    """Apply a saved search — its scope and, if it has one, its sort. With no
+    name, a picker; there `shift+enter` forgets a search `\\ s` saved."""
+    saved = saved_searches(app)
+    if name is not None:
+        if name not in saved:
+            app.log_line(f"[yellow]no saved search {name}[/]")
+            return
+        entry = saved[name]
+        if "sort" in entry:
+            app.sort_key = entry["sort"]
+            app.sort_reverse = bool(entry.get("reverse", app.sort_reverse))
+        if scope(app, str(entry.get("scope", ""))):
+            app.log_line(f"search: {name}")
+        return
+
+    if not saved:
+        app.log_line("[yellow]no saved searches yet — \\ s saves this one[/]")
+        return
+    items = [
+        ui.Item(label=label, value=label, hint=f"{entry.get('scope') or '*'}  {entry.get('sort', '')}".strip())
+        for label, entry in saved.items()
+    ]
+
+    def chosen(label: str, forget: bool) -> None:
+        if not forget:
+            query_load(app, label)
+            return
+        mine = _saved_file(app)
+        if label not in mine:
+            app.log_line(f"[yellow]{label} is in config.toml; remove it there[/]")
+            return
+        del mine[label]
+        _write_saved(app, mine)
+        app.log_line(f"forgot {label}")
+
+    ui.pick(app, items, title="Saved searches (shift+enter forgets)")(chosen)
 
 
 def prompt_result(app: Any, kind: str, value: str) -> None:
@@ -181,6 +272,9 @@ def prompt_result(app: Any, kind: str, value: str) -> None:
             doc_set(app, field, text.strip())
     elif kind in ("tag", "untag"):
         (doc_tag if kind == "tag" else doc_untag)(app, value)
+    elif kind == "save":
+        if value.strip():
+            query_save(app, value.strip())
     elif kind == "goto":
         if value.strip():
             nav_goto(app, value)

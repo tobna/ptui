@@ -295,6 +295,15 @@ must stay on the same document — preserve cursor by `papis_id` across
 re-sort, exactly as marks are. An edit to the sort key re-sorts: a `c` verb
 that changes `year` while sorted by year moves the row, cursor following.
 
+## Saved searches
+
+A saved search is a scope query and, optionally, a sort. Two sources, merged by
+name: `[query.saved]` in `config.toml`, which the user edits, and
+`query.saved_file` (JSON in the state dir), which `query.save` (`\ s`) writes —
+ptui never rewrites `config.toml`. The narrow is not saved: a saved search is a
+place, the narrow the per-keystroke layer on top of it. `g s` lists both;
+`shift+enter` forgets one the app saved.
+
 ## SelectList — shared modal picker
 
 Build once, use for sort selection, `query.load`, `lib.switch`,
@@ -539,7 +548,7 @@ from this. Adding a command must not require touching four places.
 | `query.narrow`                  | `q:str?`                      | in-memory filter                                 |
 | `query.clear`                   |                               | clear narrow, keep scope                         |
 | `query.save`                    | `name:str`                    | save scope + sort                                |
-| `query.load`                    | `name:str?`                   | SelectList over saved searches                   |
+| `query.load`                    | `name:str?`                   | SelectList over saved searches (`g s`); `shift+enter` forgets one |
 | `sort.picker`                   |                               | modal sort selector                              |
 | `sort.by`                       | `key:str, reverse:bool?`      | direct; omitted `reverse` → key default          |
 | `sort.reverse`                  |                               | toggle direction of current key                  |
@@ -575,7 +584,6 @@ from this. Adding a command must not require touching four places.
 | `export.citekey`                |                               | per `export.citekey_format`                      |
 | `export.path`                   |                               | absolute path of main file                       |
 | `export.url`                    |                               | DOI/URL                                          |
-| `view.saved`                    |                               | saved searches view                              |
 | `doctor.run`                    | `checks:str?`, `current:bool` | scan → log + narrow to what has findings; **never fixes** |
 | `doctor.fix`                    | `checks:str?, current:bool`   | every fixable finding on the targets, via safe-write; `checks` fixes one check across the library |
 | `doctor.fix_pick`               |                               | SelectList over this document's findings; `enter` fixes that one |

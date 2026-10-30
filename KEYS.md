@@ -32,7 +32,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `?` | `help.show` | help |
 | `\ c` | `app.config_check` | check config |
 | `\ k` | `keymap.check` | check keymap conflicts |
-| `\ s` | `query.save` | save current search *(not implemented)* |
+| `\ s` | `query.save` | save current search |
 | `\ t` | `theme.picker` | theme |
 | `a` | `doc.add` | add document |
 | `b` | `doc.browse` | open URL/DOI |
@@ -61,11 +61,11 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `G` | `nav.bottom` | last document |
 | `g g` | `nav.top` | top |
 | `g l` | `lib.switch` | switch library |
-| `g m` | `view.marked` | marked only *(not implemented)* |
+| `g m` | `mark.show_only` | marked only |
 | `g n` | `doc.notes` | notes |
 | `g o` | `app.log` | operation log |
 | `g r` | `nav.goto` | go to a citekey |
-| `g s` | `view.saved` | saved searches *(not implemented)* |
+| `g s` | `query.load` | saved searches |
 | `i` | `doc.add` source=inbox | add from inbox |
 | `j` | `nav.down` | move down |
 | `k` | `nav.up` | move up |

@@ -75,8 +75,8 @@ escape_chain = ["modal", "visual", "narrow"]
 # ————— g : go somewhere —————————————————————————
 "g g"      = { cmd = "nav.top",     desc = "top" }
 "g n"      = { cmd = "doc.notes",   desc = "notes" }
-"g s"      = { cmd = "view.saved",  desc = "saved searches" }
-"g m"      = { cmd = "view.marked", desc = "marked only" }
+"g s"      = { cmd = "query.load",  desc = "saved searches" }
+"g m"      = { cmd = "mark.show_only", desc = "marked only" }
 "g l"      = { cmd = "lib.switch",  desc = "switch library" }
 "g r"      = { cmd = "nav.goto",    desc = "go to a citekey" }
 "g o"      = { cmd = "app.log",     desc = "operation log" }

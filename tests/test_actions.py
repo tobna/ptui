@@ -425,3 +425,41 @@ async def test_goto_jumps_to_a_pasted_citekey_and_drops_a_hiding_narrow(app):
         assert app.narrow_query == ""
         await press(pilot, "g", "r", *"Nobody1999", "enter")
         assert app.current["ref"] == "Bengio2003"  # unknown: stays put, says so
+
+
+async def test_a_saved_search_comes_back_with_its_sort_and_can_be_forgotten(app, papis_lib):
+    import json
+
+    from conftest import press, settle
+
+    from ptui import ui
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "s", *"year:2016", "enter")
+        await press(pilot, "ctrl+s")
+        await press(pilot, "\\", "s", *"resnet", "enter")
+        saved = json.loads((papis_lib / "saved.json").read_text())
+        assert saved["resnet"] == {"scope": "year:2016", "sort": "time-added", "reverse": False}
+
+        await press(pilot, "s", "ctrl+u", "enter")  # back to everything, default sort
+        await press(pilot, "ctrl+s")
+        assert len(app.docs) == 3
+        await press(pilot, "g", "s")
+        assert isinstance(app.screen, ui.SelectList)
+        assert {item.value for item in app.screen.items} >= {"resnet", "to-read", "mine"}  # config's too
+        await press(pilot, *"resnet", "enter")
+        assert app.scope_query == "year:2016"
+        assert app.sort_reverse is False
+
+        await press(pilot, "g", "s", *"resnet", "shift+enter")
+        assert "resnet" not in json.loads((papis_lib / "saved.json").read_text())
+
+
+async def test_g_m_shows_only_the_marked(app):
+    from conftest import press, settle
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "space", "g", "m")
+        assert len(app.rows) == 1
