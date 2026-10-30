@@ -1,4 +1,5 @@
 import papis.document
+import pytest
 
 from ptui import library
 
@@ -257,3 +258,17 @@ def test_typed_follows_the_declared_type_then_the_stored_one():
     assert library.typed("tags", "   ") is None  # nothing typed means remove the key
     with pytest.raises(ValueError):
         library.typed("year", "twenty")
+
+
+@pytest.mark.parametrize(
+    ("stored", "kind"),
+    [("phdthesis", "thesis"), ("mastersthesis", "thesis"), ("techreport", "report"), ("conference", "inproceedings")],
+)
+def test_kind_reads_a_bibtex_alias_as_the_type_it_stands_for(stored, kind):
+    """papis's own alias table, the one its `biblatex-type-alias` check reads:
+    a `phdthesis` drew the unknown-kind glyph."""
+    assert library.kind(docs({"type": stored})[0]) == kind
+
+
+def test_kind_ignores_the_case_of_the_type():
+    assert library.kind(docs({"type": "Article", "doi": "10.48550/arXiv.1"})[0]) == "preprint"

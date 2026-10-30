@@ -27,6 +27,7 @@ from rich.cells import cell_len, set_cell_size
 # the sequential path (PAPIS_NP is papis's own switch — a user can override it).
 os.environ.setdefault("PAPIS_NP", "0")
 
+import papis.bibtex
 import papis.config
 import papis.database
 import papis.document
@@ -468,8 +469,12 @@ def kind(doc: Document) -> str:
     falls through to `on_arxiv`, which is what rescues the 19 arXiv imports that
     never recorded one — measured, they are all `eprinttype: arxiv`.
     """
-    if doc.get("type") != "article":
-        return str(doc.get("type", ""))
+    stored = str(doc.get("type") or "").strip().casefold()
+    # papis's own alias table, the one its `biblatex-type-alias` check reads: a
+    # `phdthesis` is a thesis, a `techreport` a report
+    stored = papis.bibtex.bibtex_type_aliases.get(stored, stored)
+    if stored != "article":
+        return stored
     if venue(doc):
         return "article"
     doi = str(doc.get("doi") or "").casefold()

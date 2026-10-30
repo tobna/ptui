@@ -260,7 +260,8 @@ still-undecided candidates so a real terminal can choose.
 A `[[list.columns]]` entry with `glyph = "type"` renders its formatted value
 through the `type.*` family instead of printing it — that is the one-cell
 document-kind column. Its value comes from `{doc[kind]}`, which `library.kind()`
-derives: the `type` field, except that an article with no venue and no trace but
+derives: the `type` field (case-folded, `phdthesis` -> `thesis` through papis's
+`bibtex_type_aliases`), except that an article with no venue and no trace but
 arXiv's reads as `preprint`. The DOI decides whenever there is one; a document
 with **no** DOI falls through to `library.on_arxiv` (`eprinttype`, else an
 arxiv.org URL), which is what makes the 19 arXiv imports that never recorded a

@@ -421,7 +421,8 @@ toast that vanishes.
   (`Sydney, Australia`), and treating that as a publication name puts a city
   where the journal belongs and tells `kind()` a preprint was published.
 - The list carries a one-cell **document kind** column, from `library.kind()`:
-  the `type` field, except that an article whose only DOI is arXiv's and which
+  the `type` field (case-folded, BibTeX aliases such as `phdthesis` read through
+  papis's `bibtex_type_aliases`), except that an article whose only DOI is arXiv's and which
   names no journal, booktitle or venue reads as `preprint`. Local data only: an
   entry imported from arXiv and never refreshed is indistinguishable from a real
   preprint, and ptui prefers a wrong glyph to a network call while scrolling.
