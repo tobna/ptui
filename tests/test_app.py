@@ -547,3 +547,37 @@ async def test_a_long_log_line_wraps_instead_of_being_cut(app):
         log = app.query_one(RichLog)
         assert "does not exist" in "".join(line.text for line in log.lines)
         assert max(line.cell_length for line in log.lines) <= log.size.width
+
+
+async def test_two_flexible_columns_share_the_room(papis_lib):
+    """A second `width = 0` column used to be squeezed to nothing and vanish."""
+    from conftest import build_app
+
+    app = build_app(papis_lib)
+    app.cfg.data["list"]["columns"] = [
+        {"title": "Author", "format": "{doc[author]}", "width": 0},
+        {"title": "Title", "format": "{doc[title]}", "width": 0},
+    ]
+    async with app.run_test(size=(100, 24)) as pilot:
+        await settle(pilot)
+        widths = {column["title"]: width for column, width in app._fit}
+        assert set(widths) == {"Author", "Title"}
+        assert abs(widths["Author"] - widths["Title"]) <= 1
+        row = [str(cell) for cell in app.query_one("DataTable").get_row_at(0)]
+        assert "Vaswani" in row[0]
+        assert "Attention" in row[1]
+
+
+async def test_the_first_header_sits_over_its_values_not_over_the_mark(papis_lib):
+    from conftest import build_app
+
+    app = build_app(papis_lib)
+    app.cfg.data["list"]["columns"] = [
+        {"title": "Year", "format": "{doc[year]}", "width": 6},
+        {"title": "Title", "format": "{doc[title]}", "width": 0},
+    ]
+    async with app.run_test(size=(100, 24)) as pilot:
+        await settle(pilot)
+        header = str(app.query_one("DataTable").ordered_columns[0].label)
+        cell = str(app.query_one("DataTable").get_row_at(0)[0])
+        assert header.index("Year") == cell.index("2017")

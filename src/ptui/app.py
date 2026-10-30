@@ -447,7 +447,8 @@ class PtuiApp(App[None]):
         """
         total = self.size.width if total is None else total
         fit = self.fit_columns(int(total * self.split))
-        return next((width for column, width in fit if not column["width"]), 0)
+        title = self.title_column
+        return next((width for column, width in fit if column is title), 0)
 
     def choose_layout(self, total: int | None = None) -> None:
         """`ui.layout = "auto"`: side by side only while the flexible column still
@@ -522,13 +523,22 @@ class PtuiApp(App[None]):
         no column shows (`time-added`) simply matches nothing."""
         return "{doc[" + "][".join(self.sort_key.split(".")) + "]}"
 
-    def header(self, column: dict[str, Any]) -> str:
+    @property
+    def title_column(self) -> dict[str, Any] | None:
+        """The first `width = 0` column: the one that wraps and carries the
+        exception marker. Any further flexible column only shares the room."""
+        return next((column for column in self.cfg.get("list.columns", []) if not column["width"]), None)
+
+    def header(self, column: dict[str, Any], first: bool = False) -> str:
         """`Year ↓` when the list is sorted on that column's own field.
 
-        The flexible column's header is indented past the exception marker, or
-        it sits two cells left of every value under it.
+        Indented past whatever leads the cells under it — the exception marker
+        in the title column, the mark glyph in the first one — or the header
+        sits left of every value it names.
         """
-        pad = "" if column["width"] else " " * MARKER_WIDTH
+        pad = " " * MARKER_WIDTH if column is self.title_column else ""
+        if first:
+            pad = "  " + pad
         if column["format"].strip() != self.sort_format:
             return pad + column["title"]
         arrow = ui.glyph("sort_desc" if self.sort_reverse else "sort_asc")
@@ -544,7 +554,7 @@ class PtuiApp(App[None]):
         wanted = library.p90([self.cell_text(doc, column) for doc in self.rows])
         if index == 0:
             wanted += 2  # the mark glyph and its space
-        return min(column["width"], max(wanted, cell_len(self.header(column))))
+        return min(column["width"], max(wanted, cell_len(self.header(column, index == 0))))
 
     def fit_columns(self, pane_width: int | None = None) -> list[tuple[dict[str, Any], int]]:
         """The columns that fit the pane, with the width each one gets.
@@ -569,31 +579,33 @@ class PtuiApp(App[None]):
         pad = table.cell_padding * 2
         width = table.size.width if pane_width is None else pane_width
         room = width - 2 - table.scrollbar_size_vertical  # border, scrollbar
-        flex = next((i for i, column in enumerate(spec) if not column["width"]), None)
+        flexes = [i for i, column in enumerate(spec) if not column["width"]]
         widths: dict[int, int] = {}
         # Required columns first, so an optional one can never outbid them. Each
-        # pass keeps the flex column above its own floor: bare survival for the
-        # required ones, comfort for the optional ones.
+        # pass keeps the flex columns above their floor: bare survival for the
+        # required ones, comfort (for the title column) for the optional ones.
         for optional in (False, True):
             reserve = self.cfg.get("list.flex_target", 45) if optional else MIN_FLEX
-            floor = reserve + pad if flex is not None else 0
+            floor = reserve + pad + (len(flexes) - 1) * (MIN_FLEX + pad) if flexes else 0
             for index, column in enumerate(spec):
-                if index == flex or bool(column.get("optional")) is not optional:
+                if index in flexes or bool(column.get("optional")) is not optional:
                     continue
                 want = self.natural_width(index, column)
                 if room - want - pad < floor:
                     continue
                 room -= want + pad
                 widths[index] = want
-        if flex is not None:
-            widths[flex] = max(MIN_FLEX, room - pad)
+        # Several `width = 0` columns split what is left; the first gets the odd cells.
+        share, extra = divmod(room - pad * len(flexes), len(flexes) or 1)
+        for n, index in enumerate(flexes):
+            widths[index] = max(MIN_FLEX, share + (extra if n == 0 else 0))
         return [(spec[index], widths[index]) for index in sorted(widths)]
 
     def sync_columns(self) -> None:
         """Rebuild the table's columns when the fit or the headers changed — a
         resize, `z z`, or a new sort key that moves the direction arrow."""
         fit = self.fit_columns()
-        headers = [self.header(column) for column, _ in fit]
+        headers = [self.header(column, index == 0) for index, (column, _) in enumerate(fit)]
         if (fit, headers) == self._fit_state:
             return
         self._fit_state = (fit, headers)
@@ -675,16 +687,17 @@ class PtuiApp(App[None]):
         lit, height, mark_style, warn_style = self._paint
         marked = library.doc_id(doc) in self.marks
         marker = ui.glyph("warning") if doctor.cached(doc) else " "
+        title = self.title_column
         cells = []
         for index, (column, width) in enumerate(self._fit):
             text = self.cell_text(doc, column)
             if index == 0:
                 text = f"{ui.glyph('mark') if marked else ' '} {text}"
-            flex = not column["width"]
+            flex = column is title
             room = width - MARKER_WIDTH if flex else width
-            # Only the flexible column wraps: it is the one holding a title
-            # long enough to need a second line, and giving every column the
-            # extra rows would just pad the table out.
+            # Only the title column wraps: it is the one holding a title long
+            # enough to need a second line, and giving every column the extra
+            # rows would just pad the table out.
             if height > 1 and flex:
                 text = library.fit_lines(text, room, height).replace("\n", "\n" + " " * MARKER_WIDTH)
             else:

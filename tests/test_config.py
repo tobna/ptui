@@ -39,7 +39,7 @@ def test_a_broken_config_names_the_file_and_the_cli_refuses_politely(tmp_path, m
 
     bad = tmp_path / "config.toml"
     bad.write_text("[ui\nicons = true\n")
-    with pytest.raises(ValueError, match="config.toml"):
+    with pytest.raises(ValueError, match=r"config\.toml"):
         config.load(bad)
 
     keys = tmp_path / "keys.toml"
