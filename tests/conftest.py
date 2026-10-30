@@ -46,8 +46,12 @@ def papis_lib(tmp_path, monkeypatch):
             f"time-added: 202{4 - i}-01-01-00:00:00\n"  # newest added first
         )
 
+    # Every opener is `true`: `O` and `b` hand a path or URL to the desktop, and a
+    # test that reached one would open a real file browser on the developer's screen.
     (config_dir / "config").write_text(
-        f"[settings]\ndatabase-backend = papis\ndefault-library = test\n\n[test]\ndir = {docs}\n"
+        "[settings]\ndatabase-backend = papis\ndefault-library = test\n"
+        "opentool = true\nfile-browser = true\nbrowser = true\neditor = true\n\n"
+        f"[test]\ndir = {docs}\n"
     )
     monkeypatch.setenv("PAPIS_CONFIG_DIR", str(config_dir))
     # papis 0.16 treats `$XDG_CONFIG_HOME/papis` as a deprecated location and
