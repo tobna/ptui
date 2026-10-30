@@ -1302,6 +1302,28 @@ def export_bibtex(app: Any, target: str | None = None) -> None:
         _yank(app, text, f"{len(entries)} bibtex entrie(s)")
 
 
+@command("export.as", "export as…")
+def export_as(app: Any, fmt: str = "", target: str | None = None) -> None:
+    """Any format papis exports (`papis export --list-exporters`), so a new
+    exporter plugin shows up here for free; to the clipboard, or to `target`."""
+    import papis.commands.export
+    from papis.exporters import get_available_exporters
+
+    if not fmt:
+        items = [ui.Item(label=name, value=name) for name in get_available_exporters()]
+        ui.pick(app, items, title=f"Export {len(app.targets)} document(s) as")(
+            lambda name, _i: export_as(app, name, target)
+        )
+        return
+    docs = app.targets
+    text = papis.commands.export.run(docs, fmt)  # logs its own failure and returns ""
+    if target:
+        Path(target).expanduser().write_text(text)
+        app.log_line(f"wrote {len(docs)} document(s) as {fmt} to {target}")
+    else:
+        _yank(app, text, f"{len(docs)} document(s) as {fmt}")
+
+
 # ── files ───────────────────────────────────────────────────────────────────
 
 

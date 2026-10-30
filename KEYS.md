@@ -94,6 +94,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `V` | `visual.start` unmark=True | visual unmark |
 | `v` | `visual.start` | visual mark |
 | `y b` | `export.bibtex` | bibtex |
+| `y e` | `export.as` | any papis format |
 | `y p` | `export.path` | absolute path |
 | `y u` | `export.url` | DOI/URL |
 | `y y` | `export.citekey` | \cite{ref} |

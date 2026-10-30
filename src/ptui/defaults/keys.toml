@@ -96,6 +96,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "y p"      = { cmd = "export.path",    desc = "absolute path" }
 "y b"      = { cmd = "export.bibtex",  desc = "bibtex" }
 "y u"      = { cmd = "export.url",     desc = "DOI/URL" }
+"y e"      = { cmd = "export.as",      desc = "any papis format" }
 
 # ————— f : files ————————————————————————————
 "f o"      = { cmd = "files.open_pick", desc = "open which file…" }

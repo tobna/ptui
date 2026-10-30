@@ -483,6 +483,21 @@ async def test_refresh_fills_gaps_asks_each_clash_and_undoes_in_one_step(app, pa
         assert "doi" not in info.read_text()
 
 
+async def test_export_as_offers_every_papis_exporter_and_yanks_the_targets(app, monkeypatch):
+    from ptui import ui
+
+    yanked = []
+    monkeypatch.setattr(clip, "copy", lambda _app, text: yanked.append(text) or "test")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "y", "e")
+        assert isinstance(app.screen, ui.SelectList)
+        assert {"bibtex", "json", "yaml"} <= {item.label for item in app.screen.items}
+        await press(pilot, *"json", "enter")
+        await settle(pilot)
+    assert '"title": "Attention Is All You Need"' in yanked[0]
+
+
 async def test_config_set_applies_for_the_session_and_checks_the_value(app):
     from ptui import actions
 

@@ -156,7 +156,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 210 tests, `uv run pytest`.
+empty. 211 tests, `uv run pytest`.
 
 Built:
 
@@ -168,7 +168,7 @@ Built:
   `field:value`, `year:>2023` ranges, matches highlighted; one matcher shared
   with every picker filter box
 - verbs: `doc.open`, `doc.open_folder`, `doc.browse`, `doc.edit_raw`,
-  `export.{citekey,path,url,bibtex}`, `files.relocate`
+  `export.{citekey,path,url,bibtex,as}` (`as`: any papis exporter), `files.relocate`
 - `SelectList` modal + `sort.picker`, `files.open_pick`, `lib.switch`
 - the add flow: inbox picker, metadata form, live destination preview, `place()`
 - **layout**: `ui.layout = "auto"` picks side-by-side vs stacked from the column

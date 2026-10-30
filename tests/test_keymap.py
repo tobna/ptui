@@ -27,7 +27,7 @@ def test_chords_and_lookup():
     assert km.lookup("list", ("g", "g")).cmd == "nav.top"
     assert km.is_prefix("list", ("g",))
     assert not km.is_prefix("list", ("j",))
-    assert [b.keys for b in km.under_prefix("list", ("y",))] == ["y b", "y p", "y u", "y y"]
+    assert [b.keys for b in km.under_prefix("list", ("y",))] == ["y b", "y e", "y p", "y u", "y y"]
     assert km.for_command("list", "app.quit") == "q"
 
 

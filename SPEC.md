@@ -631,6 +631,7 @@ from this. Adding a command must not require touching four places.
 | `files.open_pick`               |                               | SelectList over this doc's files; a lone file opens directly |
 | `files.normalize`               |                               | each entry in its rule's `path_style` (`keep`: relative inside the folder, absolute outside), duplicates dropped — explicit only |
 | `export.bibtex`                 | `target:str?`                 | marked or current → file/clipboard               |
+| `export.as`                     | `fmt:str?, target:str?`       | any papis exporter (`y e` picks); file/clipboard |
 | `export.citekey`                |                               | per `export.citekey_format`                      |
 | `export.path`                   |                               | absolute path of main file                       |
 | `export.url`                    |                               | DOI/URL                                          |
