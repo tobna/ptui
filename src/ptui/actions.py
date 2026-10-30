@@ -120,12 +120,15 @@ def scope(app: Any, query: str) -> None:
     """Run a papis query and rebuild the scoped set. Marks survive by design."""
     aliases = app.cfg.get("query.aliases", {})
     expanded = library.expand_aliases(query, aliases)
-    app.scope_query = query
     try:
         app.docs = library.scope(expanded, app.cfg.get("general.library"))
     except Exception as exc:
-        app.log_line(f"[red]query failed:[/] {exc}")
+        # The scope stays what it was, and so does the status bar: it must
+        # name the query whose results are on screen, not the one that failed.
+        app.log_line(f"[red]query failed:[/] {query}: {(str(exc).splitlines() or [repr(exc)])[0]}")
+        app.query_one("#log-pane").display = True
         return
+    app.scope_query = query
     if expanded != query:
         app.log_line(f"[dim]scope -> {expanded}[/]")
     app.apply_sort()

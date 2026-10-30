@@ -471,3 +471,15 @@ async def test_the_status_bar_shows_a_bracketed_query_as_typed(app):
     async with app.run_test() as pilot:
         await press(pilot, "/", "[", "x", "]", "enter")
         assert "/ [x]" in str(app.query_one("#status-bar").render())
+
+
+async def test_a_failed_scope_keeps_the_scope_that_is_on_screen(app):
+    """papis rejects `year:>2020`; the status bar used to name it anyway, over
+    the previous query's results."""
+    async with app.run_test() as pilot:
+        await press(pilot, "s", *"year:2016", "enter")
+        assert len(app.docs) == 1
+        await press(pilot, "s", "ctrl+u", *"year:>2020", "enter")
+        assert app.scope_query == "year:2016"
+        assert len(app.docs) == 1
+        assert app.query_one("#log-pane").display
