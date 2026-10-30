@@ -228,6 +228,16 @@ backs off to the last colon or space rather than cutting mid-word). The refit
 hangs off `ListTable.on_resize` — the app-level resize event fires before
 layout, when widget sizes are still stale.
 
+`cell_text` is cached per document and stamped with `library.mtime` (the
+`info.yaml` mtime, the same stamp the doctor cache uses): `papis.format` reads
+papis config on every call, and every narrow keystroke redraws every row —
+3 s at 5000 documents before the cache, 0.2–0.4 s after (the rest is Textual's
+`add_row`). It formats without `default=`: with one, papis logs a warning plus
+traceback for each `{doc[author_list][0][family]}` on a document with no
+authors, 10 ms apiece. `row_cells` paints one row with what the last
+`refresh_rows` decided (`app._paint`), so `mark.toggle` redraws its row alone
+through `refresh_row`.
+
 `PtuiApp.header()` puts the sort arrow on the sorted column. It matches by
 rewriting the sort key into a column's format string (`PtuiApp.sort_format`:
 `author_list.0.family` -> `{doc[author_list][0][family]}`), so a key no column

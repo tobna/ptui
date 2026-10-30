@@ -51,6 +51,19 @@ def expand_aliases(query: str, aliases: dict[str, str]) -> str:
     return _ALIAS.sub(lambda m: m[1] + aliases[m[2]] if m[2] in aliases else m[0], query)
 
 
+def mtime(doc: Document) -> int:
+    """`info.yaml`'s mtime: the version of everything cached about a document.
+
+    Every write goes through `safewrite`, `place` or papis, and all of them touch
+    the file, so a `stat` cannot be forgotten at a new write path the way an
+    invalidation call can. 0 when there is no file.
+    """
+    try:
+        return os.stat(doc.get_info_file()).st_mtime_ns
+    except (OSError, TypeError, ValueError):
+        return 0
+
+
 def use(name: str) -> None:
     """Make `name` (a configured library or a folder) papis's current library.
 

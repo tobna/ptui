@@ -19,6 +19,7 @@ from rich.text import Text
 from textual import events, work
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
+from textual.coordinate import Coordinate
 from textual.theme import Theme
 from textual.widgets import DataTable, Input, RichLog, Static
 
@@ -198,6 +199,10 @@ class PtuiApp(App[None]):
         self.history = undo.History(cfg.get("undo.stack_size", 50))
         """One operation is one step, not one document — see `undo.py`."""
         self._fit: list[tuple[dict[str, Any], int]] = []
+        self._cells: dict[str, tuple[int, Document, dict[tuple[str, str | None], str]]] = {}
+        """`cell_text`'s cache: `papis_id` -> (mtime, flattened document, texts)."""
+        self._paint: tuple[list[str], int, str, str] = ([], 1, "", "")
+        """What `refresh_rows` paints with: highlighted terms, row height, styles."""
         self._fit_state: tuple[list[tuple[dict[str, Any], int]], list[str]] | None = None
         self._which_timer: Any = None
 
@@ -430,8 +435,29 @@ class PtuiApp(App[None]):
 
         A column with `glyph = "type"` renders its value through the `type.*`
         family instead of printing it, so `inproceedings` becomes one cell.
+
+        Cached per document, stamped with `info.yaml`'s mtime: formatting is most
+        of a redraw (papis reads its config on every call), and every narrow
+        keystroke, mark and sort redraws every row — 3 s at 5000 documents.
         """
-        text = papis.format.format(column["format"], library.flatten(doc), default="")
+        key, stamp = library.doc_id(doc), library.mtime(doc)
+        hit = self._cells.get(key)
+        if hit is None or hit[0] != stamp:
+            hit = self._cells[key] = (stamp, library.flatten(doc), {})
+        texts = hit[2]
+        slot = (column["format"], column.get("glyph"))
+        if slot not in texts:
+            texts[slot] = self._render(hit[1], column)
+        return texts[slot]
+
+    def _render(self, flat: Document, column: dict[str, Any]) -> str:
+        try:
+            text = papis.format.format(column["format"], flat)
+        except papis.format.FormatFailedError:
+            # `{doc[author_list][0][family]}` on a document with no authors. Not
+            # `default=""`: papis then logs a warning with a traceback, and builds
+            # the document's description for it, on every cell of every redraw.
+            text = ""
         if family := column.get("glyph"):
             return ui.glyph(f"{family}.{text.strip().casefold()}", f"{family}.misc")
         return library.strip_latex(text) if self.cfg.get("list.strip_latex", True) else text
@@ -582,37 +608,50 @@ class PtuiApp(App[None]):
         # be fetched by hand — `theme_variables` is the same table the CSS reads.
         mark_style = f"bold {self.theme_variables.get('accent', '')}".strip()
         warn_style = f"bold {self.theme_variables.get('error', '')}".strip()
+        self._paint = (lit, height, mark_style, warn_style)
         for doc in self.rows:
-            marked = library.doc_id(doc) in self.marks
-            marker = ui.glyph("warning") if doctor.cached(doc) else " "
-            cells = []
-            for index, (column, width) in enumerate(self._fit):
-                text = self.cell_text(doc, column)
-                if index == 0:
-                    text = f"{ui.glyph('mark') if marked else ' '} {text}"
-                flex = not column["width"]
-                room = width - MARKER_WIDTH if flex else width
-                # Only the flexible column wraps: it is the one holding a title
-                # long enough to need a second line, and giving every column the
-                # extra rows would just pad the table out.
-                if height > 1 and flex:
-                    text = library.fit_lines(text, room, height).replace("\n", "\n" + " " * MARKER_WIDTH)
-                else:
-                    text = library.fit(text, room)
-                cell = Text()
-                if flex:  # the exception marker, in its own colour
-                    cell.append(f"{marker} ", style=warn_style)
-                cell.append(text, style=mark_style if marked else "")
-                if lit:
-                    cell.highlight_words(lit, "reverse", case_sensitive=False)
-                cells.append(cell)
-            table.add_row(*cells, height=height)
+            table.add_row(*self.row_cells(doc), height=height)
         if keep is not None:
             row = next((i for i, d in enumerate(self.rows) if library.doc_id(d) == keep), 0)
             table.move_cursor(row=row)
         self.refresh_info()
         self.refresh_status()
         self.refresh_hints()
+
+    def row_cells(self, doc: Document) -> list[Text]:
+        """One document's row, painted with what the last `refresh_rows` decided."""
+        lit, height, mark_style, warn_style = self._paint
+        marked = library.doc_id(doc) in self.marks
+        marker = ui.glyph("warning") if doctor.cached(doc) else " "
+        cells = []
+        for index, (column, width) in enumerate(self._fit):
+            text = self.cell_text(doc, column)
+            if index == 0:
+                text = f"{ui.glyph('mark') if marked else ' '} {text}"
+            flex = not column["width"]
+            room = width - MARKER_WIDTH if flex else width
+            # Only the flexible column wraps: it is the one holding a title
+            # long enough to need a second line, and giving every column the
+            # extra rows would just pad the table out.
+            if height > 1 and flex:
+                text = library.fit_lines(text, room, height).replace("\n", "\n" + " " * MARKER_WIDTH)
+            else:
+                text = library.fit(text, room)
+            cell = Text()
+            if flex:  # the exception marker, in its own colour
+                cell.append(f"{marker} ", style=warn_style)
+            cell.append(text, style=mark_style if marked else "")
+            if lit:
+                cell.highlight_words(lit, "reverse", case_sensitive=False)
+            cells.append(cell)
+        return cells
+
+    def refresh_row(self, index: int) -> None:
+        """Redraw one row in place. A mark toggle changes one row, and rebuilding
+        all of them cost 0.4 s per `space` at 5000 documents."""
+        table = self.query_one(DataTable)
+        for column, cell in enumerate(self.row_cells(self.rows[index])):
+            table.update_cell_at(Coordinate(index, column), cell)
 
     @work(exclusive=True, group="narrow")
     async def apply_narrow(self, query: str) -> None:

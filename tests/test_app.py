@@ -394,3 +394,36 @@ async def test_the_info_pane_renders_a_real_document(app):
         assert "[$primary bold]Attention Is All You Need[/]" in text
         assert "[$accent]Vaswani2017[/]" in text
         assert "[$secondary]test[/]" in text  # the fixture's one tag, as a chip
+
+
+async def test_a_missing_nested_key_renders_blank_without_a_papis_warning(app, caplog):
+    """`default=""` made papis log a warning *with a traceback* for every such
+    cell on every redraw — and build the document's description to do it."""
+    import papis.document
+
+    doc = papis.document.from_data({"title": "No authors"})
+    column = {"title": "Author", "format": "{doc[author_list][0][family]}", "width": 18}
+    async with app.run_test():
+        assert app.cell_text(doc, column) == ""
+    assert "Could not format" not in caplog.text
+
+
+async def test_an_edit_shows_up_in_the_cached_cells(app):
+    from ptui import actions
+
+    title = next(column for column in app.cfg.get("list.columns") if column["title"] == "Title")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        assert app.cell_text(app.current, title) == "Attention Is All You Need"
+        actions.doc_set(app, "title", "Renamed")
+        assert app.cell_text(app.current, title) == "Renamed"
+
+
+async def test_marking_redraws_only_the_row_it_changed(app):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        table = app.query_one("DataTable")
+        first = str(table.get_row_at(0)[0])
+        await press(pilot, "space")
+        assert str(table.get_row_at(0)[0]) != first  # the mark glyph is there
+        assert app.query_one("DataTable").cursor_row == 1  # and the cursor advanced

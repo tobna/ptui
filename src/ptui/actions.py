@@ -355,11 +355,11 @@ def mark_toggle(app: Any) -> None:
     doc = app.current
     if doc is None:
         return
-    key = library.doc_id(doc)
-    app.marks.symmetric_difference_update({key})
-    app.refresh_rows()
+    app.marks.symmetric_difference_update({library.doc_id(doc)})
+    app.refresh_row(_table(app).cursor_row)
     if app.cfg.get("marks.advance", True):
         _move(app, 1)
+    app.refresh_status()
     app.refresh_hints()
 
 

@@ -8,8 +8,6 @@ read-only, and a fix is applied one finding at a time through `safewrite`.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import papis.doctor as _doctor
 from papis.document import Document
 
@@ -28,7 +26,7 @@ name, `duplicated-values` looks for repeats *inside* one list field and is
 per-document and stateless.
 """
 
-CACHE: dict[str, tuple[float, list[Finding]]] = {}
+CACHE: dict[str, tuple[int, list[Finding]]] = {}
 """`papis_id` -> (`info.yaml` mtime, findings) from the last scan.
 
 Stamped with the mtime rather than invalidated by whoever writes: every write
@@ -70,7 +68,7 @@ def findings(doc: Document, checks: list[str] | None = None) -> list[Finding]:
 def scan(doc: Document, checks: list[str] | None = None) -> list[Finding]:
     """`findings`, cached against `info.yaml`'s mtime for the info pane to read."""
     found = findings(doc, checks)
-    CACHE[library.doc_id(doc)] = (_stamp(doc), found)
+    CACHE[library.doc_id(doc)] = (library.mtime(doc), found)
     return found
 
 
@@ -78,7 +76,7 @@ def cached(doc: Document) -> list[Finding] | None:
     """The last scan of this document, or `None` if it was never scanned or has
     been written since. `None` is "unknown", which is not the same as "clean"."""
     hit = CACHE.get(library.doc_id(doc))
-    return hit[1] if hit and hit[0] == _stamp(doc) else None
+    return hit[1] if hit and hit[0] == library.mtime(doc) else None
 
 
 def scan_library(docs: list[Document], checks: list[str] | None = None) -> list[tuple[Document, Finding]]:
@@ -95,14 +93,6 @@ def scan_library(docs: list[Document], checks: list[str] | None = None) -> list[
         for name in check_names(checks, library_wide=True)
         for error in _doctor.REGISTERED_CHECKS[name].operate(doc)
     ]
-
-
-def _stamp(doc: Document) -> float:
-    path = info_path(doc)
-    try:
-        return path.stat().st_mtime if path else 0.0
-    except OSError:
-        return 0.0
 
 
 def fix(doc: Document, finding: Finding) -> list[str]:
@@ -135,8 +125,3 @@ def fix(doc: Document, finding: Finding) -> list[str]:
         doc.load()  # the in-memory fix never landed; do not keep pretending it did
         raise
     return sorted([*changed, *dropped])
-
-
-def info_path(doc: Document) -> Path | None:
-    path = doc.get_info_file()
-    return Path(path) if path else None
