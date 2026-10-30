@@ -115,5 +115,4 @@ def test_every_shipped_key_is_read_somewhere():
     unread = [key for key in leaves(data) if f'"{key}' not in src]
     assert unread == [
         "general.persist_state",
-        "query.history_file",
     ]  # the backlog's own entries, each shrinking this list as it lands

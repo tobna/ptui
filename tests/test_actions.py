@@ -414,6 +414,28 @@ async def test_visual_marks_the_range_as_the_cursor_moves_and_shift_unmarks(app)
         assert app.marks == set()
 
 
+async def test_query_prompts_share_a_history_that_up_and_down_walk(app, papis_lib):
+    from textual.widgets import Input
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "s", *"year:>2010", "enter")
+        await settle(pilot)
+        await press(pilot, "/", *"neural", "enter", "escape")
+        await press(pilot, "s", *"year:>2010", "enter")  # again: moves to the end, once
+        await settle(pilot)
+        assert (papis_lib / "history").read_text().splitlines() == ["neural", "year:>2010"]
+
+        prompt = app.query_one(Input)
+        await press(pilot, "/", *"draft", "up")
+        assert prompt.value == "year:>2010"
+        assert len(app.rows) == 2  # recalled into the narrow prompt, so it narrows
+        await press(pilot, "up", "up")  # stops at the oldest
+        assert prompt.value == "neural"
+        await press(pilot, "down", "down")  # past the newest: what was being typed
+        assert prompt.value == "draft"
+
+
 async def test_config_set_applies_for_the_session_and_checks_the_value(app):
     from ptui import actions
 

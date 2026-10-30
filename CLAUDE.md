@@ -154,7 +154,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 205 tests, `uv run pytest`.
+empty. 206 tests, `uv run pytest`.
 
 Built:
 
@@ -197,6 +197,9 @@ Built:
   keep the source's hard wraps); `info.scroll` (`J`/`K` in the list,
   `ctrl+d`/`ctrl+u` in the pane) scrolls `#info-pane` by half its height, and
   `refresh_info` scrolls home when the document changes (`app._info_of`)
+- **query history**: `actions.history` / `remember` over `query.history_file`
+  (plain lines, newest last); `app.recall` walks it on `up`/`down` in the
+  prompts named by `actions.HISTORY_KINDS`
 - **visual mode**: `visual.start` (`v`, `V` with `unmark`) — `app.visual` holds
   the anchor and the marks from before, and `_move` recomputes the marks as
   base ± the range, so a verb pressed mid-range acts on what is drawn. A

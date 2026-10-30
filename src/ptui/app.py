@@ -238,6 +238,8 @@ class PtuiApp(App[None]):
         """The files pane's cursor: an index into the current document's `files`."""
         self._files_of: str | None = None
         self._info_of: str | None = None
+        self._recall, self._draft = 0, ""
+        """The prompt's place in the query history (0: the line being typed) and that line."""
 
     # ── setup ───────────────────────────────────────────────────────────────
 
@@ -396,6 +398,9 @@ class PtuiApp(App[None]):
         if self.prompt_kind:
             if event.key == "escape":
                 self.close_prompt()
+                event.stop()
+            elif event.key in ("up", "down") and self.prompt_kind in actions.HISTORY_KINDS:
+                self.recall(1 if event.key == "up" else -1)
                 event.stop()
             return
 
@@ -1057,6 +1062,18 @@ class PtuiApp(App[None]):
         prompt.value = value
         prompt.add_class("open")
         prompt.focus()
+        self._recall, self._draft = 0, ""
+
+    def recall(self, step: int) -> None:
+        """Up (`step` 1) walks back through the query history, down forward;
+        past the newest entry is whatever was being typed before."""
+        past = actions.history(self)
+        if self._recall == 0:
+            self._draft = self.query_one(Input).value
+        self._recall = max(0, min(len(past), self._recall + step))
+        prompt = self.query_one(Input)
+        prompt.value = past[-self._recall] if self._recall else self._draft
+        prompt.cursor_position = len(prompt.value)
 
     def close_prompt(self) -> None:
         self.prompt_kind = ""
@@ -1072,6 +1089,8 @@ class PtuiApp(App[None]):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         kind, value = self.prompt_kind, event.value
         self.close_prompt()
+        if kind in actions.HISTORY_KINDS:
+            actions.remember(self, value)
         if kind == "narrow":
             self.apply_narrow(value)
         elif kind == "scope":

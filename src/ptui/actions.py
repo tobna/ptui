@@ -236,6 +236,35 @@ def query_save(app: Any, name: str | None = None) -> None:
     app.log_line(f"{'replaced' if replaced else 'saved'} {name}: {app.scope_query or '*'}, by {app.sort_key}")
 
 
+HISTORY_KINDS = ("scope", "narrow", "mark", "unmark")
+"""The prompts that take a query, and so share `query.history_file`."""
+HISTORY_MAX = 500
+
+
+def history(app: Any) -> list[str]:
+    """Submitted queries, oldest first. One per line: a prompt is one line."""
+    path = app.cfg.as_path("query.history_file")
+    try:
+        return path.read_text().splitlines() if path else []
+    except OSError:
+        return []
+
+
+def remember(app: Any, query: str) -> None:
+    """Newest last, each query once — running one again moves it to the end."""
+    path = app.cfg.as_path("query.history_file")
+    if path is None or not query.strip():
+        return
+    past = [*[line for line in history(app) if line != query][-(HISTORY_MAX - 1) :], query]
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(f".{path.name}.ptui.tmp")
+        tmp.write_text("\n".join(past) + "\n")
+        tmp.replace(path)
+    except OSError as exc:  # a read-only state dir costs the history, not the query
+        app.log_line(f"[yellow]query history not saved: {exc}[/]")
+
+
 @command("query.load", "saved searches")
 def query_load(app: Any, name: str | None = None) -> None:
     """Apply a saved search — its scope and, if it has one, its sort. With no
