@@ -15,7 +15,7 @@ from typing import Any
 
 from textual.widgets import DataTable
 
-from ptui import clip, commands, doctor, fetch, library, merge, place, safewrite, ui, undo
+from ptui import clip, commands, config, doctor, fetch, library, merge, place, safewrite, ui, undo
 from ptui.commands import REGISTRY, command
 
 # ── navigation ──────────────────────────────────────────────────────────────
@@ -1208,6 +1208,36 @@ def keymap_check(app: Any) -> None:
         app.log_line(f"[yellow]{problem}[/]")
     app.log_line(f"keymap: {len(problems)} problem(s)")
     app.query_one("#log-pane").display = True
+
+
+@command("config.set", "set a config value for this session")
+def config_set(app: Any, key: str, value: str) -> None:
+    """Try a setting without editing `config.toml` and restarting. Session only:
+    nothing is written anywhere.
+
+    The value is read as TOML — `2`, `true`, `["a", "b"]` — and falls back to
+    the bare text, so `:config.set ui.theme nord` needs no quotes. It is checked
+    the way `config.toml` is, so a value that cannot work is replaced and said.
+    """
+    import tomllib
+
+    section, _, leaf = key.rpartition(".")
+    table = app.cfg.get(section) if section else None
+    if not isinstance(table, dict) or leaf not in table:
+        app.log_line(f"[red]no config key[/] {key}")  # a new key would be read by nothing
+        return
+    if key == "general.library":  # papis has a current library too; switching moves both
+        lib_switch(app, value)
+        return
+    try:
+        new = tomllib.loads(f"value = {value}")["value"]
+    except tomllib.TOMLDecodeError:
+        new = value
+    old, table[leaf] = table[leaf], new
+    for problem in config.repair(app.cfg.data):
+        app.log_line(f"[yellow]{problem}[/]")
+    app.apply_config()
+    app.log_line(f"{key} = {table[leaf]!r} until you quit (was {old!r}) — config.toml is where it stays")
 
 
 @command("app.config_check", "check config")

@@ -294,6 +294,28 @@ class PtuiApp(App[None]):
         if self.cfg.get("doctor.scan_on_startup", True):
             self.scan_library()
 
+    def apply_config(self) -> None:
+        """Re-apply what is read once instead of at every use — after `config.set`.
+
+        Everything else (columns, sort tiebreak, narrow mode, …) is read when it
+        is used, so the redraw at the end is all it needs.
+        """
+        ui.use_icons(self.cfg.get("ui.icons", False))
+        self.apply_theme(self.cfg.get("ui.theme", DEFAULT_THEME))
+        if editor := self.cfg.get("edit.editor"):
+            papis.config.set("editor", editor)
+        layout = self.cfg.get("ui.layout", "auto")
+        self.layout_auto = layout == "auto"
+        if not self.layout_auto:
+            self.side_by_side = layout != "horizontal"
+        self.split = self.cfg.get("ui.split_ratio", 0.6)
+        self._cells.clear()  # icons, strip_latex and the columns all shape a cell
+        self._fit_state = None
+        self.choose_layout()
+        self.apply_split()
+        self.apply_sort()
+        self.refilter()
+
     def relayout(self) -> None:
         """Re-decide the `auto` layout and apply it only if it changed. Applying
         unconditionally would resize, be told about the resize, and resize again."""

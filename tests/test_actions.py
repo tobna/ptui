@@ -390,3 +390,24 @@ async def test_unmark_all_filtered_takes_back_only_what_is_shown(app):
         await press(pilot, "/", *"neural", "enter")
         await press(pilot, "m", "A")
         assert app.marks == {"id0", "id1"}  # the hidden marks survive
+
+
+async def test_config_set_applies_for_the_session_and_checks_the_value(app):
+    from ptui import actions
+
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
+        actions.cmdline_run(app, "config.set", "list.row_height 2")
+        await pilot.pause(0.2)
+        assert app.cfg.get("list.row_height") == 2
+        assert app.query_one("DataTable").get_row_at(0)  # redrawn
+        assert app.query_one("DataTable").rows[app.query_one("DataTable").coordinate_to_cell_key((0, 0))[0]].height == 2
+
+        actions.cmdline_run(app, "config.set", "ui.theme nord")  # bare text, no quotes needed
+        assert app.theme == "nord"
+
+        actions.cmdline_run(app, "config.set", "ui.layout diagonal")
+        assert app.cfg.get("ui.layout") == "auto"  # repaired, as config.toml would be
+
+        actions.cmdline_run(app, "config.set", "ui.nonsense 1")
+        assert app.cfg.get("ui.nonsense") is None  # a new key would be read by nothing

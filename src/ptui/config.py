@@ -79,8 +79,7 @@ def load(path: Path | None = None) -> Config:
 
     user = read_toml(path)
     data = _merge(defaults, user)
-    invalid = _repair(data, tomllib.loads((DEFAULTS_DIR / "config.toml").read_text()))
-    return Config(data, tuple(_unknown(defaults, user)), path, tuple(invalid))
+    return Config(data, tuple(_unknown(defaults, user)), path, tuple(repair(data)))
 
 
 CHOICES = {
@@ -96,14 +95,15 @@ CHOICES = {
 """ptui's own enumerations — papis's settings are papis's to check."""
 
 
-def _repair(data: dict[str, Any], defaults: dict[str, Any]) -> list[str]:
+def repair(data: dict[str, Any]) -> list[str]:
     """Put the shipped default back wherever a value cannot work, and say so.
 
     Left alone, a bad value either crashed at startup (`log.level = "loud"`, a
     column with no `width`) or quietly meant something else (`layout =
     "diagonal"` read as side by side, `split_ratio = 1.5` pushed the list off
-    the screen).
+    the screen). Also run on every `config.set`.
     """
+    defaults = tomllib.loads((DEFAULTS_DIR / "config.toml").read_text())  # fresh: `data` may share its tables
     problems = []
 
     def replace(dotted: str, value: Any, why: str) -> None:
