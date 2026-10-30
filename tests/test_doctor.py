@@ -191,3 +191,22 @@ async def test_fix_pick_applies_the_selected_fix(app, tmp_path):
         assert "# a comment that must survive" in info.read_text()
         # and the pane no longer claims a finding that has been fixed
         assert "refs" not in str(app.query_one("#info").render())
+
+
+async def test_a_fix_that_changes_nothing_is_not_counted_as_fixed(app):
+    """papis's `keys-missing` fix cannot invent an author, so it leaves the
+    document as it was — and `! f` used to report it fixed."""
+    from textual.widgets import RichLog
+
+    from ptui import actions
+
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
+        doc = app.current
+        noop = doctor.Finding(
+            name="keys-missing", path="", payload="author", msg="no author", fix_action=lambda: None, doc=doc
+        )
+        assert actions._apply_one(app, doc, noop) is False
+        app.query_one(RichLog).display = True
+        await pilot.pause(0.2)
+        assert "changed nothing" in app.query_one(RichLog).lines[-1].text

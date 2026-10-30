@@ -1433,7 +1433,10 @@ def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
     except Exception as exc:
         app.log_line(f"[red]fix failed:[/] {exc}")
         return False
-    app.log_line(f"fixed {finding.name} on {doc.get('ref', '')}: {', '.join(changed) or 'no change'}")
+    if not changed:  # papis's fix had nothing to go on — `keys-missing` cannot invent an author
+        app.log_line(f"[yellow]{finding.name} on {doc.get('ref', '')}: the fix changed nothing[/]")
+        return False
+    app.log_line(f"fixed {finding.name} on {doc.get('ref', '')}: {', '.join(changed)}")
     doctor.scan(doc, _checks(app))  # the write invalidated the cache; the pane reads it
     app.refresh_rows()
     return True
@@ -1449,11 +1452,12 @@ def doctor_fix(app: Any, current: bool = False) -> None:
     """
     found = _findings(app, current)
     fixable = [(doc, f) for doc, f in found if f.fix_action]
-    for doc, finding in fixable:
-        _apply_one(app, doc, finding)
+    fixed = sum(_apply_one(app, doc, finding) for doc, finding in fixable)
     skipped = len(found) - len(fixable)
     app.log_line(
-        f"doctor: fixed {len(fixable)}, {skipped} with no automatic fix" if found else "doctor: nothing to fix"
+        f"doctor: fixed {fixed} of {len(fixable)}, {skipped} with no automatic fix"
+        if found
+        else "doctor: nothing to fix"
     )
     if skipped:
         app.query_one("#log-pane").display = True
