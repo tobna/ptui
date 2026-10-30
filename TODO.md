@@ -96,17 +96,11 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 ## F. New features asked for
 
 1. **The `:` line's own commands** — specified in `SPEC.md` § "Commands that
-   exist for the `:` line", none of them implemented. They need no key: the
-   argument is the command. In the order they are worth building:
-   `doctor.fix checks`, `config.set key value` (session-only, nothing written
-   to `config.toml`), `mark.query q [unmark]`, then `nav.goto ref`,
-   `doc.add source uri`, `query.save name`. (`doc.set` is built.)
-
-2. **An unmark for every mark.** `mark.all_filtered` and the new `mark.query`
-   take `unmark:bool=false`; the keymap gives the SHIFT variant to unmarking
-   (`m a` / `m A`, and `m q` / `m Q` when the query one lands), per the
-   keybinding design contract. `mark.clear` and `mark.invert` already close the
-   set, so this is two arguments and two bindings, not new commands.
+   exist for the `:` line". They need no key: the argument is the command.
+   Still to build, in the order they are worth it: `doctor.fix checks`,
+   `config.set key value` (session-only, nothing written to `config.toml`),
+   `nav.goto ref`, `doc.add source uri`, `query.save name`. (`doc.set` and
+   `mark.query` are built.)
 
 ## G. Packaging
 

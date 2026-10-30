@@ -739,14 +739,18 @@ class PtuiApp(App[None]):
             docs = [d for d in docs if library.doc_id(d) in self.marks]
         if self.doctor_only:
             docs = [d for d in docs if doctor.cached(d)]
-        self.rows = library.narrow(
+        self.rows = self.matching(docs, query)
+        self.refresh_rows(keep)
+
+    def matching(self, docs: list[Document], query: str) -> list[Document]:
+        """The narrow filter, configured: the `/` prompt and `mark.query` alike."""
+        return library.narrow(
             docs,
             query,
             self.cfg.get("query.narrow_fields", ["title"]),
             self.cfg.get("query.narrow_mode", "substring"),
             self.cfg.get("query.aliases", {}),
         )
-        self.refresh_rows(keep)
 
     # ── chrome ──────────────────────────────────────────────────────────────
 

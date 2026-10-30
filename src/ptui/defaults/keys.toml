@@ -102,6 +102,9 @@ escape_chain = ["modal", "visual", "narrow"]
 
 # ————— m : marks ————————————————————————————
 "m a"      = { cmd = "mark.all_filtered", desc = "mark all filtered" }
+"m A"      = { cmd = "mark.all_filtered", args = { unmark = true }, desc = "unmark all filtered" }
+"m q"      = { cmd = "mark.query",        desc = "mark by query" }
+"m Q"      = { cmd = "mark.query", args = { unmark = true }, desc = "unmark by query" }
 "m i"      = { cmd = "mark.invert",       desc = "invert marks" }
 "m c"      = { cmd = "mark.clear",        desc = "clear marks" }
 "m o"      = { cmd = "mark.show_only",    desc = "toggle marked-only" }

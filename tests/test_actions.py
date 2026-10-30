@@ -352,3 +352,28 @@ async def test_attach_a_url_keeps_existing_files_and_drops_the_download(app, pap
     assert yaml.safe_load((folder / "info.yaml").read_text())["files"] == ["paper.pdf", "code.zip"]
     assert (folder / "code.zip").read_bytes() == b"zip"
     assert not download.exists()
+
+
+async def test_mark_query_marks_without_changing_the_view_and_shift_unmarks(app):
+    from conftest import press, settle
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "m", "q", *"year:>2010", "enter")
+        assert app.marks == {"id0", "id1"}
+        assert len(app.rows) == 3  # the view is untouched
+        assert app.narrow_query == ""
+        await press(pilot, "m", "Q", *"he", "enter")  # `He` wrote Deep Residual Learning
+        assert app.marks == {"id0"}
+
+
+async def test_unmark_all_filtered_takes_back_only_what_is_shown(app):
+    from conftest import press, settle
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "m", "a")
+        assert len(app.marks) == 3
+        await press(pilot, "/", *"neural", "enter")
+        await press(pilot, "m", "A")
+        assert app.marks == {"id0", "id1"}  # the hidden marks survive

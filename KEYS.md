@@ -68,11 +68,14 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `i` | `doc.add` source=inbox | add from inbox |
 | `j` | `nav.down` | move down |
 | `k` | `nav.up` | move up |
+| `m A` | `mark.all_filtered` unmark=True | unmark all filtered |
+| `m Q` | `mark.query` unmark=True | unmark by query |
 | `m a` | `mark.all_filtered` | mark all filtered |
 | `m c` | `mark.clear` | clear marks |
 | `m i` | `mark.invert` | invert marks |
 | `m m` | `doc.merge` | merge marked documents |
 | `m o` | `mark.show_only` | toggle marked-only |
+| `m q` | `mark.query` | mark by query |
 | `O` | `doc.open_folder` | open folder |
 | `o` | `doc.open` | open file |
 | `q` | `app.quit` | quit |
