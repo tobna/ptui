@@ -386,8 +386,8 @@ class PtuiApp(App[None]):
         except KeyError:
             self.log_line(f"[yellow]{name} is not implemented yet[/]")
         except Exception as exc:  # a broken command must not kill the session
+            # once: the loguru sink puts it in the pane, the traceback goes to log.file
             logger.exception(f"{name} failed: {exc}")
-            self.log_line(f"[red]{name} failed:[/] {exc}")
 
     # ── which-key ───────────────────────────────────────────────────────────
 

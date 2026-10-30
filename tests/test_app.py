@@ -500,3 +500,21 @@ async def test_the_pane_keys_work_from_every_pane(app):
         assert not app.query_one("#log-pane").display
         await press(pilot, "2", "1")
         assert app.mode == "list"
+
+
+async def test_a_failing_command_is_reported_once(app, monkeypatch):
+    from textual.widgets import RichLog
+
+    from ptui import commands
+
+    def boom(_app):
+        raise RuntimeError("kaputt")
+
+    monkeypatch.setitem(commands.REGISTRY, "test.boom", commands.Command("test.boom", "explode", boom))
+    async with app.run_test() as pilot:
+        await press(pilot, "4")
+        app.run_command("test.boom")
+        await settle(pilot)
+        lines = [line.text for line in app.query_one(RichLog).lines]
+        assert sum("test.boom failed" in line for line in lines) == 1
+        assert any("kaputt" in line for line in lines)
