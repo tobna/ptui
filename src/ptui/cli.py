@@ -15,8 +15,12 @@ from ptui import config, keymap
 @click.argument("query", nargs=-1)
 def main(lib: str | None, query: tuple[str, ...]) -> None:
     """Browse a papis library in a terminal UI."""
-    cfg = config.load()
-    km = keymap.load()
+    try:
+        cfg = config.load()
+        km = keymap.load()
+    except ValueError as exc:  # a syntax error or a binding with no command, naming its file
+        click.echo(f"ptui: {exc}", err=True)
+        sys.exit(1)
 
     # SPEC: a shadowed binding is invisible until someone wonders why `o` feels
     # slow, so refuse to start rather than start subtly wrong.

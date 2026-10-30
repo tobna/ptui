@@ -74,5 +74,14 @@ def load(path: Path | None = None) -> Config:
     if not path.is_file():
         return Config(defaults, (), None)
 
-    user = tomllib.loads(path.read_text())
+    user = read_toml(path)
     return Config(_merge(defaults, user), tuple(_unknown(defaults, user)), path)
+
+
+def read_toml(path: Path) -> dict[str, Any]:
+    """A user's TOML file. A syntax error names the file: tomllib only gives the
+    line and column, and the user has two files that could hold it."""
+    try:
+        return tomllib.loads(path.read_text())
+    except tomllib.TOMLDecodeError as exc:
+        raise ValueError(f"{path}: {exc}") from exc

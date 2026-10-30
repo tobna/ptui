@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from ptui import commands
-from ptui.config import DEFAULTS_DIR, config_dir
+from ptui.config import DEFAULTS_DIR, config_dir, read_toml
 
 type Chord = tuple[str, ...]
 
@@ -92,7 +92,7 @@ def load(path: Path | None = None) -> Keymap:
     if path is None:
         path = config_dir() / "keys.toml"
     if path.is_file():
-        user = tomllib.loads(path.read_text())
+        user = read_toml(path)
         data["options"] = {**data.get("options", {}), **user.get("options", {})}
         # A mode the user defines replaces ours: partial merges make it impossible
         # to remove a shipped binding.
@@ -104,6 +104,8 @@ def load(path: Path | None = None) -> Keymap:
         modes[mode] = {}
         for keys, spec in bindings.items():
             chord = tuple(normalize(k) for k in keys.split(" ") if k)
+            if not isinstance(spec, dict) or "cmd" not in spec:
+                raise ValueError(f'{path}: [modes.{mode}] {keys!r} needs a cmd, like {{ cmd = "nav.down" }}')
             cmd = spec["cmd"]
             registered = commands.REGISTRY.get(cmd)
             if registered is None:

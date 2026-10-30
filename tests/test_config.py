@@ -27,3 +27,31 @@ def test_as_path_expands(tmp_path):
     cfg = config.load(tmp_path / "config.toml")
     assert cfg.as_path("files.pdf_root").is_absolute()
     assert cfg.as_path("export.bib_target") is None
+
+
+def test_a_broken_config_names_the_file_and_the_cli_refuses_politely(tmp_path, monkeypatch):
+    """A typo in config.toml or keys.toml was a Python traceback that never said
+    which file it came from."""
+    import pytest
+    from click.testing import CliRunner
+
+    from ptui import cli, keymap
+
+    bad = tmp_path / "config.toml"
+    bad.write_text("[ui\nicons = true\n")
+    with pytest.raises(ValueError, match="config.toml"):
+        config.load(bad)
+
+    keys = tmp_path / "keys.toml"
+    keys.write_text('[modes.list]\n"j" = { desc = "no command" }\n')
+    with pytest.raises(ValueError, match=r"keys.toml: \[modes.list\] 'j' needs a cmd"):
+        keymap.load(keys)
+    keys.write_text('[modes.list]\n"j" = "nav.down"\n')
+    with pytest.raises(ValueError, match="needs a cmd"):
+        keymap.load(keys)
+
+    monkeypatch.setattr(config, "config_dir", lambda: tmp_path)
+    result = CliRunner().invoke(cli.main, [])
+    assert result.exit_code == 1
+    assert "config.toml" in result.output
+    assert "Traceback" not in result.output
