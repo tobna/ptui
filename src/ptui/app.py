@@ -77,6 +77,10 @@ LOG_TAGS = {"[red]": "error", "[yellow]": "warning", "[green]": "success"}
 and parses *Rich* markup, where `$error` is meaningless — so the translation
 happens in `log_line`, once, instead of at every call site."""
 
+LOG_MARKUP = ("[red]", "[yellow]", "[green]", "[dim]", "[bold]", "[/]")
+"""The only markup a `log_line` caller may write. Anything else in the message
+is a value and is printed as it is."""
+
 LOG_LEVELS = {
     "CRITICAL": "error",
     "ERROR": "error",
@@ -400,7 +404,10 @@ class PtuiApp(App[None]):
         panel = self.query_one("#which-key", Static)
         panel.border_title = " ".join(self.pending)
         panel.update(
-            "\n".join(f"[$accent bold]{b.keys[len(' '.join(self.pending)) + 1 :]}[/]  {b.desc or b.cmd}" for b in rows)
+            "\n".join(
+                f"[$accent bold]{ui.literal(b.keys[len(' '.join(self.pending)) + 1 :])}[/]  {ui.literal(b.desc or b.cmd)}"
+                for b in rows
+            )
         )
         panel.add_class("open")
 
@@ -830,7 +837,7 @@ class PtuiApp(App[None]):
         for text, foreground, background in segments:
             ahead = background if rightwards else behind
             out.append(f"[{(behind if rightwards else background)} on {ahead}]{arrow}[/]")
-            out.append(f"[{foreground} on {background}]{text}[/]")
+            out.append(f"[{foreground} on {background}]{ui.literal(text)}[/]")  # a query is text
             width += cell_len(arrow) + cell_len(text)
             behind = background
         if rightwards:  # close the group back into the bar
@@ -898,6 +905,11 @@ class PtuiApp(App[None]):
         Translating here rather than at forty call sites is also what keeps the
         Rich/Textual markup split from leaking into `actions.py`.
         """
+        # Escape everything, then let the call site's own tags back through:
+        # what a command interpolates (a title, a path, `[modes.files]`) is text.
+        message = escape(message)
+        for tag in LOG_MARKUP:
+            message = message.replace(escape(tag), tag)
         for tag, variable in LOG_TAGS.items():
             if tag in message:
                 message = message.replace(tag, f"[{self.theme_variables.get(variable, '')}]")

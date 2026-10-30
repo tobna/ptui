@@ -348,6 +348,19 @@ async def test_log_line_colours_follow_the_theme(app):
         assert "red" not in colours  # the basic ANSI colour never reaches the pane
 
 
+async def test_a_logged_value_in_brackets_survives(app):
+    """Every `log_line` call interpolates something — a config path, a title, a
+    keymap section — and Rich read `[modes.files]` or `[ui]` as a tag and ate it."""
+    from textual.widgets import RichLog
+
+    async with app.run_test() as pilot:
+        await press(pilot, "4")
+        app.log_line("[yellow]keys.toml:[/] [modes.files] 'x' under [ui] for [dim]dim[/] [weird].pdf")
+        await settle(pilot)
+        text = app.query_one(RichLog).lines[-1].text
+        assert text == "keys.toml: [modes.files] 'x' under [ui] for dim [weird].pdf"
+
+
 async def test_a_log_record_quoting_markup_is_not_swallowed(app):
     from loguru import logger
     from textual.widgets import RichLog
@@ -452,3 +465,9 @@ async def test_marking_redraws_only_the_row_it_changed(app):
         await press(pilot, "space")
         assert str(table.get_row_at(0)[0]) != first  # the mark glyph is there
         assert app.query_one("DataTable").cursor_row == 1  # and the cursor advanced
+
+
+async def test_the_status_bar_shows_a_bracketed_query_as_typed(app):
+    async with app.run_test() as pilot:
+        await press(pilot, "/", "[", "x", "]", "enter")
+        assert "/ [x]" in str(app.query_one("#status-bar").render())

@@ -462,7 +462,10 @@ Three things about the chrome that cost time to find:
   same reason `log_line` rewrites `LOG_TAGS` (`[red]`, `[yellow]`, `[green]`)
   into theme hexes as the message goes past: a call site reads `[red]failed:[/]`
   and still comes out in the palette, without forty call sites learning the
-  Rich/Textual markup split.
+  Rich/Textual markup split. Before that, `log_line` escapes the *whole*
+  message and lets only `LOG_MARKUP` back through, so an interpolated value
+  (`[modes.files]`, `[ui]`, a `[weird]` file name) prints verbatim — callers
+  never escape. The status bar does the same per block in `blocks()`.
 - **The exception marker** is `MARKER_WIDTH` cells the flexible column always
   gives up, so titles stay aligned whether or not a document has anything wrong
   with it — and `header()` indents that column's title by the same amount, or
