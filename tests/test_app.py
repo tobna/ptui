@@ -483,3 +483,20 @@ async def test_a_failed_scope_keeps_the_scope_that_is_on_screen(app):
         assert app.scope_query == "year:2016"
         assert len(app.docs) == 1
         assert app.query_one("#log-pane").display
+
+
+async def test_the_pane_keys_work_from_every_pane(app):
+    """`[modes.info]` bound only j/k/e and the log had no table at all, so `tab`
+    stopped at the info pane and `g o` could not close the log it opened."""
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "tab")
+        assert app.mode == "info"
+        await press(pilot, "tab")
+        assert app.mode == "log"
+        assert app.query_one("#log-pane").display
+        await press(pilot, "g", "o")
+        assert app.mode == "list"
+        assert not app.query_one("#log-pane").display
+        await press(pilot, "2", "1")
+        assert app.mode == "list"

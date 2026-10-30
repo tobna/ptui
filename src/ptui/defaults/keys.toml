@@ -145,10 +145,26 @@ escape_chain = ["modal", "visual", "narrow"]
 "J"        = { cmd = "files.reorder", args = { to =  1 } }
 # escape needs no binding here: the dispatcher always returns to the list.
 
+# The pane keys again: a mode is its own table, and without them `tab` could
+# never get from the info pane to the log, nor `g o` close the log.
 [modes.info]
 "j"        = { cmd = "nav.down" }
 "k"        = { cmd = "nav.up" }
 "e"        = { cmd = "doc.edit" }
+"1"        = { cmd = "pane.focus", args = { pane = "list" } }
+"2"        = { cmd = "pane.focus", args = { pane = "info" } }
+"4"        = { cmd = "pane.focus", args = { pane = "log" } }
+"tab"      = { cmd = "pane.cycle" }
+"shift+tab"= { cmd = "pane.cycle", args = { back = true } }
+"g o"      = { cmd = "app.log", desc = "operation log" }
+
+[modes.log]
+"1"        = { cmd = "pane.focus", args = { pane = "list" } }
+"2"        = { cmd = "pane.focus", args = { pane = "info" } }
+"4"        = { cmd = "pane.focus", args = { pane = "log" } }
+"tab"      = { cmd = "pane.cycle" }
+"shift+tab"= { cmd = "pane.cycle", args = { back = true } }
+"g o"      = { cmd = "app.log", desc = "close the log" }
 
 # The filter box has focus so that typing filters, so motions cannot be letters.
 [modes.picker]

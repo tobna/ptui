@@ -118,9 +118,26 @@ The info pane, focused with `2` or `tab`.
 
 | Keys | Command | Does what |
 | --- | --- | --- |
+| `1` | `pane.focus` pane=list | focus a pane |
+| `2` | `pane.focus` pane=info | focus a pane |
+| `4` | `pane.focus` pane=log | focus a pane |
 | `e` | `doc.edit` | edit |
+| `g o` | `app.log` | operation log |
 | `j` | `nav.down` | move down |
 | `k` | `nav.up` | move up |
+| `shift+tab` | `pane.cycle` back=True | next pane |
+| `tab` | `pane.cycle` | next pane |
+
+## `[modes.log]`
+
+| Keys | Command | Does what |
+| --- | --- | --- |
+| `1` | `pane.focus` pane=list | focus a pane |
+| `2` | `pane.focus` pane=info | focus a pane |
+| `4` | `pane.focus` pane=log | focus a pane |
+| `g o` | `app.log` | close the log |
+| `shift+tab` | `pane.cycle` back=True | next pane |
+| `tab` | `pane.cycle` | next pane |
 
 ## `[modes.picker]`
 
