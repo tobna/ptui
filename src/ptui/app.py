@@ -273,6 +273,8 @@ class PtuiApp(App[None]):
         self._setup_logging()
         for problem in self.km.unknown_commands:
             self.log_line(f"[yellow]keys.toml:[/] {problem}")
+        for problem in self.cfg.invalid:
+            self.log_line(f"[yellow]config.toml:[/] {problem}")
         if name := self.cfg.get("general.library"):  # `-l` or [general] library
             try:
                 library.use(name)

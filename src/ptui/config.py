@@ -47,6 +47,9 @@ class Config:
     """Dotted keys the user set that ptui does not know — reported by app.config_check."""
     path: Path | None
     """The user's config.toml, or None if they have none."""
+    invalid: tuple[str, ...] = ()
+    """Values that could not work and were replaced by the shipped default, as
+    sentences — logged at startup and by app.config_check."""
 
     def get(self, dotted: str, default: Any = None) -> Any:
         node: Any = self.data
@@ -75,7 +78,67 @@ def load(path: Path | None = None) -> Config:
         return Config(defaults, (), None)
 
     user = read_toml(path)
-    return Config(_merge(defaults, user), tuple(_unknown(defaults, user)), path)
+    data = _merge(defaults, user)
+    invalid = _repair(data, tomllib.loads((DEFAULTS_DIR / "config.toml").read_text()))
+    return Config(data, tuple(_unknown(defaults, user)), path, tuple(invalid))
+
+
+CHOICES = {
+    "ui.layout": ("auto", "vertical", "horizontal"),
+    "query.narrow_mode": ("substring", "fuzzy", "regex"),
+    "list.null_ordering": ("last", "first"),
+    "undo.strategy": ("trash", "git", "none"),
+    "edit.mode": ("editor", "structured"),
+    "files.collision": ("skip", "suffix", "ask"),
+    "export.clipboard": ("auto", "wl-copy", "xclip", "pbcopy", "osc52"),
+    "log.level": ("trace", "debug", "info", "success", "warning", "error", "critical"),
+}
+"""ptui's own enumerations — papis's settings are papis's to check."""
+
+
+def _repair(data: dict[str, Any], defaults: dict[str, Any]) -> list[str]:
+    """Put the shipped default back wherever a value cannot work, and say so.
+
+    Left alone, a bad value either crashed at startup (`log.level = "loud"`, a
+    column with no `width`) or quietly meant something else (`layout =
+    "diagonal"` read as side by side, `split_ratio = 1.5` pushed the list off
+    the screen).
+    """
+    problems = []
+
+    def replace(dotted: str, value: Any, why: str) -> None:
+        section, _, key = dotted.rpartition(".")
+        default = Config(defaults, (), None).get(dotted)
+        Config(data, (), None).get(section)[key] = default
+        problems.append(f"{dotted} = {value!r} {why}; using {default!r}")
+
+    view = Config(data, (), None)
+    for dotted, allowed in CHOICES.items():
+        if str(value := view.get(dotted)).casefold() not in allowed:
+            replace(dotted, value, f"is not one of {', '.join(allowed)}")
+    ratio = view.get("ui.split_ratio")
+    if isinstance(ratio, bool) or not isinstance(ratio, int | float) or not 0.1 <= ratio <= 0.9:
+        replace("ui.split_ratio", ratio, "is not between 0.1 and 0.9")
+    height = view.get("list.row_height")
+    if isinstance(height, bool) or not isinstance(height, int) or height < 1:
+        replace("list.row_height", height, "is not a whole number of lines")
+
+    columns = []
+    for column in view.get("list.columns") or []:
+        if not isinstance(column, dict) or not isinstance(column.get("format"), str):
+            problems.append(f"list.columns: {column!r} has no format; left out")
+            continue
+        width = column.setdefault("width", 0)  # missing means flexible, as 0 does
+        if isinstance(width, bool) or not isinstance(width, int) or width < 0:
+            problems.append(f"list.columns: {column.get('title', '')!r} width = {width!r} is not a cell count; using 0")
+            column["width"] = 0
+        column.setdefault("title", "")
+        columns.append(column)
+    if not columns:
+        problems.append("list.columns is empty; using the shipped columns")
+        columns = defaults["list"]["columns"]
+    data["list"]["columns"] = columns
+    return problems
 
 
 def read_toml(path: Path) -> dict[str, Any]:

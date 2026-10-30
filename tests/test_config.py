@@ -55,3 +55,32 @@ def test_a_broken_config_names_the_file_and_the_cli_refuses_politely(tmp_path, m
     assert result.exit_code == 1
     assert "config.toml" in result.output
     assert "Traceback" not in result.output
+
+
+def test_a_value_that_cannot_work_falls_back_to_the_default_and_says_so(tmp_path):
+    """`log.level = "loud"` and a column with no width crashed at startup;
+    `layout = "diagonal"` and `split_ratio = 1.5` quietly broke the layout."""
+    (tmp_path / "config.toml").write_text(
+        '[ui]\nlayout = "diagonal"\nsplit_ratio = 1.5\n[log]\nlevel = "loud"\n[list]\nrow_height = 0\n'
+        '[[list.columns]]\ntitle = "Title"\nformat = "{doc[title]}"\n'
+        '[[list.columns]]\ntitle = "Broken"\n'
+    )
+    cfg = config.load(tmp_path / "config.toml")
+    assert cfg.get("ui.layout") == "auto"
+    assert cfg.get("ui.split_ratio") == 0.6
+    assert cfg.get("log.level") == "info"
+    assert cfg.get("list.row_height") == 1
+    assert cfg.get("list.columns") == [{"title": "Title", "format": "{doc[title]}", "width": 0}]
+    assert len(cfg.invalid) == 5
+    assert any("ui.layout = 'diagonal'" in problem for problem in cfg.invalid)
+
+
+def test_an_empty_column_list_gets_the_shipped_columns(tmp_path):
+    (tmp_path / "config.toml").write_text("[list]\ncolumns = []\n")
+    cfg = config.load(tmp_path / "config.toml")
+    assert [c["title"] for c in cfg.get("list.columns")][-2:] == ["Title", "Tags"]
+
+
+def test_the_shipped_config_is_valid(tmp_path):
+    (tmp_path / "config.toml").write_text("")
+    assert config.load(tmp_path / "config.toml").invalid == ()

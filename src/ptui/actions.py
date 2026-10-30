@@ -1185,7 +1185,12 @@ def keymap_check(app: Any) -> None:
 def config_check(app: Any) -> None:
     for key in app.cfg.unknown:
         app.log_line(f"[yellow]unknown config key:[/] {key}")
-    app.log_line(f"config: {len(app.cfg.unknown)} unknown key(s) in {app.cfg.path or 'defaults'}")
+    for problem in app.cfg.invalid:
+        app.log_line(f"[yellow]invalid:[/] {problem}")
+    app.log_line(
+        f"config: {len(app.cfg.unknown)} unknown key(s), {len(app.cfg.invalid)} invalid value(s)"
+        f" in {app.cfg.path or 'defaults'}"
+    )
     app.query_one("#log-pane").display = True
 
 
