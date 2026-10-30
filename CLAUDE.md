@@ -154,7 +154,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 206 tests, `uv run pytest`.
+empty. 207 tests, `uv run pytest`.
 
 Built:
 
@@ -200,6 +200,11 @@ Built:
 - **query history**: `actions.history` / `remember` over `query.history_file`
   (plain lines, newest last); `app.recall` walks it on `up`/`down` in the
   prompts named by `actions.HISTORY_KINDS`
+- **session state**: `actions.restore_state` before the first `reload`,
+  `save_state` from `PtuiApp.on_unmount` — which runs after the widgets are
+  gone, so the cursor comes from `app._info_of`, not `app.current`. The test
+  fixture turns `persist_state` off, or two sessions in one test leak into
+  each other
 - **visual mode**: `visual.start` (`v`, `V` with `unmark`) — `app.visual` holds
   the anchor and the marks from before, and `_move` recomputes the marks as
   base ± the range, so a verb pressed mid-range acts on what is drawn. A
@@ -208,8 +213,8 @@ Built:
 Every shipped binding has a command behind it; one that ever does not logs "not
 implemented yet", and `uv run python -c` over `keymap.load()` and
 `commands.REGISTRY` lists them (import `actions` first, or the registry is empty
-and every key looks unbound). Shipped but read by nothing yet: the keys `tests/test_config.py::test_every_shipped_key_is_read_somewhere`
-lists — each backlog item that lands takes its key off that list.
+and every key looks unbound). Every shipped config key is read somewhere, and
+`tests/test_config.py::test_every_shipped_key_is_read_somewhere` keeps it so.
 
 `undo.py` is the history and the three strategies; `actions._delete_apply` is
 the one place that removes a document. Whatever `undo.strategy` says, **files

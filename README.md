@@ -26,6 +26,8 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **Vim keys, discoverable** — which-key popups after a prefix, a context hint
   bar, and a `?` overlay listing the *effective* keymap of whichever mode you are
   in, generated from `keys.toml` so it can never drift.
+- **Picks up where you left off** — the scope, sort and cursor of your last
+  session in each library (`general.persist_state`).
 - **Read before you open** — the info pane shows the abstract under the
   metadata; `J`/`K` scroll it without leaving the list.
 - **Marks that survive** — marks are keyed by document, not by row, so sorting

@@ -103,6 +103,8 @@ def build_app(papis_lib, extra: str = ""):
         f'op = "move"\npath_style = "absolute"\nslugify = true\n'
         f'[[files.rules]]\nname = "everything else"\nmatch = ["*"]\nop = "in-place"\n'
         f'[log]\nfile = ""\n'
+        # off: two sessions in one test would otherwise start where the first ended
+        f'[general]\npersist_state = false\nstate_file = "{papis_lib / "state.json"}"\n'
         # No startup doctor scan: it is a thread nothing here asserts on, and it
         # competed with the 0.2s `settle` for the GIL — under load the first
         # press landed before the list had rows, and the command found no target.

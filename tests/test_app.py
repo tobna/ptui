@@ -736,3 +736,42 @@ async def test_normalize_writes_the_canonical_style_and_drops_duplicates(app, pa
         assert app.current["files"] == ["a.djvu", "b.djvu"]
         await press(pilot, "u")
         assert app.current["files"] == ["./a.djvu", str(folder / "b.djvu"), "a.djvu"]
+
+
+async def test_the_next_session_starts_where_this_one_ended(papis_lib):
+    """Per library: scope, sort and cursor. An explicit scope wins."""
+    import json
+
+    from conftest import build_app
+
+    from ptui import library
+
+    def session():
+        app = build_app(papis_lib)
+        app.cfg.data["general"]["persist_state"] = True
+        return app
+
+    app = session()
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "s", *"year:201", "enter")
+        await settle(pilot)
+        await press(pilot, "ctrl+s", "j")
+        cursor = library.doc_id(app.current)
+    state = json.loads((papis_lib / "state.json").read_text())
+    assert next(iter(state.values()))["scope"] == "year:201"
+
+    app = session()
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        assert app.scope_query == "year:201"
+        assert len(app.rows) == 2
+        assert library.doc_id(app.current) == cursor
+        sort = (app.sort_key, app.sort_reverse)
+
+    app = session()
+    app.scope_query = "year:2015"  # `ptui year:2015` on the command line
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        assert app.scope_query == "year:2015"
+        assert (app.sort_key, app.sort_reverse) == sort  # the sort still comes back

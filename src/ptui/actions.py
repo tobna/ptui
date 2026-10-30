@@ -15,6 +15,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
 from textual.widgets import DataTable
 
 from ptui import clip, commands, config, doctor, fetch, library, merge, place, safewrite, ui, undo
@@ -216,10 +217,50 @@ def _write_saved(app: Any, saved: dict[str, dict[str, Any]]) -> None:
     path = app.cfg.as_path("query.saved_file")
     if path is None:
         raise ValueError("query.saved_file is not set")
+    _write_json(path, saved)
+
+
+def _write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.name}.ptui.tmp")
-    tmp.write_text(json.dumps(saved, indent=2, ensure_ascii=False) + "\n")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     tmp.replace(path)
+
+
+def _state(app: Any) -> tuple[Path | None, dict[str, Any]]:
+    path = app.cfg.as_path("general.state_file") if app.cfg.get("general.persist_state", True) else None
+    try:
+        return path, json.loads(path.read_text()) if path else {}
+    except (OSError, ValueError):
+        return path, {}
+
+
+def restore_state(app: Any) -> str | None:
+    """`general.persist_state`: the scope and sort the last session in this
+    library ended on, and the `papis_id` its cursor was on. An explicit scope —
+    `startup_query`, or one on the command line — wins over the remembered one."""
+    import papis.config
+
+    state = _state(app)[1].get(papis.config.get_lib_name(), {})
+    if not app.scope_query:
+        app.scope_query = state.get("scope", "")
+    if state.get("sort"):
+        app.sort_key, app.sort_reverse = state["sort"], bool(state.get("reverse"))
+    return state.get("cursor")
+
+
+def save_state(app: Any, cursor: str | None) -> None:
+    import papis.config
+
+    path, state = _state(app)
+    if path is None:
+        return
+    here = {"scope": app.scope_query, "sort": app.sort_key, "reverse": app.sort_reverse, "cursor": cursor}
+    state[papis.config.get_lib_name()] = here
+    try:
+        _write_json(path, state)
+    except OSError as exc:  # the app is closing: the log file is all that is left
+        logger.warning(f"session state not saved: {exc}")
 
 
 @command("query.save", "save the current search")

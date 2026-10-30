@@ -113,6 +113,4 @@ def test_every_shipped_key_is_read_somewhere():
                 yield f"{prefix}{key}"
 
     unread = [key for key in leaves(data) if f'"{key}' not in src]
-    assert unread == [
-        "general.persist_state",
-    ]  # the backlog's own entries, each shrinking this list as it lands
+    assert unread == []

@@ -303,7 +303,10 @@ class PtuiApp(App[None]):
             except Exception as exc:
                 self.log_line(f"[red]library {name!r}:[/] {exc}")
                 self.cfg.data["general"]["library"] = ""
+        cursor = actions.restore_state(self)
         actions.reload(self)
+        if cursor:
+            self.refresh_rows(keep=cursor)
         # After the library is loaded, not before: column widths come from the
         # p90 of real values, and an empty list makes every column look narrower
         # than it is — which decided the layout wrongly on a borderline width.
@@ -312,6 +315,11 @@ class PtuiApp(App[None]):
         actions.warn_untracked(self)  # once per session, and only under git
         if self.cfg.get("doctor.scan_on_startup", True):
             self.scan_library()
+
+    def on_unmount(self) -> None:
+        # The widgets are gone by now, so not `self.current`: the document the
+        # info pane last showed is the one the cursor was on.
+        actions.save_state(self, self._info_of)
 
     def apply_config(self) -> None:
         """Re-apply what is read once instead of at every use — after `config.set`.
