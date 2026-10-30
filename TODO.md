@@ -97,10 +97,10 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 1. **The `:` line's own commands** — specified in `SPEC.md` § "Commands that
    exist for the `:` line". They need no key: the argument is the command.
-   Still to build, in the order they are worth it: `doctor.fix checks`,
-   `config.set key value` (session-only, nothing written to `config.toml`),
-   `nav.goto ref`, `doc.add source uri`, `query.save name`. (`doc.set` and
-   `mark.query` are built.)
+   Still to build, in the order they are worth it: `config.set key value`
+   (session-only, nothing written to `config.toml`), `nav.goto ref`,
+   `doc.add source uri`, `query.save name`. (`doc.set`, `mark.query` and
+   `doctor.fix checks` are built.)
 
 ## G. Packaging
 

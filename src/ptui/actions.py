@@ -1394,10 +1394,10 @@ def _doctor_targets(app: Any, current: bool) -> list[Any]:
     return [doc] if doc is not None else []
 
 
-def _findings(app: Any, current: bool = False) -> list[tuple[Any, doctor.Finding]]:
+def _findings(app: Any, current: bool = False, checks: str = "") -> list[tuple[Any, doctor.Finding]]:
     """Every finding over the target set, freshly scanned. Read-only."""
-    checks = _checks(app)
-    return [(doc, f) for doc in _doctor_targets(app, current) for f in doctor.scan(doc, checks)]
+    names = _checks(app, checks)
+    return [(doc, f) for doc in _doctor_targets(app, current) for f in doctor.scan(doc, names)]
 
 
 def _label(doc: Any, finding: doctor.Finding) -> str:
@@ -1480,14 +1480,16 @@ def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
 
 
 @command("doctor.fix", "fix doctor findings")
-def doctor_fix(app: Any, current: bool = False) -> None:
+def doctor_fix(app: Any, checks: str = "", current: bool = False) -> None:
     """Apply every fixable finding over the target set.
 
     A finding cannot travel through a `keys.toml` argument, so the command
     reachable by name is the batch one — the same shape as every other verb
-    here. `doctor.fix_pick` is the one-finding path.
+    here. `doctor.fix_pick` is the one-finding path. `checks` narrows it to
+    named checks — `:doctor.fix field-type` is one check across the library,
+    where `! a` is everything at once.
     """
-    found = _findings(app, current)
+    found = _findings(app, current, checks)
     fixable = [(doc, f) for doc, f in found if f.fix_action]
     fixed = sum(_apply_one(app, doc, finding) for doc, finding in fixable)
     skipped = len(found) - len(fixable)

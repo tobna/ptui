@@ -236,3 +236,18 @@ async def test_an_unchecked_document_does_not_claim_zero_findings(app):
         pane = str(app.query_one("#info").render())
         assert "not checked" in pane
         assert "(0)" not in pane
+
+
+async def test_doctor_fix_with_a_check_name_fixes_that_check_only(app, tmp_path):
+    """`:doctor.fix refs` — one check across the shown set; `field-type` would
+    also have turned the quoted year into a number."""
+    from ptui import actions
+
+    _doc, info = broken_doc(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
+        actions.reload(app)
+        actions.cmdline_run(app, "doctor.fix", "refs")
+        text = info.read_text()
+        assert "ref: badref!" in text
+        assert "year: '2024'" in text
