@@ -133,7 +133,8 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
     SelectList #picker-title {
         padding: 0 1; text-style: bold; background: $primary; color: $background;
     }
-    SelectList Input, SelectList Input:focus { border: none; padding: 0 1; background: $surface; }
+    /* height: an Input is three rows by default, two of them blank here */
+    SelectList Input, SelectList Input:focus { height: 1; border: none; padding: 0 1; background: $surface; }
     SelectList OptionList { height: auto; max-height: 20; border: none; background: $surface; }
     SelectList OptionList > .option-list--option-highlighted {
         background: $primary 30%; text-style: bold;

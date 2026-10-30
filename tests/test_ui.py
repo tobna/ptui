@@ -115,3 +115,10 @@ async def test_a_picker_shows_brackets_in_labels_hints_and_titles(app):
         assert "other [weird] name.pdf" in Content.from_markup(prompt).plain
         assert "[draft]" in Content.from_markup(prompt).plain
         assert "Attach to [x]" in str(app.screen.query_one("#picker-title", Static).render())
+
+
+async def test_the_filter_box_is_one_row(app):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "S")
+        assert app.screen.query_one("Input").size.height == 1
