@@ -404,10 +404,26 @@ async def test_the_info_pane_renders_a_real_document(app):
 
     async with app.run_test() as pilot:
         await settle(pilot)
-        text = app.query_one("#info", Static).content
-        assert "[$primary bold]Attention Is All You Need[/]" in text
-        assert "[$accent]Vaswani2017[/]" in text
-        assert "[$secondary]test[/]" in text  # the fixture's one tag, as a chip
+        text = app.query_one("#info", Static).content.markup
+        assert "[$primary bold]Attention Is All You Need[/$primary bold]" in text
+        assert "[$accent]Vaswani2017[/$accent]" in text
+        assert "[$secondary]test[/$secondary]" in text  # the fixture's one tag, as a chip
+
+
+async def test_a_long_info_value_wraps_under_itself_not_under_its_label(app):
+    from textual.widgets import Static
+
+    from ptui import actions
+
+    async with app.run_test(size=(80, 30)) as pilot:
+        await settle(pilot)
+        actions.doc_set(app, "url", "https://example.org/" + "very-long-path-segment/" * 6)
+        await settle(pilot)
+        lines = app.query_one("#info", Static).content.plain.splitlines()
+        head = next(i for i, line in enumerate(lines) if "url" in line and "https" in line)
+        indent = lines[head].index("https")
+        assert lines[head + 1].startswith(" " * indent)
+        assert lines[head + 1].strip()  # the continuation, not a blank line
 
 
 async def test_a_missing_nested_key_renders_blank_without_a_papis_warning(app):

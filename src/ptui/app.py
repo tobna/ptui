@@ -21,6 +21,7 @@ from rich.text import Text
 from textual import events, work
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
+from textual.content import Content
 from textual.coordinate import Coordinate
 from textual.theme import Theme
 from textual.widgets import DataTable, Input, RichLog, Static
@@ -745,11 +746,11 @@ class PtuiApp(App[None]):
 
         # The icon sits left of the right-aligned label, so the icons line up in
         # their own column instead of drifting with the length of each field name.
-        lines = [f"[$primary bold]{show(doc.get('title', '<untitled>'))}[/]", ""]
+        lines: list[str | tuple[str, str]] = [f"[$primary bold]{show(doc.get('title', '<untitled>'))}[/]", ""]
         for key in INFO_FIELDS:
             if doc.get(key):
                 value = self.info_value(key, doc[key], show)
-                lines.append(f"[dim]{ui.glyph(f'field.{key}')} {key:>8}[/]  {value}")
+                lines.append((f"[dim]{ui.glyph(f'field.{key}')} {key:>8}[/]  ", value))
         files = doc.get("files", [])
         if files:
             # The icon belongs to the section, not to every row: repeating it once
@@ -760,9 +761,26 @@ class PtuiApp(App[None]):
                 # main folder to turn a relative `files` entry into a path
                 ok = place.resolve(self.current, entry).exists()
                 mark = " " if ok else f"[$error]{ui.glyph('warning')}[/]"
-                lines.append(f"  {mark} {ui.literal(str(entry))}")
+                lines.append((f"  {mark} ", ui.literal(str(entry))))
         lines += self.doctor_lines(self.current)
-        pane.update("\n".join(lines))
+        pane.update(
+            Content("\n").join(
+                self.hang(*line) if isinstance(line, tuple) else Content.from_markup(line) for line in lines
+            )
+        )
+
+    def hang(self, label: str, value: str) -> Content:
+        """`label` then `value`, the value wrapped so its continuation lines sit
+        under it — a long URL or doctor message otherwise ran back under the
+        label, to the pane's left edge. Both are markup."""
+        head, body = Content.from_markup(label), Content.from_markup(value)
+        width = self.query_one("#info").size.width
+        if width < 16:  # not laid out yet
+            return head + body
+        indent = head.cell_length
+        if indent > width // 2:  # a long label — a doctor check's name: the value goes underneath
+            head, indent = head.rstrip() + Content("\n    "), 4
+        return head + Content("\n" + " " * indent).join(body.wrap(width - indent))
 
     def info_value(self, key: str, value: Any, show: Any) -> str:
         """One info-pane value, in the colour its meaning deserves.
@@ -785,28 +803,29 @@ class PtuiApp(App[None]):
             return f"[$accent]{show(value)}[/]"
         return show(value)
 
-    def doctor_lines(self, doc: Document) -> list[str]:
+    def doctor_lines(self, doc: Document) -> list[str | tuple[str, str]]:
         """This document's findings, from the cache the startup scan fills.
 
         A clean document says nothing — the section is an exception marker, and
-        a permanent "no findings" would cost a line on every row to say so. The
-        cache goes stale by mtime, so an edited document reads "not checked"
-        instead of lying with the findings from before the edit; `! d` refills it.
+        a permanent "no findings" would cost a line on every row to say so. An
+        edited document is re-checked by `doctor.cached`; one the scan never
+        reached reads "not checked", never clean.
         """
         found = doctor.cached(doc)
         if found == []:
             return []
         if found is None:
             return ["", f"[dim]{ui.glyph('field.doctor')}   doctor[/]", "  [dim]not checked[/]"]
-        head = ["", f"[dim]{ui.glyph('field.doctor')}   doctor ({len(found)})[/]"]
+        head: list[str | tuple[str, str]] = ["", f"[dim]{ui.glyph('field.doctor')}   doctor ({len(found)})[/]"]
         # `literal`: a finding quotes the offending value, and a `[...]`-shaped
-        # one is otherwise swallowed by Static.update
+        # one is otherwise swallowed by the markup
         return [
             *head,
             *(
-                f"  [$error]{ui.glyph('warning')}[/] "
-                f"[$warning]{ui.literal(f.name)}[/]  {ui.literal(f.msg)}"
-                + ("" if f.fix_action else "  [dim](no fix)[/]")
+                (
+                    f"  [$error]{ui.glyph('warning')}[/] [$warning]{ui.literal(f.name)}[/]  ",
+                    ui.literal(f.msg) + ("" if f.fix_action else "  [dim](no fix)[/]"),
+                )
                 for f in found
             ),
         ]
