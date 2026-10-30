@@ -59,7 +59,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "space"    = { cmd = "mark.toggle" }
 "ctrl+a"   = { cmd = "mark.all_filtered", desc = "mark all (alias of m a)" }
 "v"        = { cmd = "visual.start" }
-"V"        = { cmd = "visual.line" }
+"V"        = { cmd = "visual.start", args = { unmark = true }, desc = "visual unmark" }
 
 # — undo / refresh ————————————————————————————
 "u"        = { cmd = "app.undo" }

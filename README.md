@@ -28,6 +28,7 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   in, generated from `keys.toml` so it can never drift.
 - **Marks that survive** — marks are keyed by document, not by row, so sorting
   and filtering never lose them. Batch operations confirm against the real count.
+  `v` marks a range as you move (`V` unmarks one), the way vim's visual mode does.
 - **Safe by construction** — every write ptui makes re-checks `info.yaml`'s
   mtime, writes atomically, and leaves unknown keys and comments untouched.
   Files move via `os.link`, never a clobbering `mv`.
@@ -82,9 +83,6 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   (the file stays), `K`/`J` reorder, `p` repoints a broken path at a file in the
   folder, `r` renames to papis's own `add-file-name` scheme, `f n` tidies path
   styles. Every one of them is a single `u` away from undone.
-
-Not there yet: visual mode. Its bindings exist and say so when pressed — see
-[`TODO.md`](TODO.md).
 
 ## Install
 

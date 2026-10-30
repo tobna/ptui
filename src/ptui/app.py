@@ -210,6 +210,8 @@ class PtuiApp(App[None]):
         self.docs: list[Document] = []  # the scoped set
         self.rows: list[Document] = []  # the scoped set after narrowing
         self.marks: set[str] = set()
+        self.visual: tuple[str, bool, set[str]] | None = None
+        """`v`/`V`: (anchor `papis_id`, unmarking, the marks before it started)."""
         self.scope_query = cfg.get("general.startup_query", "")
         self.narrow_query = ""
         self.marked_only = False
@@ -776,6 +778,7 @@ class PtuiApp(App[None]):
         """Re-apply the current narrow filter to the scoped set, right now."""
         query = self.narrow_query if query is None else query
         self.narrow_query = query
+        self.visual = None  # a range over rows that just changed means nothing
         # Before `rows` changes: afterwards the cursor's index points into the
         # new list, at whichever document happens to sit there now.
         keep = library.doc_id(self.current) if self.current else None
@@ -969,6 +972,8 @@ class PtuiApp(App[None]):
         visible_marks = sum(1 for d in self.rows if library.doc_id(d) in self.marks)
         arrow = ui.glyph("sort_desc" if self.sort_reverse else "sort_asc")
         left = [(f" {self.mode.upper()} ", "$background", "$primary")]
+        if self.visual is not None:
+            left = [(f" {'UNMARK' if self.visual[1] else 'VISUAL'} ", "$background", "$accent")]
         left.append((f" {ui.glyph('scope')} {self.scope_query or '*'} ", "$text", "$panel"))
         if self.narrow_query:
             left.append((f" / {self.narrow_query} ", "$background", "$secondary"))

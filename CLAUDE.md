@@ -4,9 +4,10 @@ ptui is a [Textual](https://textual.textualize.io/) TUI for
 [papis](https://github.com/papis/papis). `SPEC.md` is the design contract —
 read it before changing behaviour; this file is the map of what actually
 exists. `TODO.md` is the backlog from real use: **read it before starting anything.**
-Section A (broken things) is empty; work comes from § B (keys that are bound but
-do nothing), § D (display polish) and § E (measurements owed
-and the wrong assumptions they would correct). Finished entries are deleted from
+Section A (broken things) is empty, and every bound key now has a command
+behind it; work comes from § C (default-changing decisions), § D (display
+polish) and § E (measurements owed and the wrong assumptions they would
+correct). Finished entries are deleted from
 it, not struck through.
 
 ## Golden rules
@@ -153,7 +154,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 148 tests, `uv run pytest`.
+empty. 204 tests, `uv run pytest`.
 
 Built:
 
@@ -192,12 +193,15 @@ Built:
 - **the files pane** (`3`): `files.detach` (`x`), `files.reorder` (`K`/`J`),
   `files.repoint` (`p`), `files.rename` (`r`), `files.normalize` (`f n`) —
   each on the entry under `app.file_index`, each one undo step
+- **visual mode**: `visual.start` (`v`, `V` with `unmark`) — `app.visual` holds
+  the anchor and the marks from before, and `_move` recomputes the marks as
+  base ± the range, so a verb pressed mid-range acts on what is drawn. A
+  refilter or any other mark command ends it (or the next move would undo them)
 
-Not built. 2 keys are bound to commands that only log "not implemented yet" —
-`uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
-(import `actions` first, or the registry is empty and every key looks unbound).
-They are visual mode (`v`/`V`). Shipped
-but read by nothing yet: the keys `tests/test_config.py::test_every_shipped_key_is_read_somewhere`
+Every shipped binding has a command behind it; one that ever does not logs "not
+implemented yet", and `uv run python -c` over `keymap.load()` and
+`commands.REGISTRY` lists them (import `actions` first, or the registry is empty
+and every key looks unbound). Shipped but read by nothing yet: the keys `tests/test_config.py::test_every_shipped_key_is_read_somewhere`
 lists — each backlog item that lands takes its key off that list.
 
 `undo.py` is the history and the three strategies; `actions._delete_apply` is

@@ -334,6 +334,11 @@ caller.
   part appears only when there are marks — an empty selection has nothing to say
   about itself, and the bar is chrome that is always on screen.
 - `escape` never clears marks (see `escape_chain`); only `m c` does.
+- **Visual mode** (`v`, `V` unmarking) marks the range between where it started
+  and the cursor, live, so a verb pressed mid-range acts on what is drawn.
+  Escape or the same key ends it and keeps the marks. vim's charwise/linewise
+  split means nothing for a list of rows, so `V` is the SHIFT-unmarks half of
+  `visual.start` rather than a `visual.line` command.
 - **Every way of marking has a way of unmarking the same set.** Marking 40
   documents by query and then having to clear all marks to undo it is the
   same trap as the count above. The unmark half is an `unmark:bool` argument
@@ -569,7 +574,7 @@ from this. Adding a command must not require touching four places.
 | `mark.invert`                   |                               | within current filter                            |
 | `mark.clear`                    |                               | unmark everything — the twin of `mark.all_filtered` |
 | `mark.show_only`                |                               | toggle marked-only view                          |
-| `visual.start` / `visual.line`  |                               | `v` / `V`                                        |
+| `visual.start`                  | `unmark:bool=false`           | marks the range from here to the cursor as it moves; again or escape ends it, marks kept |
 | `doc.open`                      | `which:int?`                  | open via papis opentool                          |
 | `doc.open_folder`               |                               | file browser at doc folder                       |
 | `doc.browse`                    |                               | `papis browse` — URL/DOI                         |

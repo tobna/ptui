@@ -88,8 +88,8 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `tab` | `pane.cycle` | next pane |
 | `u` | `app.undo` | undo |
 | `up` | `nav.up` | move up |
-| `V` | `visual.line` | — *(not implemented)* |
-| `v` | `visual.start` | — *(not implemented)* |
+| `V` | `visual.start` unmark=True | visual unmark |
+| `v` | `visual.start` | visual mark |
 | `y b` | `export.bibtex` | bibtex |
 | `y p` | `export.path` | absolute path |
 | `y u` | `export.url` | DOI/URL |

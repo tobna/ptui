@@ -35,6 +35,8 @@ def _move(app: Any, delta: int) -> None:
     table = _table(app)
     row = max(0, min(table.row_count - 1, table.cursor_row + delta))
     table.move_cursor(row=row)
+    if app.visual is not None:
+        _visual_extend(app)
     app.refresh_info()
     app.refresh_status()
 
@@ -94,6 +96,8 @@ def nav_goto(app: Any, ref: str | None = None) -> None:
         app.marked_only = app.doctor_only = False
         app.refilter("")
     app.refresh_rows(keep=library.doc_id(doc))
+    if app.visual is not None:  # a jump stretches the range like any move
+        _visual_extend(app)
 
 
 # ── panes ───────────────────────────────────────────────────────────────────
@@ -499,6 +503,7 @@ def mark_toggle(app: Any) -> None:
     doc = app.current
     if doc is None:
         return
+    app.visual = None  # every other mark command ends a range, or its next move undoes them
     app.marks.symmetric_difference_update({library.doc_id(doc)})
     app.refresh_row(_table(app).cursor_row)
     if app.cfg.get("marks.advance", True):
@@ -509,6 +514,7 @@ def mark_toggle(app: Any) -> None:
 
 def _mark(app: Any, docs: list[Any], unmark: bool) -> None:
     ids = {library.doc_id(d) for d in docs}
+    app.visual = None
     if unmark:
         app.marks -= ids
     else:
@@ -538,12 +544,14 @@ def mark_query(app: Any, q: str | None = None, unmark: bool = False) -> None:
 
 @command("mark.invert", "invert marks")
 def mark_invert(app: Any) -> None:
+    app.visual = None
     app.marks ^= {library.doc_id(d) for d in app.rows}
     app.refresh_rows()
 
 
 @command("mark.clear", "clear marks")
 def mark_clear(app: Any) -> None:
+    app.visual = None
     app.marks.clear()
     app.refresh_rows()
 
@@ -552,6 +560,45 @@ def mark_clear(app: Any) -> None:
 def mark_show_only(app: Any) -> None:
     app.marked_only = not app.marked_only
     app.refilter()
+
+
+@command("visual.start", "visual mark")
+def visual_start(app: Any, unmark: bool = False) -> None:
+    """Mark (`unmark`: unmark) every row between here and the cursor, as it
+    moves — so what is drawn marked is what is marked, and any verb acts on it.
+    Pressed again, or escape, ends the range and keeps the marks."""
+    if app.visual is not None:
+        _visual_end(app)
+        return
+    if app.current is None:
+        return
+    app.visual = (library.doc_id(app.current), unmark, set(app.marks))
+    _visual_extend(app)
+    app.refresh_status()
+    app.refresh_hints()
+
+
+def _visual_extend(app: Any) -> None:
+    """Marks become what they were at `v`, plus (or minus) the range now."""
+    anchor, unmark, before = app.visual
+    ids = [library.doc_id(d) for d in app.rows]
+    if anchor not in ids:  # deleted under the range: nothing left to stretch from
+        _visual_end(app)
+        return
+    lo, hi = sorted((ids.index(anchor), _table(app).cursor_row))
+    span = set(ids[lo : hi + 1])
+    marks = before - span if unmark else before | span
+    changed = app.marks ^ marks
+    app.marks = marks
+    for index, doc_id in enumerate(ids):
+        if doc_id in changed:
+            app.refresh_row(index)
+
+
+def _visual_end(app: Any) -> None:
+    app.visual = None
+    app.refresh_status()
+    app.refresh_hints()
 
 
 # ── document verbs ──────────────────────────────────────────────────────────
@@ -1477,6 +1524,9 @@ def app_escape(app: Any) -> None:
     for step in app.km.option("escape_chain", ["modal", "narrow"]):
         if step == "modal" and app.prompt_kind:
             app.close_prompt()
+            return
+        if step == "visual" and app.visual is not None:
+            _visual_end(app)
             return
         if step == "narrow" and (app.narrow_query or app.doctor_only):
             app.doctor_only = False  # the doctor view is a narrow, so escape drops it too

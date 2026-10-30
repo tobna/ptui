@@ -10,10 +10,6 @@ entry left behind stay here as their own item.
 
 Nothing known. (`SPEC.md` is the contract; report against it.)
 
-## B. Bound but not implemented (they log "not implemented yet")
-
-- `v` / `V` — visual mode, the last bound keys with nothing behind them.
-
 ## C. Decisions that change the defaults (and so SPEC)
 
 1. **`ui.icons = "auto"` — low priority.** Detect at startup whether the

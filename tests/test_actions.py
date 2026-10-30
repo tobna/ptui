@@ -392,6 +392,28 @@ async def test_unmark_all_filtered_takes_back_only_what_is_shown(app):
         assert app.marks == {"id0", "id1"}  # the hidden marks survive
 
 
+async def test_visual_marks_the_range_as_the_cursor_moves_and_shift_unmarks(app):
+    from ptui import library
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        ids = [library.doc_id(d) for d in app.rows]
+        await press(pilot, "j", "v", "j")
+        assert app.marks == set(ids[1:3])
+        await press(pilot, "k", "k")  # back past the anchor: the range follows
+        assert app.marks == set(ids[0:2])
+        await press(pilot, "escape")  # ends the range, keeps the marks
+        assert app.visual is None
+        assert app.marks == set(ids[0:2])
+        await press(pilot, "j", "j", "space", "g", "g")  # one more mark, outside any range
+        await press(pilot, "V", "j")
+        assert app.marks == {ids[2]}  # unmarked the range, the rest survived
+        await press(pilot, "V")
+        assert app.visual is None
+        await press(pilot, "v", "m", "c", "k")  # another mark command ends the range
+        assert app.marks == set()
+
+
 async def test_config_set_applies_for_the_session_and_checks_the_value(app):
     from ptui import actions
 
