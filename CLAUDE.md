@@ -433,8 +433,9 @@ layout direction and *both* dimensions from `app.side_by_side` / `app.split`,
 so `z z`, `z i` and `z +/-` all just mutate that state and call it. The list
 pane cannot be hidden and takes the whole window when it is alone.
 
-`PtuiApp.focus_pane()` owns the **log** pane's visibility: it is the one
-transient pane, so it opens when focused and closes when focus leaves. Every
+`PtuiApp.focus_pane()` owns the **log** and **files** panes' visibility: they
+are the transient panes (the files pane is the right column's second half,
+`#side`, under the info pane; `j`/`k` there move `app.file_index`); each opens when focused and closes when focus leaves. Every
 path routes through there — `1`-`4`, `tab`, escape and `g o` (`app.log` is now
 just "focus it, or focus the list if it is already up") — which is what fixed
 both halves of the old bug: escape left the pane on screen looking dead, and

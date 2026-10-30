@@ -106,15 +106,25 @@ The files pane. Not built yet, so these bindings only log.
 
 | Keys | Command | Does what |
 | --- | --- | --- |
-| `enter` | `doc.open` | open file |
+| `1` | `pane.focus` pane=list | focus a pane |
+| `2` | `pane.focus` pane=info | focus a pane |
+| `4` | `pane.focus` pane=log | focus a pane |
+| `down` | `nav.down` | move down |
+| `enter` | `doc.open` | open this file |
+| `g o` | `app.log` | operation log |
 | `J` | `files.reorder` to=1 | — *(not implemented)* |
 | `j` | `nav.down` | move down |
 | `K` | `files.reorder` to=-1 | — *(not implemented)* |
 | `k` | `nav.up` | move up |
 | `m` | `files.relocate` | apply placement rules |
+| `o` | `doc.open` | open this file |
 | `p` | `files.repoint` | fix broken path *(not implemented)* |
 | `r` | `files.rename` | rename to scheme *(not implemented)* |
+| `shift+tab` | `pane.cycle` back=True | next pane |
+| `tab` | `pane.cycle` | next pane |
+| `up` | `nav.up` | move up |
 | `x` | `files.detach` | remove from list, keep file *(not implemented)* |
+| `z f` | `pane.toggle` pane=files | close the files pane |
 
 ## `[modes.info]`
 
@@ -124,6 +134,7 @@ The info pane, focused with `2` or `tab`.
 | --- | --- | --- |
 | `1` | `pane.focus` pane=list | focus a pane |
 | `2` | `pane.focus` pane=info | focus a pane |
+| `3` | `pane.focus` pane=files | focus a pane |
 | `4` | `pane.focus` pane=log | focus a pane |
 | `e` | `doc.edit` | edit |
 | `g o` | `app.log` | operation log |
@@ -138,6 +149,7 @@ The info pane, focused with `2` or `tab`.
 | --- | --- | --- |
 | `1` | `pane.focus` pane=list | focus a pane |
 | `2` | `pane.focus` pane=info | focus a pane |
+| `3` | `pane.focus` pane=files | focus a pane |
 | `4` | `pane.focus` pane=log | focus a pane |
 | `g o` | `app.log` | close the log |
 | `shift+tab` | `pane.cycle` back=True | next pane |

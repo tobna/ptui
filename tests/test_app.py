@@ -510,6 +510,8 @@ async def test_the_pane_keys_work_from_every_pane(app):
         await press(pilot, "tab")
         assert app.mode == "info"
         await press(pilot, "tab")
+        assert app.mode == "files"
+        await press(pilot, "tab")
         assert app.mode == "log"
         assert app.query_one("#log-pane").display
         await press(pilot, "g", "o")
@@ -604,3 +606,33 @@ async def test_an_unknown_library_is_one_readable_sentence(app):
         text = " ".join(" ".join(line.text for line in app.query_one(RichLog).lines).split())
         assert "Library 'no-such-library' does not seem to exist. To add a library" in text
         assert "('" not in text
+
+
+def _give_files(papis_lib, *names, doc="doc0"):
+    folder = papis_lib / "lib" / doc
+    for name in names:
+        (folder / name).write_bytes(name.encode())
+    info = folder / "info.yaml"
+    info.write_text(info.read_text() + "files:\n" + "".join(f"- {name}\n" for name in names))
+
+
+async def test_the_files_pane_lists_the_entries_and_opens_the_one_under_its_cursor(app, papis_lib, monkeypatch):
+    import papis.utils
+    from textual.widgets import OptionList
+
+    _give_files(papis_lib, "paper.pdf", "paper_supp.pdf")
+    opened = []
+    monkeypatch.setattr(papis.utils, "open_file", lambda path, **_: opened.append(path))
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "3")
+        pane = app.query_one("#files-pane", OptionList)
+        assert app.mode == "files" and pane.display
+        assert [str(pane.get_option_at_index(i).prompt).split()[0] for i in range(2)] == ["paper.pdf", "paper_supp.pdf"]
+        await press(pilot, "j")
+        assert app.file_index == 1
+        assert app.current["title"] == "Attention Is All You Need"  # j moved the file, not the document
+        await press(pilot, "enter")
+        assert opened[-1].endswith("paper_supp.pdf")
+        await press(pilot, "escape")
+        assert not pane.display  # transient, like the log

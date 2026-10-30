@@ -28,6 +28,10 @@ def _table(app: Any) -> DataTable:
 
 
 def _move(app: Any, delta: int) -> None:
+    if app.mode == "files":  # the same keys, the pane's own cursor
+        app.file_index = max(0, app.file_index + delta)
+        app.refresh_files()
+        return
     table = _table(app)
     row = max(0, min(table.row_count - 1, table.cursor_row + delta))
     table.move_cursor(row=row)
@@ -112,6 +116,9 @@ def pane_cycle(app: Any, back: bool = False) -> None:
 def pane_toggle(app: Any, pane: str) -> None:
     if pane == "list":
         app.log_line("[yellow]the list pane cannot be hidden[/]")
+        return
+    if pane in ("files", "log"):  # transient: shown is focused
+        app.focus_pane("list" if app.mode == pane else pane)
         return
     try:
         widget = app.query_one(f"#{pane}-pane")
@@ -571,6 +578,8 @@ def doc_open(app: Any, which: int | None = None) -> None:
         app.log_line("[yellow]no files attached[/]")
         return
     path = paths[which] if which is not None and which < len(paths) else paths[0]
+    if which is None and app.mode == "files":  # the entry under the files pane's cursor
+        path = place.resolve(doc, list(doc.get("files") or [])[app.file_index])
     if not path.exists():
         app.log_line(f"[red]missing file:[/] {path}")
         return

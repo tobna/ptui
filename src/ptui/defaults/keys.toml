@@ -140,7 +140,17 @@ escape_chain = ["modal", "visual", "narrow"]
 [modes.files]
 "j"        = { cmd = "nav.down" }
 "k"        = { cmd = "nav.up" }
-"enter"    = { cmd = "doc.open" }
+"down"     = { cmd = "nav.down" }
+"up"       = { cmd = "nav.up" }
+"enter"    = { cmd = "doc.open", desc = "open this file" }
+"o"        = { cmd = "doc.open", desc = "open this file" }
+"1"        = { cmd = "pane.focus", args = { pane = "list" } }
+"2"        = { cmd = "pane.focus", args = { pane = "info" } }
+"4"        = { cmd = "pane.focus", args = { pane = "log" } }
+"tab"      = { cmd = "pane.cycle" }
+"shift+tab"= { cmd = "pane.cycle", args = { back = true } }
+"z f"      = { cmd = "pane.toggle", args = { pane = "files" }, desc = "close the files pane" }
+"g o"      = { cmd = "app.log", desc = "operation log" }
 "r"        = { cmd = "files.rename",   desc = "rename to scheme" }
 "m"        = { cmd = "files.relocate", desc = "apply placement rules" }
 "p"        = { cmd = "files.repoint",  desc = "fix broken path" }
@@ -157,6 +167,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "e"        = { cmd = "doc.edit" }
 "1"        = { cmd = "pane.focus", args = { pane = "list" } }
 "2"        = { cmd = "pane.focus", args = { pane = "info" } }
+"3"        = { cmd = "pane.focus", args = { pane = "files" } }
 "4"        = { cmd = "pane.focus", args = { pane = "log" } }
 "tab"      = { cmd = "pane.cycle" }
 "shift+tab"= { cmd = "pane.cycle", args = { back = true } }
@@ -165,6 +176,7 @@ escape_chain = ["modal", "visual", "narrow"]
 [modes.log]
 "1"        = { cmd = "pane.focus", args = { pane = "list" } }
 "2"        = { cmd = "pane.focus", args = { pane = "info" } }
+"3"        = { cmd = "pane.focus", args = { pane = "files" } }
 "4"        = { cmd = "pane.focus", args = { pane = "log" } }
 "tab"      = { cmd = "pane.cycle" }
 "shift+tab"= { cmd = "pane.cycle", args = { back = true } }

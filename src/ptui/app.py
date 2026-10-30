@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+from fnmatch import fnmatch
 from typing import Any
 
 import papis.config
@@ -21,11 +22,11 @@ from rich.markup import escape
 from rich.text import Text
 from textual import events, work
 from textual.app import App, ComposeResult
-from textual.containers import Container, VerticalScroll
+from textual.containers import Container, Vertical, VerticalScroll
 from textual.content import Content
 from textual.coordinate import Coordinate
 from textual.theme import Theme
-from textual.widgets import DataTable, Input, RichLog, Static
+from textual.widgets import DataTable, Input, OptionList, RichLog, Static
 
 from ptui import (
     actions,
@@ -39,7 +40,7 @@ from ptui import (
     undo,
 )
 
-PANES = ("list", "info", "log")
+PANES = ("list", "info", "files", "log")
 
 DEFAULT_THEME = "tokyonight-moon"
 """LazyVim's own default colourscheme. `\\ t` switches, `[ui] theme` makes it stick."""
@@ -158,7 +159,7 @@ class PtuiApp(App[None]):
     Screen { layers: base which; background: $background; }
     #panes { height: 1fr; }
 
-    #list-pane, #info-pane, #log-pane {
+    #list-pane, #info-pane, #files-pane, #log-pane {
         background: $surface; border: round $border-blurred;
         border-title-color: $text-muted; border-title-style: bold;
         border-subtitle-color: $text-muted;
@@ -167,11 +168,16 @@ class PtuiApp(App[None]):
         scrollbar-size-vertical: 1;
     }
     #list-pane { width: 1fr; }
-    #info-pane { width: 1fr; padding: 0 1; }
+    #side { width: 1fr; height: 1fr; }
+    #info-pane { width: 1fr; height: 1fr; padding: 0 1; }
+    /* transient, like the log: it is where you act on files, and the info pane
+       already lists them for reading */
+    #files-pane { height: auto; max-height: 12; display: none; }
+    #files-pane > .option-list--option-highlighted { background: $primary 30%; text-style: bold; }
     #log-pane { height: 10; display: none; }
     /* ID beats class in Textual's specificity, so the active rule has to carry
        the ID too — otherwise the pane border never lights up. */
-    #list-pane.pane-active, #info-pane.pane-active, #log-pane.pane-active {
+    #list-pane.pane-active, #info-pane.pane-active, #files-pane.pane-active, #log-pane.pane-active {
         border: round $primary; border-title-color: $primary;
     }
 
@@ -226,6 +232,9 @@ class PtuiApp(App[None]):
         """What `refresh_rows` paints with: highlighted terms, row height, styles."""
         self._fit_state: tuple[list[tuple[dict[str, Any], int]], list[str]] | None = None
         self._which_timer: Any = None
+        self.file_index = 0
+        """The files pane's cursor: an index into the current document's `files`."""
+        self._files_of: str | None = None
 
     # ── setup ───────────────────────────────────────────────────────────────
 
@@ -253,9 +262,14 @@ class PtuiApp(App[None]):
         info = VerticalScroll(Static(id="info"), id="info-pane")
         info.can_focus = False
         info.border_title = "document"
+        files = OptionList(id="files-pane")
+        files.can_focus = False
+        files.border_title = "files"
         with Container(id="panes"):  # apply_split() owns the layout direction
             yield table
-            yield info
+            with Vertical(id="side"):
+                yield info
+                yield files
         # wrap: a finding quotes a whole path, and the pane has no horizontal scroll
         # key; min_width: RichLog never wraps narrower than 78 cells otherwise
         log = RichLog(
@@ -500,10 +514,11 @@ class PtuiApp(App[None]):
         # width, and applying it must not second-guess that with a worse number.
         self.query_one("#panes").styles.layout = "horizontal" if self.side_by_side else "vertical"
         table = self.query_one(DataTable)
-        info = self.query_one("#info-pane")
-        share = f"{int(self.split * 100)}%" if info.display else "1fr"
+        side = self.query_one("#side")
+        side.display = self.query_one("#info-pane").display or self.query_one("#files-pane").display
+        share = f"{int(self.split * 100)}%" if side.display else "1fr"
         table.styles.width, table.styles.height = (share, "1fr") if self.side_by_side else ("1fr", share)
-        info.styles.width = info.styles.height = "1fr"
+        side.styles.width = side.styles.height = "1fr"
         self.call_after_refresh(self.refresh_rows)  # columns refit to the new width
 
     # ── columns ─────────────────────────────────────────────────────────────
@@ -644,11 +659,19 @@ class PtuiApp(App[None]):
         if pane not in PANES:
             self.log_line(f"[yellow]no {pane} pane in v0[/]")
             return
-        # The log is the one transient pane: it opens when focused and closes
-        # when focus leaves, so escape gets rid of it. Every other pane is
+        # The log and the files pane are transient: each opens when focused and
+        # closes when focus leaves, so escape gets rid of it. The info pane is
         # toggled by hand (`z i`), and focusing must not argue with that.
         self.query_one("#log-pane").display = pane == "log"
+        files = self.query_one("#files-pane")
+        if files.display != (pane == "files"):
+            files.display = pane == "files"
+            side = self.query_one("#side")
+            if side.display != (files.display or self.query_one("#info-pane").display):
+                self.apply_split()  # the side column appears or goes: the list resizes
+            self.refresh_files()
         self.mode = pane
+        self.refresh_hints()
         for name in PANES:
             self.query_one(f"#{name}-pane").set_class(name == pane, "pane-active")
         self.refresh_status()
@@ -811,11 +834,38 @@ class PtuiApp(App[None]):
                 mark = " " if ok else f"[$error]{ui.glyph('warning')}[/]"
                 lines.append((f"  {mark} ", ui.literal(str(entry))))
         lines += self.doctor_lines(self.current)
+        self.refresh_files()
         pane.update(
             Content("\n").join(
                 self.hang(*line) if isinstance(line, tuple) else Content.from_markup(line) for line in lines
             )
         )
+
+    def refresh_files(self) -> None:
+        """The files pane: the current document's `files` in stored order — the
+        first entry is "the" file — with the cursor on `file_index`."""
+        pane = self.query_one("#files-pane", OptionList)
+        if not pane.display:
+            return
+        doc = self.current
+        if doc is None or library.doc_id(doc) != self._files_of:
+            self.file_index = 0  # another document: start at its first file
+        self._files_of = library.doc_id(doc) if doc else None
+        entries = list(doc.get("files") or []) if doc else []
+        self.file_index = max(0, min(self.file_index, len(entries) - 1))
+        patterns = self.cfg.get("files.kind_patterns", {})
+        pane.clear_options()
+        for entry in entries:
+            path = place.resolve(doc, entry)
+            mark = " " if path.exists() else ui.glyph("warning")
+            kind = next((name for name, globs in patterns.items() if any(fnmatch(path.name, g) for g in globs)), "")
+            row = Text(f"{mark} {entry}")
+            if kind:
+                row.append(f"  {kind}", style="dim")
+            pane.add_option(row)
+        if not entries:
+            pane.add_option(Text("no files — f a attaches one", style="dim"))
+        pane.highlighted = self.file_index if entries else None
 
     def hang(self, label: str, value: str) -> Content:
         """`label` then `value`, the value wrapped so its continuation lines sit
@@ -946,11 +996,12 @@ class PtuiApp(App[None]):
     def refresh_hints(self) -> None:
         if not self.km.option("hint_bar", True):
             return
-        wanted = (
-            ["doc.tag", "doc.merge", "export.bibtex", "mark.clear", "files.relocate", "doc.delete"]
-            if self.marks
-            else ["doc.open", "query.narrow", "query.scope", "mark.toggle", "doc.add", "help.show"]
-        )
+        if self.mode == "files":
+            wanted = ["doc.open", "files.rename", "files.repoint", "files.detach", "files.reorder", "files.normalize"]
+        elif self.marks:
+            wanted = ["doc.tag", "doc.merge", "export.bibtex", "mark.clear", "files.relocate", "doc.delete"]
+        else:
+            wanted = ["doc.open", "query.narrow", "query.scope", "mark.toggle", "doc.add", "help.show"]
         # Only what exists: the hint bar is the one piece of chrome that is always
         # on screen, and advertising a key that logs "not implemented yet" there
         # is worse than showing one hint fewer.
