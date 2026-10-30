@@ -411,3 +411,17 @@ async def test_config_set_applies_for_the_session_and_checks_the_value(app):
 
         actions.cmdline_run(app, "config.set", "ui.nonsense 1")
         assert app.cfg.get("ui.nonsense") is None  # a new key would be read by nothing
+
+
+async def test_goto_jumps_to_a_pasted_citekey_and_drops_a_hiding_narrow(app):
+    from conftest import press, settle
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "/", *"attention", "enter")
+        assert len(app.rows) == 1
+        await press(pilot, "g", "r", *r"\citep[p.~3]{bengio2003,He2016}", "enter")
+        assert app.current["ref"] == "Bengio2003"  # the first key, case-insensitively
+        assert app.narrow_query == ""
+        await press(pilot, "g", "r", *"Nobody1999", "enter")
+        assert app.current["ref"] == "Bengio2003"  # unknown: stays put, says so

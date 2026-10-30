@@ -64,6 +64,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `g m` | `view.marked` | marked only *(not implemented)* |
 | `g n` | `doc.notes` | notes |
 | `g o` | `app.log` | operation log |
+| `g r` | `nav.goto` | go to a citekey |
 | `g s` | `view.saved` | saved searches *(not implemented)* |
 | `i` | `doc.add` source=inbox | add from inbox |
 | `j` | `nav.down` | move down |

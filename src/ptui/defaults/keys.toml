@@ -78,6 +78,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "g s"      = { cmd = "view.saved",  desc = "saved searches" }
 "g m"      = { cmd = "view.marked", desc = "marked only" }
 "g l"      = { cmd = "lib.switch",  desc = "switch library" }
+"g r"      = { cmd = "nav.goto",    desc = "go to a citekey" }
 "g o"      = { cmd = "app.log",     desc = "operation log" }
 
 # ————— c : change a field ———————————————————————

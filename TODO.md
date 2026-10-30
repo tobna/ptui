@@ -97,8 +97,8 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 1. **The `:` line's own commands** — specified in `SPEC.md` § "Commands that
    exist for the `:` line". They need no key: the argument is the command.
-   Still to build: `nav.goto ref`, `doc.add source uri`, `query.save name`.
-   (`doc.set`, `mark.query`, `doctor.fix checks` and `config.set` are built.)
+   Still to build: `doc.add source uri`, `query.save name`. (`doc.set`,
+   `mark.query`, `doctor.fix checks`, `config.set` and `nav.goto` are built.)
 
 ## G. Packaging
 

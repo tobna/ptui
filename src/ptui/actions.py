@@ -6,6 +6,7 @@ app module, so `app.py` can import this at load time to register everything.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from fnmatch import fnmatch
@@ -61,6 +62,33 @@ def nav_page_down(app: Any) -> None:
 @command("nav.page_up", "page up")
 def nav_page_up(app: Any) -> None:
     _move(app, -max(1, _table(app).size.height - 2))
+
+
+_CITE = re.compile(r"\\\w*cite\w*\*?(?:\[[^]]*\])*\{([^}]*)\}")
+
+
+@command("nav.goto", "go to a citekey")
+def nav_goto(app: Any, ref: str | None = None) -> None:
+    """Move the cursor to the document whose `ref` is exactly this — a citekey
+    pasted from a `.tex`, `\\cite{...}` and all; a list of keys goes to the first.
+
+    A narrow that hides it is dropped, since jumping is the point; a document
+    outside the scope is only reported, because changing the scope is `s`.
+    """
+    if ref is None:
+        app.open_prompt("goto", "citekey (\\cite{...} works too)")
+        return
+    found = _CITE.search(ref)
+    key = (found.group(1) if found else ref).split(",")[0].strip()
+    doc = next((d for d in app.docs if str(d.get("ref", "")) == key), None)
+    doc = doc or next((d for d in app.docs if str(d.get("ref", "")).casefold() == key.casefold()), None)
+    if doc is None:
+        app.log_line(f"[yellow]no document with ref {key} in scope {app.scope_query or '*'}[/]")
+        return
+    if doc not in app.rows:
+        app.marked_only = app.doctor_only = False
+        app.refilter("")
+    app.refresh_rows(keep=library.doc_id(doc))
 
 
 # ── panes ───────────────────────────────────────────────────────────────────
@@ -153,6 +181,9 @@ def prompt_result(app: Any, kind: str, value: str) -> None:
             doc_set(app, field, text.strip())
     elif kind in ("tag", "untag"):
         (doc_tag if kind == "tag" else doc_untag)(app, value)
+    elif kind == "goto":
+        if value.strip():
+            nav_goto(app, value)
     elif kind in ("mark", "unmark"):
         if value.strip():
             mark_query(app, value, unmark=kind == "unmark")
