@@ -255,7 +255,11 @@ class PtuiApp(App[None]):
         with Container(id="panes"):  # apply_split() owns the layout direction
             yield table
             yield info
-        log = RichLog(id="log-pane", markup=True, max_lines=self.cfg.get("log.max_entries", 500))
+        # wrap: a finding quotes a whole path, and the pane has no horizontal scroll
+        # key; min_width: RichLog never wraps narrower than 78 cells otherwise
+        log = RichLog(
+            id="log-pane", markup=True, wrap=True, min_width=1, max_lines=self.cfg.get("log.max_entries", 500)
+        )
         log.border_title = "log"
         yield log
         yield Static(id="which-key")

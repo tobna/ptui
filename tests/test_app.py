@@ -535,3 +535,15 @@ async def test_a_failing_command_is_reported_once(app, monkeypatch):
         lines = [line.text for line in app.query_one(RichLog).lines]
         assert sum("test.boom failed" in line for line in lines) == 1
         assert any("kaputt" in line for line in lines)
+
+
+async def test_a_long_log_line_wraps_instead_of_being_cut(app):
+    from textual.widgets import RichLog
+
+    async with app.run_test(size=(60, 30)) as pilot:
+        await press(pilot, "4")
+        app.log_line("file " + "/very/long/path" * 8 + " declared but does not exist")
+        await settle(pilot)
+        log = app.query_one(RichLog)
+        assert "does not exist" in "".join(line.text for line in log.lines)
+        assert max(line.cell_length for line in log.lines) <= log.size.width
