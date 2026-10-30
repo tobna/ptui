@@ -282,6 +282,9 @@ def prompt_result(app: Any, kind: str, value: str) -> None:
     elif kind == "save":
         if value.strip():
             query_save(app, value.strip())
+    elif kind.startswith("repoint:"):
+        if value.strip():
+            files_repoint(app, int(kind.removeprefix("repoint:")), value.strip())
     elif kind == "goto":
         if value.strip():
             nav_goto(app, value)
@@ -1255,6 +1258,35 @@ def files_reorder(app: Any, index: int | None = None, to: int = 1) -> None:
     _fields_apply(app, doc, {"files": entries})
     app.file_index = target  # the cursor stays on the file it moved
     app.refresh_files()
+
+
+@command("files.repoint", "point an entry at another file")
+def files_repoint(app: Any, index: int | None = None, path: str | None = None) -> None:
+    """Replace one `files` entry — the fix for a path that broke. With no `path`,
+    a picker over the document folder's files that no entry points at yet (the
+    usual culprit is a rename), and "a path…" for anything else. The new entry
+    keeps the old one's style: relative stays relative where it can."""
+    found = _file_entry(app, index)
+    if found is None:
+        return
+    doc, entries, at = found
+    if path is not None:
+        target = Path(path).expanduser().resolve()
+        if not target.is_file():
+            app.log_line(f"[red]no such file:[/] {target}")
+            return
+        entries[at] = place._entry(target, doc, "keep", entries[at])
+        _fields_apply(app, doc, {"files": entries})
+        return
+    folder = Path(doc.get_main_folder() or ".")
+    held = {place.resolve(doc, entry) for entry in entries}
+    loose = sorted(p for p in folder.iterdir() if p.is_file() and p.name != "info.yaml" and p not in held)
+    items = [ui.Item(label="a path…", value="", hint="type it"), *(ui.Item(label=p.name, value=str(p)) for p in loose)]
+    ui.pick(app, items, title=f"{entries[at]} -> ?")(
+        lambda chosen, _i: files_repoint(app, at, chosen)
+        if chosen
+        else app.open_prompt(f"repoint:{at}", f"path for {entries[at]}")
+    )
 
 
 @command("files.attach", "attach file")

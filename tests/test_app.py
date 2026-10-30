@@ -652,3 +652,17 @@ async def test_detach_keeps_the_file_and_reorder_moves_the_cursor_with_it(app, p
         assert app.current["files"] == ["b.pdf", "a.pdf", "c.pdf"]
         await press(pilot, "u")
         assert app.current["files"] == ["a.pdf", "b.pdf", "c.pdf"]
+
+
+async def test_repoint_offers_the_folder_files_no_entry_holds(app, papis_lib):
+    _give_files(papis_lib, "kept.pdf", "gone.pdf")
+    folder = papis_lib / "lib" / "doc0"
+    (folder / "gone.pdf").rename(folder / "renamed.pdf")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "3", "j", "p")
+        assert [item.label for item in app.screen.items] == ["a path…", "renamed.pdf"]
+        await press(pilot, "down", "enter")
+        assert app.current["files"] == ["kept.pdf", "renamed.pdf"]  # relative, like the entry it replaced
+        await press(pilot, "u")
+        assert app.current["files"] == ["kept.pdf", "gone.pdf"]

@@ -12,8 +12,8 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
 
 ## B. Bound but not implemented (they log "not implemented yet")
 
-- `f n` `files.normalize`, and the files pane's `r` `files.rename` and `p`
-  `files.repoint`. (The pane, `x` detach and `K`/`J` reorder are built.)
+- `f n` `files.normalize`, and the files pane's `r` `files.rename`. (The pane,
+  `x` detach, `K`/`J` reorder and `p` repoint are built.)
 
 ## C. Decisions that change the defaults (and so SPEC)
 
