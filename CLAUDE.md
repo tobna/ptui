@@ -156,7 +156,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 211 tests, `uv run pytest`.
+empty. 212 tests, `uv run pytest`.
 
 Built:
 
@@ -214,6 +214,10 @@ Built:
   and `actions._ask_clashes` — the loop `doc.merge` uses too — into
   `_fields_apply`. Tests stub `papis.importer.fetch_importers`, not
   `fetch.refetch`, so ptui's own filtering still runs
+- **`doc.move`** (`:` only): `papis.commands.mv.run` per target into another
+  library, folder name kept. The target's index is built *before* the move —
+  papis's `mv` adds to it, and an index built afterwards already holds the
+  document, which then lists twice
 - **visual mode**: `visual.start` (`v`, `V` with `unmark`) — `app.visual` holds
   the anchor and the marks from before, and `_move` recomputes the marks as
   base ± the range, so a verb pressed mid-range acts on what is drawn. A

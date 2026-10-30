@@ -545,6 +545,62 @@ def lib_switch(app: Any, name: str | None = None) -> None:
     ui.pick(app, items, title="Library", current=current)(apply)
 
 
+@command("doc.move", "move to another library")
+def doc_move(app: Any, to: str = "") -> None:
+    """`papis mv` into another library: each folder keeps its name, both papis
+    databases learn of it, and under `use-git` both libraries get a commit. Not
+    undoable — the way back is the same command from the other library — so a
+    batch confirms first, like every other batch."""
+    import papis.config
+
+    docs = list(app.targets)
+    if not docs:
+        return
+    if not to:
+        current = papis.config.get_lib_name()
+        others = [lib for lib in papis.config.get_libs() if lib != current]
+        if not others:
+            app.log_line("[yellow]papis knows no other library to move to[/]")
+            return
+        ui.pick(app, [ui.Item(label=lib, value=lib) for lib in others], title=f"Move {len(docs)} document(s) to")(
+            lambda lib, _i: doc_move(app, lib)
+        )
+        return
+    try:
+        target = Path(papis.config.get_lib_from_name(to).path)
+    except Exception as exc:  # papis's InvalidLibraryError, worded for its command line
+        app.log_line(f"[red]library {to}:[/] {' '.join(map(str, exc.args))}")
+        return
+    if len(docs) == 1:
+        _move_apply(app, docs, to, target)
+        return
+    items = [ui.Item(label=f"move {len(docs)} documents to {to}", value=True), ui.Item(label="cancel", value=False)]
+    ui.pick(app, items, title=f"Move to {to}?")(lambda ok, _i: _move_apply(app, docs, to, target) if ok else None)
+
+
+def _move_apply(app: Any, docs: list[Any], to: str, target: Path) -> None:
+    import papis.commands.mv
+    import papis.database
+
+    # papis's mv adds the document to the target's index; an index that does not
+    # exist yet is built by scanning the folder it has just moved into, and then
+    # holds it twice. Build it first, from the folder as it is now.
+    papis.database.get(library_name=to).get_all_documents()
+    git = bool(app.cfg.papis("edit.use_git", "use-git"))
+    moved = 0
+    for doc in docs:
+        dest = target / Path(doc.get_main_folder()).name
+        try:
+            papis.commands.mv.run(doc, str(dest), target_library=to, git=git)
+        except Exception as exc:  # a clash for one document must not stop the rest
+            app.log_line(f"[red]{doc.get('ref', '')} not moved:[/] {exc}")
+            continue
+        app.marks.discard(library.doc_id(doc))
+        moved += 1
+    reload(app)
+    app.log_line(f"moved {moved} document(s) to {to}")
+
+
 @command("lib.backfill_dates", "stamp missing time-added")
 def lib_backfill_dates(app: Any) -> None:
     """Give every document in scope that lacks `time-added` the mtime of its

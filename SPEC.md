@@ -639,6 +639,7 @@ from this. Adding a command must not require touching four places.
 | `doctor.fix`                    | `checks:str?, current:bool`   | every fixable finding on the targets, via safe-write; `checks` fixes one check across the library |
 | `doctor.fix_pick`               |                               | SelectList over this document's findings; `enter` fixes that one |
 | `lib.switch`                    | `name:str?`                   | SelectList over libraries                        |
+| `doc.move`                      | `to:str?`                     | `papis mv` into another library, batch confirms; not undoable |
 | `theme.picker`                  | `name:str?`                   | SelectList over the registered themes; applies live |
 | `help.show`                     | `filter:str?`                 | generated help overlay                           |
 | `cmdline.open`                  |                               | `:` command line with completion                 |

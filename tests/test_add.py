@@ -122,6 +122,26 @@ async def test_switching_library_sends_a_new_document_to_that_library(app, papis
         assert len(list((papis_lib / "lib").glob("*/info.yaml"))) == 3  # the old one is untouched
 
 
+async def test_moving_documents_to_another_library_skips_a_clash_and_moves_the_rest(app, papis_lib):
+    import papis.database
+
+    from ptui import library
+
+    other = papis_lib / "other"
+    (other / "doc0").mkdir(parents=True)  # taken in the target: a clash, never an overwrite
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        app.marks = {library.doc_id(d) for d in app.docs if d["papis_id"] in ("id0", "id1")}
+        app.run_command("doc.move", {"to": str(other)})
+        await press(pilot, "enter")  # a batch confirms first
+        await settle(pilot)
+        assert sorted(d["papis_id"] for d in app.docs) == ["id0", "id2"]
+        moved = papis.database.get(str(other)).get_all_documents()
+        assert [d["papis_id"] for d in moved] == ["id1"]
+        assert (other / "doc1" / "info.yaml").exists()
+        assert app.marks == {"id0"}  # the one that stayed is still marked
+
+
 async def test_doc_add_with_a_uri_skips_both_prompts(app, monkeypatch):
     """`:doc.add arxiv 2607.00687` goes straight to the form, prefilled."""
     from ptui import actions, fetch, ui
