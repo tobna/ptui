@@ -171,10 +171,18 @@ async def test_redo_deletes_it_again(app, papis_lib):
         await settle(pilot)
         assert len(app.docs) == 3
 
+        # Redo means *that* delete again, not "delete whatever is under the cursor".
+        await press(pilot, "G")
         await press(pilot, "ctrl+r")
         await settle(pilot)
         assert len(app.docs) == 2
         assert not (papis_lib / "lib" / "doc0").exists()
+        assert (papis_lib / "lib" / "doc2").exists()
+        assert len(app.history.done) == 1  # the redo is the same step, not a new one
+
+        await press(pilot, "u")
+        await settle(pilot)
+        assert (papis_lib / "lib" / "doc0" / "info.yaml").exists()  # and it undoes again
 
 
 async def test_a_checked_file_is_trashed_and_comes_back_with_undo(app, papis_lib):

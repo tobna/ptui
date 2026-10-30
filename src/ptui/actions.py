@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from fnmatch import fnmatch
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -1551,46 +1552,32 @@ def doc_delete(app: Any, force: bool = False) -> None:
 
 
 def _delete_apply(app: Any, targets: list[Any], files: list[Doomed]) -> None:
-    """Trash the chosen files, remove the folders per `undo.strategy`, and push
-    one undo step for the whole operation."""
-    import papis.database
+    """Delete, then push one undo step for the whole operation.
 
+    Redo repeats *this* delete — the same documents by `papis_id`, the same
+    files — rather than calling `doc.delete` again, which would act on whatever
+    the cursor or the marks hold by then.
+    """
     strategy = app.cfg.get("undo.strategy", "trash")
-    where = trash_dir(app)
-    moved: list[tuple[Path, Path]] = []
-    for doomed in files:
-        try:
-            moved.append((doomed.path, place.trash(doomed.path, where)))
-        except Exception as exc:
-            app.log_line(f"[red]could not trash {doomed.path.name}:[/] {exc}")
-
-    folders = [Path(doc.get_main_folder()) for doc in targets if doc.get_main_folder()]
     label = f"delete {len(targets)} document(s)"
-    step: undo.Step | None = None
+    paths = [doomed.path for doomed in files]
     try:
-        if strategy == "git":
-            step = _delete_with_git(app, folders, label, moved)
-        else:
-            for folder in folders:
-                moved.append((folder, place.trash(folder, where)))
-            step = undo.Step(label, lambda: _undo_trash(app, moved), lambda: doc_delete(app, True))
+        back = [_delete_run(app, targets, paths, label)]
     except Exception as exc:
         app.log_line(f"[red]delete failed:[/] {exc}")
         return
 
-    # Papis keeps its own index, and a document whose folder has gone still
-    # comes back from the cache — the same pairing `papis rm` does.
-    database = papis.database.get(app.cfg.get("general.library") or None)
-    for doc in targets:
-        try:
-            database.delete(doc)
-        except Exception as exc:
-            app.log_line(f"[yellow]folder gone but the index kept it:[/] {exc}")
-
     if strategy == "none":
         app.history.clear()  # nothing here is undoable; do not offer the last one
-    elif step is not None:
-        app.history.push(step)
+    else:
+        ids = {library.doc_id(doc) for doc in targets}
+
+        def redo() -> None:
+            again = [doc for doc in app.docs if library.doc_id(doc) in ids]
+            back[0] = _delete_run(app, again, paths, label)  # the new run is what undo reverses
+            reload(app)
+
+        app.history.push(undo.Step(label, lambda: back[0](), redo))
 
     app.marks.clear()
     reload(app)
@@ -1600,8 +1587,40 @@ def _delete_apply(app: Any, targets: list[Any], files: list[Doomed]) -> None:
     app.query_one("#log-pane").display = True
 
 
-def _delete_with_git(app: Any, folders: list[Path], label: str, moved: list[tuple[Path, Path]]) -> undo.Step:
-    """`git rm` the folders in one commit, and undo by reverting it.
+def _delete_run(app: Any, targets: list[Any], paths: list[Path], label: str) -> Callable[[], None]:
+    """Trash `paths`, remove the folders per `undo.strategy`, and drop the
+    documents from papis's index. Returns the undo for exactly this run."""
+    import papis.database
+
+    where = trash_dir(app)
+    moved: list[tuple[Path, Path]] = []
+    for path in paths:
+        try:
+            moved.append((path, place.trash(path, where)))
+        except Exception as exc:
+            app.log_line(f"[red]could not trash {path.name}:[/] {exc}")
+
+    folders = [Path(doc.get_main_folder()) for doc in targets if doc.get_main_folder()]
+    if app.cfg.get("undo.strategy", "trash") == "git":
+        back = _delete_with_git(app, folders, label, moved)
+    else:
+        for folder in folders:
+            moved.append((folder, place.trash(folder, where)))
+        back = partial(_undo_trash, app, moved)
+
+    # Papis keeps its own index, and a document whose folder has gone still
+    # comes back from the cache — the same pairing `papis rm` does.
+    database = papis.database.get(app.cfg.get("general.library") or None)
+    for doc in targets:
+        try:
+            database.delete(doc)
+        except Exception as exc:
+            app.log_line(f"[yellow]folder gone but the index kept it:[/] {exc}")
+    return back
+
+
+def _delete_with_git(app: Any, folders: list[Path], label: str, moved: list[tuple[Path, Path]]) -> Callable[[], None]:
+    """`git rm` the folders in one commit; the returned undo reverts it.
 
     One ptui operation is one commit, so the log reads as a history of what the
     user did. Files outside the repo were already trashed by the caller, and
@@ -1618,7 +1637,7 @@ def _delete_with_git(app: Any, folders: list[Path], label: str, moved: list[tupl
         reload(app, rescan=True)
         app.log_line(f"reverted {commit[:8]}")
 
-    return undo.Step(label, back, lambda: doc_delete(app, True))
+    return back
 
 
 def _undo_trash(app: Any, moved: list[tuple[Path, Path]]) -> None:
