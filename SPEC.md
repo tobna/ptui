@@ -385,6 +385,10 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
 - Restoring a document has to throw papis's **on-disk** cache away, not just
   the in-process handle — otherwise the folder is back and the library still
   cannot see it.
+- The trash keeps its own index of *when* each entry went in
+  (`.ptui-trashed.json`): a moved folder keeps the mtime of its last edit, so the
+  mtime would make something trashed today look months old. `lib.empty_trash`
+  deletes by that index, and only when asked.
 
 ## Editing
 
@@ -595,6 +599,7 @@ from this. Adding a command must not require touching four places.
 | `app.escape`                    |                               | resolve per `escape_chain`                       |
 | `app.reload`                    | `rescan:bool=false`           | clear papis cache + reload; `rescan` drops the on-disk cache too |
 | `app.undo` / `app.redo`         |                               | per undo strategy                                |
+| `lib.empty_trash`               | `days:int?`                   | delete trash older than `undo.trash_retention_days`, after asking; never unasked |
 | `app.log`                       |                               | log pane                                         |
 | `app.config_check`              |                               | report unknown/invalid config keys               |
 | `config.set`                    | `key:str, value:str`          | override one config key for this session only; nothing is written to `config.toml` |

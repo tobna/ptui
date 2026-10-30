@@ -371,3 +371,29 @@ async def test_undoing_a_tag_restores_the_absence_of_the_key(app):
         await press(pilot, "u")
         await settle(pilot)
         assert app.current["tags"] == ["test"]
+
+
+async def test_empty_trash_deletes_only_what_is_older_than_the_retention(app, papis_lib):
+    """By the time it went in, not by its mtime: a moved folder keeps the mtime
+    of its last edit, which would make a delete from today look ancient."""
+    import json
+    import os
+
+    from ptui import place
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "d", "d", "enter")  # doc0 goes to the trash today
+        await press(pilot, "d", "d", "enter")
+        trash = papis_lib / "trash"
+        assert sorted(p.name for p in trash.iterdir() if p.name != place.TRASH_INDEX) == ["doc0", "doc1"]
+        os.utime(trash / "doc0", (0, 0))  # an ancient mtime must not matter
+        index = json.loads((trash / place.TRASH_INDEX).read_text())
+        index["doc1"] -= 40 * 86400  # but this one really went in 40 days ago
+        (trash / place.TRASH_INDEX).write_text(json.dumps(index))
+
+        await press(pilot, ":", *"lib.empty_trash", "enter", "enter")  # empty line: the configured 30 days
+        await press(pilot, "enter")  # confirm
+        assert (trash / "doc0").exists()
+        assert not (trash / "doc1").exists()
+        assert "doc1" not in json.loads((trash / place.TRASH_INDEX).read_text())

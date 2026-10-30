@@ -15,8 +15,10 @@ Two hard requirements from SPEC:
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shutil
+import time
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
@@ -272,4 +274,29 @@ def trash(folder: Path, trash_dir: Path) -> Path:
     else:
         raise FileExistsError(f"{trash_dir} already holds every name for {folder.name}")
     shutil.move(str(folder), str(dest))
+    trashed_at(trash_dir, {dest.name: time.time()})
     return dest
+
+
+TRASH_INDEX = ".ptui-trashed.json"
+"""When each entry went into the trash. A move keeps the folder's own mtime, so
+that cannot say how long something has been there — and guessing low deletes a
+folder trashed today because it was last edited months ago."""
+
+
+def trashed_at(trash_dir: Path, stamp: dict[str, float] | None = None) -> dict[str, float]:
+    """The trash index, with `stamp` merged in and entries that are gone (an
+    undo moved them back) dropped. An entry the index has never seen — trashed
+    before there was an index — is stamped now, so it gets the full retention."""
+    path = trash_dir / TRASH_INDEX
+    try:
+        index = json.loads(path.read_text())
+    except (OSError, ValueError):
+        index = {}
+    now = time.time()
+    present = {entry.name for entry in trash_dir.iterdir() if entry.name != TRASH_INDEX}
+    index = {name: index.get(name, now) for name in present} | (stamp or {})
+    tmp = path.with_name(f"{TRASH_INDEX}.tmp")
+    tmp.write_text(json.dumps(index, indent=1))
+    tmp.replace(path)
+    return index

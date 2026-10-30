@@ -313,6 +313,9 @@ through `place()`; and trashing a folder is not enough — `papis.database.delet
 must be called too, or papis's index hands the document straight back on reload.
 `place.trash()` moves the folder to `undo.trash_dir` (SPEC: files always route
 through trash) rather than deleting it.
+It also stamps the move in the trash's `.ptui-trashed.json` (`place.trashed_at`):
+a moved folder keeps its old mtime, and `lib.empty_trash` must delete by when
+something was trashed, not by when it was last edited.
 
 `tests/conftest.py` builds apps through `build_app(papis_lib, extra)`, which is
 how the undo strategies get one app each against one library each, and the

@@ -1668,6 +1668,47 @@ def trash_dir(app: Any) -> Path:
     return app.cfg.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
 
 
+@command("lib.empty_trash", "empty the trash")
+def lib_empty_trash(app: Any, days: int | None = None) -> None:
+    """Delete what has been in the trash longer than `days`
+    (`undo.trash_retention_days`), after saying how much that is. For good —
+    and an undo step that pointed into it has nothing left to restore.
+
+    Never runs unasked: deleting is the one thing ptui does not do behind your back.
+    """
+    import shutil
+    import time
+
+    where = trash_dir(app)
+    if not where.is_dir():
+        app.log_line("the trash is empty")
+        return
+    days = app.cfg.get("undo.trash_retention_days", 30) if days is None else days
+    cutoff = time.time() - days * 86400
+    old = [where / name for name, at in place.trashed_at(where).items() if at < cutoff]
+    if not old:
+        app.log_line(f"nothing in {where} is older than {days} day(s)")
+        return
+    size = sum(f.stat().st_size for path in old for f in [path, *path.rglob("*")] if f.is_file())
+
+    def purge(ok: bool, _invert: bool) -> None:
+        if not ok:
+            return
+        for path in old:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink(missing_ok=True)
+        place.trashed_at(where)  # drop them from the index
+        app.log_line(f"deleted {len(old)} trashed item(s) for good ({size / 1e6:.1f} MB)")
+
+    items = [
+        ui.Item(label=f"delete {len(old)} trashed item(s) for good ({size / 1e6:.1f} MB)", value=True),
+        ui.Item(label="cancel", value=False),
+    ]
+    ui.pick(app, items, title=f"Empty the trash of what is older than {days} day(s)?")(purge)
+
+
 def library_dir(app: Any) -> Path:
     """Where the current library lives on disk, straight from papis."""
     import papis.config

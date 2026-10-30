@@ -16,11 +16,6 @@ Nothing known. (`SPEC.md` is the contract; report against it.)
   (`files.rename`, `files.repoint`, `files.detach`, `files.reorder`) — there is
   no files pane yet.
 
-- **Nothing ever empties the trash.** `undo.trash_retention_days = 30` is
-  shipped, read by nobody, and now that `d d` exists the directory only grows.
-  A sweep at startup (delete trashed folders older than the setting) is a few
-  lines; the open question is whether it should ever run unasked.
-
 ## C. Decisions that change the defaults (and so SPEC)
 
 1. **`ui.icons = "auto"` — low priority.** Detect at startup whether the

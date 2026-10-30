@@ -116,6 +116,5 @@ def test_every_shipped_key_is_read_somewhere():
     assert unread == [
         "general.persist_state",
         "query.history_file",
-        "undo.trash_retention_days",
         "edit.structured_fields",
     ]  # the backlog's own entries, each shrinking this list as it lands
