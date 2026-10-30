@@ -208,13 +208,23 @@ async def test_ctrl_p_reaches_the_cmdline(app):
 
 
 async def test_sort_reverse_keeps_the_cursor_on_the_document(app):
+    """Row 0 moves to the bottom when the sort flips; the cursor goes with it.
+    (The middle row of three maps onto itself and would prove nothing.)"""
     async with app.run_test() as pilot:
-        await press(pilot, "S")  # unimplemented in v0: logs, does not crash
-        await press(pilot, "j")
+        await settle(pilot)
         current = app.current["title"]
         await press(pilot, "ctrl+s")
-        await settle(pilot)
         assert app.current["title"] == current
+        assert app.query_one("DataTable").cursor_row == 2
+
+
+async def test_clearing_the_narrow_keeps_the_cursor_on_the_document(app):
+    async with app.run_test() as pilot:
+        await press(pilot, "/", "n", "e", "u", "r", "a", "l", "enter")
+        assert app.current["title"] == "A Neural Probabilistic Language Model"
+        await press(pilot, "escape")
+        assert len(app.rows) == 3
+        assert app.current["title"] == "A Neural Probabilistic Language Model"
 
 
 async def test_theme_picker_lists_textual_themes_and_switches_live(app):

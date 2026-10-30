@@ -624,6 +624,9 @@ class PtuiApp(App[None]):
         """Re-apply the current narrow filter to the scoped set, right now."""
         query = self.narrow_query if query is None else query
         self.narrow_query = query
+        # Before `rows` changes: afterwards the cursor's index points into the
+        # new list, at whichever document happens to sit there now.
+        keep = library.doc_id(self.current) if self.current else None
         docs = self.docs
         if self.marked_only:
             docs = [d for d in docs if library.doc_id(d) in self.marks]
@@ -636,7 +639,7 @@ class PtuiApp(App[None]):
             self.cfg.get("query.narrow_mode", "substring"),
             self.cfg.get("query.aliases", {}),
         )
-        self.refresh_rows()
+        self.refresh_rows(keep)
 
     # ── chrome ──────────────────────────────────────────────────────────────
 
