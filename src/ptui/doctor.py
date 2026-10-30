@@ -125,9 +125,9 @@ def fix(doc: Document, finding: Finding) -> list[str]:
 
     def mutate(data: object) -> None:
         for key, value in changed.items():
-            data[key] = value  # type: ignore[index]
+            safewrite.put(data, key, value)
         for key in dropped:
-            data.pop(key, None)  # type: ignore[attr-defined]
+            safewrite.drop(data, key)
 
     try:
         safewrite.edit(doc, mutate)

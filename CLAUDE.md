@@ -138,6 +138,10 @@ per key.
   `Widget._render` already exists and overriding it renders nothing.
 - `Static.update` parses markup, and a destination path is full of
   `[doc[year]]`-shaped text — pass `markup=False` for anything path-shaped.
+- **Inside a `safewrite.edit` mutation, write with `safewrite.put` / `drop`,
+  never `data[key] = …` or `pop`.** ruamel hangs a comment on the node *before*
+  it, so replacing a list (`c t`) or removing a key deleted the comment that
+  introduces the next key. `put`/`drop` move those lines across.
 - `papis.format.format` **returns the unformatted pattern** (or raises deep in
   `string.Formatter`) when a key is missing; `default=""` does not save nested
   lookups like `{doc[author_list][0][family]}`. Check for a leftover `{`.

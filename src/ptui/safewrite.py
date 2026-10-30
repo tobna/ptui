@@ -19,6 +19,9 @@ from typing import Any
 import papis.database
 from papis.document import Document
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.error import CommentMark
+from ruamel.yaml.tokens import CommentToken
 
 _yaml = YAML()  # round-trip mode: preserves comments, order and quoting
 _yaml.preserve_quotes = True
@@ -58,6 +61,84 @@ def write(info: InfoFile) -> None:
         tmp.unlink(missing_ok=True)
         raise
     info.mtime_ns = info.path.stat().st_mtime_ns
+
+
+def _tail(node: Any, key: Any) -> tuple[list[Any], int] | None:
+    """The comment slot after `node[key]`'s value, when it holds a comment.
+
+    ruamel hangs a comment on the last node *before* it: the map entry for a
+    scalar, the last item for a list — recursively, so a list of maps keeps it
+    on the last key of the last map.
+    """
+    value = node[key]
+    if isinstance(value, CommentedMap) and value:
+        return _tail(value, next(reversed(value)))
+    if isinstance(value, CommentedSeq) and value:
+        return _tail(value, len(value) - 1)
+    slot = node.ca.items.get(key)
+    index = 0 if isinstance(node, CommentedSeq) else 2
+    return (slot, index) if slot and slot[index] else None
+
+
+def _detach(node: Any, key: Any) -> str:
+    """Take the full-line comments trailing `node[key]` off it. The end-of-line
+    comment is about the value itself, so it stays and goes with the value."""
+    tail = _tail(node, key)
+    if tail is None:
+        return ""
+    slot, index = tail
+    eol, _, rest = slot[index].value.partition("\n")
+    if rest:
+        slot[index] = CommentToken(f"{eol}\n", CommentMark(0)) if eol else None
+    return rest
+
+
+def _hang(node: Any, key: Any, text: str) -> None:
+    """Hang full-line comments after `node[key]`'s value, wherever ruamel looks."""
+    value = node[key]
+    if isinstance(value, dict) and value:
+        if not isinstance(value, CommentedMap):
+            value = node[key] = CommentedMap(value)
+        _hang(value, next(reversed(value)), text)
+        return
+    if isinstance(value, list) and value:
+        if not isinstance(value, CommentedSeq):
+            value = node[key] = CommentedSeq(value)
+        _hang(value, len(value) - 1, text)
+        return
+    slot = node.ca.items.setdefault(key, [None, None, None, None])
+    index = 0 if isinstance(node, CommentedSeq) else 2
+    old = slot[index].value.rstrip("\n") if slot[index] else ""
+    slot[index] = CommentToken(f"{old}\n{text}", CommentMark(0))
+
+
+def put(data: Any, key: str, value: Any) -> None:
+    """`data[key] = value`, keeping the comment lines that followed the old value.
+
+    Replacing a list replaces the node ruamel hung the next comment on, so a bare
+    assignment silently deletes a comment that belongs to the key *after* it.
+    """
+    text = _detach(data, key) if key in data else ""
+    data[key] = value
+    if text:
+        _hang(data, key, text)
+
+
+def drop(data: Any, key: str) -> None:
+    """`data.pop(key)`, moving the comment lines that followed it onto the key
+    before — they introduce whatever comes next, not the key being removed."""
+    if key not in data:
+        return
+    keys = list(data)
+    at = keys.index(key)
+    text = _detach(data, key)
+    data.pop(key)
+    if not text:
+        return
+    if at:
+        _hang(data, keys[at - 1], text)
+    elif len(keys) > 1:  # the first key: the comment now opens the map
+        data.ca.items.setdefault(keys[1], [None, [], None, None])[1] = [CommentToken(text, CommentMark(0))]
 
 
 def edit(doc: Document, mutate: Callable[[Any], None]) -> None:

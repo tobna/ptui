@@ -426,7 +426,7 @@ def _touch_opened_at(app: Any, doc: Any) -> None:
 
     stamp = datetime.now().astimezone().isoformat(timespec="seconds")
     try:
-        safewrite.edit(doc, lambda data: data.__setitem__("opened_at", stamp))
+        safewrite.edit(doc, lambda data: safewrite.put(data, "opened_at", stamp))
     except safewrite.StaleError:
         app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
 
@@ -576,9 +576,9 @@ def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> int:
 
         def write(data: Any, new: Any = new) -> None:
             if new is None:
-                data.pop(key, None)
+                safewrite.drop(data, key)
             else:
-                data[key] = new
+                safewrite.put(data, key, new)
 
         try:
             safewrite.edit(doc, write)
@@ -959,7 +959,7 @@ def files_relocate(app: Any, force: bool = False) -> None:
         if updated == entries:
             continue
         try:
-            safewrite.edit(doc, lambda data, new=updated: data.__setitem__("files", new))
+            safewrite.edit(doc, lambda data, new=updated: safewrite.put(data, "files", new))
         except Exception as exc:
             # File first, info.yaml second — so a failed write means rolling the
             # files back, not leaving dangling references behind.
@@ -1285,8 +1285,12 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
     if entries != list(plan.survivor.get("files") or []):
         data["files"] = entries
 
+    def write(info: Any) -> None:
+        for key, value in data.items():
+            safewrite.put(info, key, value)
+
     try:
-        safewrite.edit(plan.survivor, lambda info: info.update(data))
+        safewrite.edit(plan.survivor, write)
     except safewrite.StaleError:
         app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
         return
