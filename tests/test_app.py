@@ -666,3 +666,36 @@ async def test_repoint_offers_the_folder_files_no_entry_holds(app, papis_lib):
         assert app.current["files"] == ["kept.pdf", "renamed.pdf"]  # relative, like the entry it replaced
         await press(pilot, "u")
         assert app.current["files"] == ["kept.pdf", "gone.pdf"]
+
+
+async def test_rename_uses_papis_scheme_and_undoes(app, papis_lib):
+    import papis.config
+
+    _give_files(papis_lib, "paper.pdf", "2017-vaswani.pdf")
+    folder = papis_lib / "lib" / "doc0"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        papis.config.set("add-file-name", "")
+        await press(pilot, "3", "r")
+        assert (folder / "paper.pdf").exists()  # no scheme: nothing renamed
+
+        papis.config.set("add-file-name", "{doc[year]}-{doc[author_list][0][family]}")
+        await press(pilot, "r")
+        # the plain name is taken by the second file, so papis's suffix kicks in
+        assert app.current["files"][0] == "2017-vaswani-a.pdf"
+        assert (folder / "2017-vaswani-a.pdf").exists()
+        assert not (folder / "paper.pdf").exists()
+        await press(pilot, "u")
+        assert app.current["files"][0] == "paper.pdf"
+        assert (folder / "paper.pdf").exists()
+
+
+async def test_rename_leaves_a_supplement_its_name(app, papis_lib):
+    import papis.config
+
+    _give_files(papis_lib, "paper_supp.pdf")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        papis.config.set("add-file-name", "{doc[year]}-{doc[author_list][0][family]}")
+        await press(pilot, "3", "r")
+        assert app.current["files"] == ["paper_supp.pdf"]

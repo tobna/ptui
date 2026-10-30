@@ -190,7 +190,7 @@ Built:
 - **`files.attach`** (`f a`): `papis addto` on the cursor's document — a
   path, a URL, or the inbox
 
-Not built. 4 keys are bound to commands that only log "not implemented yet" —
+Not built. 3 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
 (import `actions` first, or the registry is empty and every key looks unbound).
 The clusters: visual mode (`v`/`V`), and the files pane with its

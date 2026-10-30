@@ -1289,6 +1289,75 @@ def files_repoint(app: Any, index: int | None = None, path: str | None = None) -
     )
 
 
+@command("files.rename", "rename a file to papis's scheme")
+def files_rename(app: Any, index: int | None = None) -> None:
+    """Rename one file, where it is, to what papis's `add-file-name` makes of
+    this document — the name `papis add` would have given it — with papis's own
+    suffixes against a clash. Never clobbers; file first, `info.yaml` second,
+    and the file goes back if the write fails. One undo step.
+
+    With no `add-file-name` papis only normalises the old name, which would turn
+    `paper_supp.pdf` into `paper-supp.pdf` and out of `files.kind_patterns`; so
+    then it says so and renames nothing.
+    """
+    import itertools
+
+    import papis.config
+    import papis.paths
+
+    found = _file_entry(app, index)
+    if found is None:
+        return
+    doc, entries, at = found
+    if not papis.config.getstring("add-file-name"):
+        app.log_line("[yellow]papis's add-file-name is not set, so there is no scheme to rename to[/]")
+        return
+    old_entry = entries[at]
+    src = place.resolve(doc, old_entry)
+    if not src.is_file():
+        app.log_line(f"[red]missing file:[/] {src} — p repoints it")
+        return
+    # papis's scheme names the paper; a supplement renamed by it becomes a
+    # second main file, and its `_supp` — the only record of what it is — is gone
+    for kind, patterns in app.cfg.get("files.kind_patterns", {}).items():
+        if any(fnmatch(src.name, pattern) for pattern in patterns):
+            app.log_line(f"[yellow]{src.name} is {kind} by its name; the scheme would make it the paper[/]")
+            return
+    for suffix in ("", *itertools.islice(papis.paths.unique_suffixes(), 25)):
+        dest = src.with_name(papis.paths.get_document_file_name(doc, src, suffix))
+        if dest == src:
+            app.log_line(f"{src.name} already follows the scheme")
+            return
+        if place._existing(dest) is None:
+            break
+    else:
+        app.log_line(f"[red]no free name for {src.name}[/]")
+        return
+    new_entry = place._entry(dest, doc, "keep", old_entry)
+
+    def move(a: Path, b: Path, before: str, after: str) -> None:
+        place._reserve(a, b)  # raises rather than clobber
+        a.unlink()
+        files = [after if entry == before else entry for entry in doc.get("files") or []]
+        try:
+            safewrite.edit(doc, lambda data: safewrite.put(data, "files", files))
+        except Exception:
+            place._reserve(b, a)
+            b.unlink()
+            raise
+        app.refresh_rows()
+
+    move(src, dest, old_entry, new_entry)
+    app.history.push(
+        undo.Step(
+            f"rename {src.name}",
+            lambda: move(dest, src, new_entry, old_entry),
+            lambda: move(src, dest, old_entry, new_entry),
+        )
+    )
+    app.log_line(f"renamed {src.name} -> {dest.name}")
+
+
 @command("files.attach", "attach file")
 def files_attach(app: Any, path: str | None = None) -> None:
     """Add a file or a URL to the current document — `papis addto`, verbatim.
