@@ -193,9 +193,9 @@ Not built. 11 keys are bound to commands that only log "not implemented yet" —
 `uv run python -c` over `keymap.load()` and `commands.REGISTRY` lists them
 (import `actions` first, or the registry is empty and every key looks unbound).
 The clusters: `view.marked`, saved searches (`view.saved`, `query.save`),
-visual mode (`v`/`V`), and the files pane with its `[modes.files]` verbs. Also
-read but ignored: `general.persist_state`, `undo.trash_retention_days` (nothing
-ever empties the trash).
+visual mode (`v`/`V`), and the files pane with its `[modes.files]` verbs. Shipped
+but read by nothing yet: the keys `tests/test_config.py::test_every_shipped_key_is_read_somewhere`
+lists — each backlog item that lands takes its key off that list.
 
 `undo.py` is the history and the three strategies; `actions._delete_apply` is
 the one place that removes a document. Whatever `undo.strategy` says, **files

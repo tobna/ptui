@@ -8,14 +8,13 @@ library = ""                  # empty = papis default library
 startup_query = ""            # scope query applied at launch
 persist_state = true          # restore last position, scope, sort
 track_opens = false           # write `opened_at` on doc.open
-confirm_destructive = true
 
 [ui]
 layout = "auto"               # auto | vertical (side-by-side) | horizontal (stacked)
 split_ratio = 0.6             # the list pane's share of the split axis
 theme = "tokyonight-moon"     # any Textual theme; `\ t` lists them live
 icons = true                  # nerd-font glyphs; set false over SSH to a bare tty
-mouse = true
+mouse = true                  # false leaves the mouse to the terminal (select, paste)
 
 [list]
 flex_target = 45              # cells the width = 0 column wants; drives ui.layout = "auto"
@@ -104,7 +103,6 @@ mine    = "author:Nauen"
 
 [marks]
 advance = true                # move cursor down after marking
-clear_on_filter = false       # marks are papis_id-keyed and survive filters
 
 # ---------------------------------------------------------------
 # File placement. Rules are ordered; FIRST MATCH WINS.
@@ -120,7 +118,6 @@ clear_on_filter = false       # marks are papis_id-keyed and survive filters
 [files]
 collision = "skip"            # skip | suffix | ask
 hash_check = true             # detect byte-identical duplicates
-follow_symlinks = true
 inbox = "~/Downloads"         # source dir for files.attach and doc.add --inbox
 
 # Used to infer main/notes/supplement. Never written to info.yaml.
@@ -146,20 +143,12 @@ op = "in-place"
 path_style = "keep"
 
 [add]
-fetch_metadata = true         # DOI/arXiv/crossref before naming
-confirm_metadata = true       # edit metadata BEFORE the name is computed
-preview_destination = true    # show resolved path; nothing touches disk first
 auto_doctor = true            # run papis doctor on the new document
 
 # papis doctor. ptui only ever *reports* unless you ask for a fix.
 [doctor]
 checks = []                   # empty = every check papis registers
 scan_on_startup = true        # fill the findings cache in the background (~2ms/doc)
-
-[delete]
-ask_files = true
-default_check_managed_only = true
-check_referenced_elsewhere = true
 
 [undo]
 strategy = "trash"            # trash | git | none  (files ALWAYS use trash)
@@ -176,15 +165,9 @@ structured_fields = ["title", "author_list", "year", "tags", "ref", "doi", "url"
 
 [export]
 citekey_format = "\\cite{{{doc[ref]}}}"
-bib_target = ""               # optional .bib kept in sync on export
 clipboard = "auto"            # auto | wl-copy | xclip | pbcopy | osc52
 
 [log]
 level = "info"
 max_entries = 500
 file = "~/.local/state/ptui/ptui.log"
-
-[performance]
-workers = 4
-page_size = 200               # rows rendered ahead of the viewport
-warn_library_size = 20000

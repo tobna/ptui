@@ -38,7 +38,7 @@ def main(lib: str | None, query: tuple[str, ...]) -> None:
         app.cfg.data["general"]["library"] = lib
     if query:
         app.scope_query = " ".join(query)
-    app.run()
+    app.run(mouse=bool(cfg.get("ui.mouse", True)))
 
 
 if __name__ == "__main__":

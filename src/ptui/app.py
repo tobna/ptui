@@ -12,6 +12,7 @@ import logging
 import threading
 from typing import Any
 
+import papis.config
 import papis.format
 from loguru import logger
 from papis.document import Document
@@ -275,6 +276,8 @@ class PtuiApp(App[None]):
             self.log_line(f"[yellow]keys.toml:[/] {problem}")
         for problem in self.cfg.invalid:
             self.log_line(f"[yellow]config.toml:[/] {problem}")
+        if editor := self.cfg.get("edit.editor"):  # overrides papis's `editor`, which papis's edit reads
+            papis.config.set("editor", editor)
         if name := self.cfg.get("general.library"):  # `-l` or [general] library
             try:
                 library.use(name)

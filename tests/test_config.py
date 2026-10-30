@@ -84,3 +84,39 @@ def test_an_empty_column_list_gets_the_shipped_columns(tmp_path):
 def test_the_shipped_config_is_valid(tmp_path):
     (tmp_path / "config.toml").write_text("")
     assert config.load(tmp_path / "config.toml").invalid == ()
+
+
+async def test_edit_editor_overrides_papis_editor(papis_lib):
+    """`[edit] editor` was shipped and documented, and read by nothing: `E` ran
+    papis's editor whatever it said."""
+    import papis.config
+    from conftest import build_app
+
+    app = build_app(papis_lib, '[edit]\neditor = "my-editor --wait"\n')
+    async with app.run_test():
+        assert papis.config.getstring("editor") == "my-editor --wait"
+
+
+def test_every_shipped_key_is_read_somewhere():
+    """A key in the shipped config that no code reads is a promise nothing keeps."""
+    import tomllib
+
+    src = "\n".join(path.read_text() for path in (config.DEFAULTS_DIR.parent).glob("*.py"))
+    data = tomllib.loads((config.DEFAULTS_DIR / "config.toml").read_text())
+
+    def leaves(node, prefix=""):
+        for key, value in node.items():
+            # tables of user data, read whole
+            if isinstance(value, dict) and key not in ("aliases", "saved", "kind_patterns", "default"):
+                yield from leaves(value, f"{prefix}{key}.")
+            else:
+                yield f"{prefix}{key}"
+
+    unread = [key for key in leaves(data) if f'"{key}' not in src]
+    assert unread == [
+        "general.persist_state",
+        "query.history_file",
+        "query.saved",
+        "undo.trash_retention_days",
+        "edit.structured_fields",
+    ]  # the backlog's own entries, each shrinking this list as it lands
