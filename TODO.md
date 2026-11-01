@@ -182,6 +182,22 @@ finishes it. The number in brackets is the review question it came from.
     closes ptui. Example: `query.saved_file = ""`, then `\ s` and a name.
     Guard it the way `run_command` is guarded. (Pinned in
     `tests/test_cover_actions_queries.py`.)
+46. **Low priority: a `files:` string is split into letters.** A hand-written
+    `files: paper.pdf` (one string, not a list) is iterated letter by letter,
+    so `x` and `J` write `[p, a, p, e, r, …]` over it. Read a string as a
+    one-entry list. (Pinned in `tests/test_cover_actions_files.py`.)
+47. **`y y` on a document with no `ref` yanks `\cite{}`.** The empty-key
+    filter runs after `citekey_format` has wrapped the ref, so it never sees
+    an empty key. Skip the document and say so. (Pinned in
+    `tests/test_cover_actions_open.py`.)
+48. **`\ c` calls `files.pdf_root` an unknown key**, though the shipped
+    `config.toml` tells you to set it (it is only in a comment there). (Pinned
+    in `tests/test_cover_actions_cmdline.py`.)
+49. **Empty the trash by itself.** At startup, delete what has been in the
+    trash longer than `undo.trash_retention_days`, with one log line saying how
+    much went. A new `undo.auto_empty_trash`, shipped `true`, turns it off.
+    Once ptui is closed `u` cannot restore from the trash anyway, so it is only
+    a safety net. SPEC's "never unasked" for `lib.empty_trash` goes with it.
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each
