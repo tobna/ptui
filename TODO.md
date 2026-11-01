@@ -95,6 +95,10 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
+31a. **The delete dialog never offers `../../pdfs/x.pdf`.** `_doomed_files`
+    tests `folder in path.parents` on the unnormalised path, so an entry that
+    climbs out of the folder reads as inside it, gets no checkbox, and is left
+    orphaned while the dialog says it goes with the folder. [test_edge_undo.py]
 32. **`f r` leaves dangling entries when one entry raises.** Nothing guards
     `place()` across a document's entries: the earlier ones have moved, and
     `info.yaml` still names their old paths. [test_edge_actions.py]
@@ -103,6 +107,15 @@ finishes it. The number in brackets is the review question it came from.
     git work tree; if not, say so and use `trash`, the way config repair
     replaces what cannot work. `_delete_run` also checks before it trashes any
     file. [test_edge_undo.py]
+41. **A multi-word tag is split in two.** `library.typed` splits list values
+    on whitespace as well as commas, so `c t machine learning` adds `machine`
+    and `learning`, and saving the edit form splits the tags already there.
+    Split on commas only, each item stripped; check `c t`, `c T`, `c f`, the
+    edit form and untag.
+43. **`m m` is one undo step.** The folded-in folders go to the trash and `u`
+    cannot bring them back. Undo restores them (and papis's index), the
+    survivor's previous fields and `files`, and the files `place.adopt` moved;
+    redo repeats the merge. Tested under the trash and git strategies.
 4. **The doctor re-checks stale documents in a background thread.** Today a
    stale entry is re-scanned inside the redraw (~2 ms each), so a mass change
    on disk (a sync, a `git pull`) freezes the next redraw. While the thread
@@ -147,6 +160,10 @@ finishes it. The number in brackets is the review question it came from.
     every binding. Also: a way to unset a shipped binding, and a user binding
     that takes a shipped key (or a prefix of a shipped chord), or rebinds a
     shipped command, unsets the shipped binding.
+19a. **A pane's own key beats `[global]` on a shared prefix too.** A pane
+    binding `g` next to the global `g o` is a conflict today and ptui refuses to
+    start; the pane's key should win and the shadowed global chord be dropped
+    for that pane only.
 20. **`f n` never follows symlinks, and a relative entry is always the shortest
     one.** It resolves the file through symlinks but builds the relative path
     from the folder as papis names it, so a library reached through a symlink
@@ -194,6 +211,9 @@ finishes it. The number in brackets is the review question it came from.
 40. **`ui = "dark"` in config.toml crashes ptui with a traceback**: `repair()`
     raises `TypeError` on a section set to a scalar, and the CLI catches only
     `ValueError`. [test_edge_config.py]
+42. **Low priority: a DOI stored as a doi.org URL hides a preprint.**
+    `kind()` reads `https://doi.org/10.48550/arXiv....` as a publisher DOI;
+    normalise a doi.org / dx.doi.org URL to the bare DOI before the check.
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each
