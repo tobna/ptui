@@ -1,0 +1,79 @@
+"""Edges of the doctor bridge: fixes that mutate in place or remove a key, and
+the cache's three states (never scanned, clean, stale)."""
+
+import os
+
+import papis.database
+import papis.document
+import pytest
+
+from ptui import doctor
+
+
+def _doc(papis_lib, body):
+    """A document inside the fixture library, so `safewrite.edit` can resync it."""
+    folder = papis_lib / "lib" / "edge"
+    folder.mkdir()
+    (folder / "info.yaml").write_text(body)
+    papis.database.clear_cached()
+    return papis.document.from_folder(str(folder)), folder / "info.yaml"
+
+
+def _fixable(doc, check):
+    return next(f for f in doctor.findings(doc, [check]) if f.fix_action)
+
+
+def test_a_fix_that_renames_a_key_drops_the_old_one_and_keeps_the_comment_after_it(papis_lib):
+    doc, info = _doc(papis_lib, "title: T\nschool: S\n# about ref\nref: r\npapis_id: edge\n")
+    assert doctor.fix(doc, _fixable(doc, "biblatex-key-alias")) == ["institution", "school"]
+    assert info.read_text() == "title: T\n# about ref\nref: r\npapis_id: edge\ninstitution: S\n"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="BUG: doctor.fix diffs against a shallow dict(doc); papis's `files` fixer removes the entry "
+    "in place, so the change is invisible and nothing is written",
+)
+def test_fixing_a_missing_file_removes_it_from_info_yaml(papis_lib):
+    doc, info = _doc(papis_lib, "title: T\nfiles:\n- gone.pdf\npapis_id: edge\n")
+    assert doctor.fix(doc, _fixable(doc, "files")) == ["files"]
+    assert "gone.pdf" not in info.read_text()
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="BUG: doctor.fix diffs against a shallow dict(doc); string-cleaner's initials fix edits the "
+    "author dicts in place, so `author` is written and `author_list` is not",
+)
+def test_fixing_initials_writes_author_list_too(papis_lib):
+    doc, info = _doc(
+        papis_lib,
+        "title: T\nauthor: Doe, J R\nauthor_list:\n- family: Doe\n  given: J R\npapis_id: edge\n",
+    )
+    finding = next(f for f in doctor.findings(doc, ["string-cleaner"]) if "initials" in f.msg)
+    doctor.fix(doc, finding)
+    papis.database.clear_cached()
+    on_disk = papis.document.from_folder(str(info.parent))
+    assert on_disk["author_list"][0]["given"] == doc["author_list"][0]["given"] != "J R"
+
+
+def test_clean_is_an_empty_list_and_never_scanned_is_none(papis_lib):
+    doc, _ = _doc(papis_lib, "title: T\nref: ok\npapis_id: edge\n")
+    assert doctor.cached(doc) is None
+    assert doctor.scan(doc, ["refs"]) == []
+    assert doctor.cached(doc) == []  # scanned and clean: not the same answer as None
+
+
+def test_an_external_edit_is_rechecked_with_the_checks_it_was_scanned_with(papis_lib):
+    doc, info = _doc(papis_lib, "title: T\nref: ok\npapis_id: edge\n")
+    doctor.scan(doc, ["refs"])
+    info.write_text("title: T\nref: bad ref!\npapis_id: edge\n")
+    stat = info.stat()  # a distinct mtime, whatever the clock granularity
+    os.utime(info, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+    doc.load()
+    assert [f.name for f in doctor.cached(doc)] == ["refs"]  # only `refs`, as first scanned
+
+
+def test_naming_only_a_library_wide_check_runs_nothing_per_document():
+    assert doctor.check_names(["duplicated-keys"]) == []
+    assert doctor.check_names(["duplicated-keys"], library_wide=True) == ["duplicated-keys"]
