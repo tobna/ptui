@@ -920,7 +920,7 @@ def doc_edit(app: Any, other: bool = False) -> None:
             _fields_apply(app, doc, changes)
 
     ref = doc.get("ref") or doc.get("title", "")
-    app.push_screen(ui.EditForm(f"Edit {ref}  (enter saves, escape cancels)", fields, initial), confirm)
+    app.push_screen(ui.EditForm(f"Edit {ref}", fields, initial), confirm)  # the keys are the form's last line
 
 
 def _put_all(data: Any, values: dict[str, Any]) -> None:
