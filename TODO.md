@@ -95,11 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-33. **`undo.strategy = "git"` without a repository half-deletes.** Decided:
-    check at startup, and on `:config.set undo.strategy`, that the library is a
-    git work tree; if not, say so and use `trash`, the way config repair
-    replaces what cannot work. `_delete_run` also checks before it trashes any
-    file. [test_edge_undo.py]
 43. **`m m` is one undo step.** The folded-in folders go to the trash and `u`
     cannot bring them back. Undo restores them (and papis's index), the
     survivor's previous fields and `files`, and the files `place.adopt` moved;

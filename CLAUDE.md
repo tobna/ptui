@@ -245,6 +245,11 @@ so git covers none of it. `trash` moves the folder to `undo.trash_dir` and undo
 moves it back, `git` does `git rm` plus one commit per *operation* (the log is
 the history) and undo `git revert`s it, `none` still trashes but records
 nothing and clears the stack, so `u` cannot offer the operation before it.
+`git` needs the library in a git work tree: `undo.require_git` puts `trash` in
+its place, with a sentence, from `cli.main` (into `Config.invalid`), from
+`config.set` and from `lib.switch` — the CLI rather than `on_mount`, so
+`build_app` tests can still drive the git path on a plain folder, where
+`_delete_run` refuses before it trashes a single file.
 Metadata edits push an in-memory step under every strategy, capturing the old
 values before the write, so undoing a `c` verb restores a key's *absence* too.
 

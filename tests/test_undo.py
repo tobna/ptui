@@ -437,3 +437,37 @@ async def test_a_file_shared_with_a_document_outside_the_scope_is_not_checked(pa
         assert not choice.checked
         assert "Bengio2003" in choice.note
         await press(pilot, "escape")
+
+
+@pytest.mark.parametrize("repository", [False, True])
+def test_git_on_a_library_outside_git_starts_on_trash_and_says_so(request, papis_lib, monkeypatch, repository):
+    """Decided: a strategy that cannot work is replaced at startup, like any
+    config value that cannot, rather than failing at the first delete."""
+    from click.testing import CliRunner
+
+    from ptui import cli, config
+    from ptui.app import PtuiApp
+
+    if repository:
+        request.getfixturevalue("git_lib")
+    (papis_lib / "ptui").mkdir()
+    (papis_lib / "ptui" / "config.toml").write_text('[undo]\nstrategy = "git"\n')
+    monkeypatch.setattr(config, "config_dir", lambda: papis_lib / "ptui")
+    seen = {}
+    monkeypatch.setattr(PtuiApp, "run", lambda self, **_: seen.update(cfg=self.cfg))
+    result = CliRunner().invoke(cli.main, [])
+    assert result.exit_code == 0, result.output
+    assert seen["cfg"].get("undo.strategy") == ("git" if repository else "trash")
+    assert any("not in a git work tree" in problem for problem in seen["cfg"].invalid) is not repository
+
+
+async def test_config_set_to_git_outside_git_keeps_the_trash(app):
+    from ptui import actions
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = []
+        app.log_line = logged.append
+        actions.config_set(app, "undo.strategy", "git")
+        assert app.cfg.get("undo.strategy") == "trash"
+        assert any("not in a git work tree" in line for line in logged)

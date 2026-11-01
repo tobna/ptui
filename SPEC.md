@@ -408,6 +408,11 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
 - Metadata (`info.yaml`) → per `undo.strategy`.
 - **Files always route through trash**, whatever the strategy. A configured
   `pdf_root` lives outside the library, so git covers none of it.
+- `strategy = "git"` on a library that is not in a git work tree cannot work,
+  so it is replaced by `trash` — at startup, on `:config.set undo.strategy` and
+  on a library switch — and said so, the way config repair replaces any value
+  that cannot work. A delete checks again before it moves anything, so a git
+  delete that cannot happen leaves every file where it was.
 - `strategy = "git"`: check at startup whether the document's files are
   actually tracked (LFS counts; gitignored PDFs do not) and warn once per
   session if not. Do not advertise an undo that isn't one.

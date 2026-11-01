@@ -24,6 +24,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 COMMIT_PREFIX = "ptui: "
 """What marks a commit as ours. `app.undo` reverts the last commit carrying it
@@ -112,6 +113,17 @@ def git_root(path: Path) -> Path | None:
         return Path(git(path if path.is_dir() else path.parent, "rev-parse", "--show-toplevel"))
     except (RuntimeError, OSError):
         return None
+
+
+def require_git(cfg: Any, library: Path) -> str | None:
+    """`undo.strategy = "git"` works only on a git work tree. When the library is
+    not in one, `trash` takes its place — the way config repair replaces a value
+    that cannot work — and the sentence saying so is returned. Checked at
+    startup, on `:config.set undo.strategy` and on a library switch."""
+    if cfg.get("undo.strategy") != "git" or git_root(library) is not None:
+        return None
+    cfg.data["undo"]["strategy"] = "trash"
+    return f"undo.strategy = 'git', but {library} is not in a git work tree; using 'trash'"
 
 
 def git_delete(root: Path, folders: list[Path], message: str) -> str:

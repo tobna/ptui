@@ -5,7 +5,6 @@ entries, a git delete that cannot happen, and git undo/redo with a file under
 import subprocess
 from pathlib import Path
 
-import pytest
 from conftest import build_app, press, settle
 
 from ptui import undo
@@ -79,11 +78,6 @@ async def test_a_shared_file_spelled_differently_is_never_checked(papis_lib):
         await press(pilot, "escape")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: _delete_run trashes the checked files before _delete_with_git finds there is no "
-    "repository; the delete fails, no undo step is recorded and the files stay in the trash",
-)
 async def test_a_git_delete_that_cannot_run_moves_no_file(papis_lib):
     pdf = _pdf(papis_lib)
     _add_entry(papis_lib, "doc0", str(pdf))

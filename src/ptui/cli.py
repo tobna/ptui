@@ -2,11 +2,24 @@
 
 from __future__ import annotations
 
+import dataclasses
 import sys
+from pathlib import Path
 
 import click
 
-from ptui import config, keymap
+from ptui import config, keymap, undo
+
+
+def _library_dir(name: str | None) -> Path | None:
+    """Where the library ptui is about to open lives; None for a name papis does
+    not know, which the app reports once it is up."""
+    import papis.config
+
+    try:
+        return Path(papis.config.get_lib_from_name(name or papis.config.get_lib_name()).path)
+    except Exception:
+        return None
 
 
 @click.command("ptui")
@@ -30,6 +43,12 @@ def main(lib: str | None, query: tuple[str, ...]) -> None:
         for conflict in conflicts:
             click.echo(f"  {conflict}", err=True)
         sys.exit(1)
+
+    # `undo.strategy = "git"` on a library outside git cannot work: say so the
+    # way config repair does, and use the trash instead.
+    where = _library_dir(lib or cfg.get("general.library"))
+    if where is not None and (why := undo.require_git(cfg, where)):
+        cfg = dataclasses.replace(cfg, invalid=(*cfg.invalid, why))
 
     from ptui.app import PtuiApp  # imported late: pulls in Textual
 

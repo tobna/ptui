@@ -548,6 +548,8 @@ def lib_switch(app: Any, name: str | None = None) -> None:
     def apply(library_name: str, _inverted: bool = False) -> None:
         library.use(library_name)  # raises on an unknown name, before anything changed
         app.cfg.data["general"]["library"] = library_name
+        if why := undo.require_git(app.cfg, library_dir(app)):
+            app.log_line(f"[yellow]{why}[/]")
         app.marks.clear()
         reload(app)
         app.log_line(f"library: {library_name}")
@@ -1851,6 +1853,8 @@ def config_set(app: Any, key: str, value: str) -> None:
     old, table[leaf] = table[leaf], new
     for problem in config.repair(app.cfg.data):
         app.log_line(f"[yellow]{problem}[/]")
+    if key == "undo.strategy" and (why := undo.require_git(app.cfg, library_dir(app))):
+        app.log_line(f"[yellow]{why}[/]")
     app.apply_config()
     app.log_line(f"{key} = {table[leaf]!r} until you quit (was {old!r}) — config.toml is where it stays")
 
@@ -2434,6 +2438,15 @@ def _delete_run(app: Any, targets: list[Any], paths: list[Path], label: str) -> 
     documents from papis's index. Returns the undo for exactly this run."""
     import papis.database
 
+    folders = [Path(doc.get_main_folder()) for doc in targets if doc.get_main_folder()]
+    root = None
+    if app.cfg.get("undo.strategy", "trash") == "git":
+        # Before anything moves: finding out after the files went to the trash
+        # left them there, with the delete failed and no undo step for it.
+        root = undo.git_root(folders[0]) if folders else None
+        if root is None:
+            raise RuntimeError("undo.strategy = git, but the library is not a git repository")
+
     where = trash_dir(app)
     moved: list[tuple[Path, Path]] = []
     for path in paths:
@@ -2442,9 +2455,8 @@ def _delete_run(app: Any, targets: list[Any], paths: list[Path], label: str) -> 
         except Exception as exc:
             app.log_line(f"[red]could not trash {path.name}:[/] {exc}")
 
-    folders = [Path(doc.get_main_folder()) for doc in targets if doc.get_main_folder()]
-    if app.cfg.get("undo.strategy", "trash") == "git":
-        back = _delete_with_git(app, folders, label, moved)
+    if root is not None:
+        back = _delete_with_git(app, root, folders, label, moved)
     else:
         for folder in folders:
             moved.append((folder, place.trash(folder, where)))
@@ -2461,16 +2473,15 @@ def _delete_run(app: Any, targets: list[Any], paths: list[Path], label: str) -> 
     return back
 
 
-def _delete_with_git(app: Any, folders: list[Path], label: str, moved: list[tuple[Path, Path]]) -> Callable[[], None]:
+def _delete_with_git(
+    app: Any, root: Path, folders: list[Path], label: str, moved: list[tuple[Path, Path]]
+) -> Callable[[], None]:
     """`git rm` the folders in one commit; the returned undo reverts it.
 
     One ptui operation is one commit, so the log reads as a history of what the
     user did. Files outside the repo were already trashed by the caller, and
     their undo rides along with the revert.
     """
-    root = undo.git_root(folders[0]) if folders else None
-    if root is None:
-        raise RuntimeError("undo.strategy = git, but the library is not a git repository")
     commit = undo.git_delete(root, folders, label)
 
     def back() -> None:
