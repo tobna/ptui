@@ -71,10 +71,6 @@ def test_a_negated_alias_excludes():
     assert _titles(data, "-a:nauen", aliases=ALIASES) == ["theirs"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=r"BUG: regex mode casefolds the pattern, which turns `\D`/`\W`/`\S` into `\d`/`\w`/`\s`",
-)
 def test_regex_mode_keeps_uppercase_escapes():
     data = [{"title": "Attention"}, {"title": "1984"}]
     assert _titles(data, r"^\D", mode="regex") == ["Attention"]

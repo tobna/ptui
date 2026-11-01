@@ -149,8 +149,6 @@ finishes it. The number in brackets is the review question it came from.
 35. **`doctor.fix` misses fixes made in place.** It diffs against a shallow
     `dict(doc)`, so papis's `files` fix writes nothing, and string-cleaner's
     initials fix writes `author` but not `author_list`. [test_edge_doctor.py]
-38. **Regex narrow casefolds the pattern**, turning `\D` `\W` `\S` into `\d`
-    `\w` `\s`. Match case-insensitively instead. [test_edge_library.py]
 39. **A `KeyError` inside a command reads as "not implemented yet"**, and its
     traceback is dropped: `run_command` takes every `KeyError` for an unknown
     name. [test_edge_app.py]

@@ -223,12 +223,13 @@ def narrow(
 ) -> list[Document]:
     """Filter in memory. Terms are ANDed, so typing more always narrows — the
     old whole-query subsequence test left 702 of 754 documents on `nauen`.
-    Unparsable regex matches nothing rather than raising."""
+    Unparsable regex matches nothing rather than raising. A regex is compiled
+    case-insensitive rather than casefolded, which would turn `\\D` into `\\d`."""
     if not query.strip():
         return docs
     if mode == "regex":
         try:
-            pattern = re.compile(query.casefold())
+            pattern = re.compile(query, re.IGNORECASE)
         except re.error:
             return []
         return [d for d in docs if pattern.search(haystack(d, fields))]
