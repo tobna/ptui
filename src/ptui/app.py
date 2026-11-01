@@ -28,6 +28,7 @@ from textual.content import Content
 from textual.coordinate import Coordinate
 from textual.theme import Theme
 from textual.widgets import DataTable, Input, OptionList, RichLog, Static
+from textual.worker import Worker, WorkerState
 
 from ptui import (
     actions,
@@ -482,6 +483,14 @@ class PtuiApp(App[None]):
             # once: the loguru sink puts it in the pane, the traceback goes to log.file
             logger.exception(f"{name} failed: {exc}")
 
+    def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
+        """Every worker runs with `exit_on_error=False`, which would swallow its
+        exception: it is logged here once, as in `run_command`, and a failed scan
+        or download no longer ends the session."""
+        if event.state == WorkerState.ERROR:
+            worker = event.worker
+            logger.opt(exception=worker.error).error(f"{worker.name or worker.group} failed: {worker.error}")
+
     # ── which-key ───────────────────────────────────────────────────────────
 
     def schedule_which_key(self) -> None:
@@ -834,7 +843,7 @@ class PtuiApp(App[None]):
         for column, cell in enumerate(self.row_cells(self.rows[index])):
             table.update_cell_at(Coordinate(index, column), cell)
 
-    @work(exclusive=True, group="narrow")
+    @work(exclusive=True, group="narrow", exit_on_error=False)
     async def apply_narrow(self, query: str) -> None:
         """Debounced, cancellable: an exclusive worker replaces the pending one."""
         await asyncio.sleep(self.cfg.get("query.narrow_debounce_ms", 60) / 1000)
@@ -1006,7 +1015,7 @@ class PtuiApp(App[None]):
             ),
         ]
 
-    @work(thread=True, exclusive=True, group="doctor")
+    @work(thread=True, exclusive=True, group="doctor", exit_on_error=False)
     def scan_library(self) -> None:
         """Fill the findings cache in the background, once, at startup.
 
@@ -1019,7 +1028,7 @@ class PtuiApp(App[None]):
             doctor.scan(doc, checks)
         self.call_from_thread(self.refresh_rows)  # the markers live in the rows
 
-    @work(thread=True, group="recheck")
+    @work(thread=True, group="recheck", exit_on_error=False)
     def recheck(self) -> None:
         """Re-check the documents written since their scan, off the redraw that
         found them, then repaint. Not exclusive: two at once take different

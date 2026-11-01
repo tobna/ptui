@@ -430,7 +430,7 @@ def _import(app: Any, source: str, uri: str) -> None:
             return
         app.call_from_thread(_fetched, app, source, data, files)
 
-    app.run_worker(job, thread=True, group="import")
+    app.run_worker(job, thread=True, group="import", exit_on_error=False)
 
 
 def _fetched(app: Any, source: str, data: dict[str, Any], files: list[Path]) -> None:
@@ -1834,7 +1834,7 @@ def files_attach(app: Any, path: str | None = None) -> None:
         )
     elif papis.paths.is_remote_file(path):
         app.log_line(f"[dim]downloading {path}…[/]")
-        app.run_worker(lambda: _download(app, doc, path), thread=True, group="attach")
+        app.run_worker(lambda: _download(app, doc, path), thread=True, group="attach", exit_on_error=False)
     else:
         try:
             src = Path(path).expanduser()
@@ -2218,7 +2218,7 @@ def _refresh_fetch(app: Any, doc: Any, importer: Any) -> None:
             return
         app.call_from_thread(_refresh_merge, app, doc, importer.name, data)
 
-    app.run_worker(job, thread=True, group="import")
+    app.run_worker(job, thread=True, group="import", exit_on_error=False)
 
 
 def _refresh_merge(app: Any, doc: Any, source: str, data: dict[str, Any], *, confirmed: bool = False) -> None:

@@ -1,4 +1,5 @@
-"""Edges of the `:` line's argument parsing."""
+"""Edges of command dispatch: the `:` line's argument parsing, and the guards
+that keep a failing command, prompt, picker or worker from ending the session."""
 
 import pytest
 
@@ -81,3 +82,94 @@ async def test_a_picker_answer_that_raises_does_not_end_the_session(app):
         await press(pilot, "enter")
         await settle(pilot)
         assert app.is_running
+
+
+def _errors() -> list[str]:
+    """loguru's ERROR records from here on. Added after the app mounts: its
+    logging setup removes every sink there is."""
+    from loguru import logger
+
+    lines: list[str] = []
+    logger.add(lambda message: lines.append(message.record["message"]), level="ERROR")
+    return lines
+
+
+def _boom(*_args, **_kwargs):
+    raise ValueError("boom")
+
+
+def _doctor_scan(app, monkeypatch):
+    from ptui import doctor
+
+    monkeypatch.setattr(doctor, "scan", _boom)
+    app.scan_library()
+
+
+def _doctor_recheck(app, monkeypatch):
+    from ptui import doctor
+
+    monkeypatch.setattr(doctor, "recheck", _boom)
+    app.recheck()
+
+
+def _fetch(app, monkeypatch):
+    from ptui import fetch
+
+    monkeypatch.setattr(fetch, "fetch", lambda _source, _uri: ({}, []))
+    monkeypatch.setattr(actions, "_fetched", _boom)  # called back from the thread
+    actions._import(app, "arxiv", "2607.00687")
+
+
+def _refresh(app, monkeypatch):
+    from types import SimpleNamespace
+
+    from ptui import fetch
+
+    monkeypatch.setattr(fetch, "refetch", lambda _importer: {})
+    monkeypatch.setattr(actions, "_refresh_merge", _boom)
+    actions._refresh_fetch(app, app.current, SimpleNamespace(name="doi"))
+
+
+def _download(app, monkeypatch):
+    import papis.paths
+
+    monkeypatch.setattr(papis.paths, "download_remote_files", lambda urls: ["/nonexistent/paper.pdf"])
+    monkeypatch.setattr(actions, "_attach", _boom)
+    actions.files_attach(app, "https://example.org/paper.pdf")
+
+
+@pytest.mark.parametrize("start", [_doctor_scan, _doctor_recheck, _fetch, _refresh, _download])
+async def test_a_worker_that_raises_is_logged_and_the_session_stays_up(app, monkeypatch, start):
+    """A Textual worker that raises ends the app unless told otherwise."""
+    from contextlib import suppress
+
+    from conftest import settle
+    from textual.worker import WorkerFailed
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        errors = _errors()
+        start(app, monkeypatch)
+        with suppress(WorkerFailed):  # the wait re-raises what the worker raised
+            await app.workers.wait_for_complete()
+        await settle(pilot)
+        assert app.is_running
+        assert any(line.endswith("failed: boom") for line in errors)
+
+
+async def test_a_picker_preview_that_raises_is_logged_and_the_session_stays_up(app):
+    """The preview runs on every highlight — the theme picker's live theme."""
+    from conftest import press, settle
+
+    from ptui import ui
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        errors = _errors()
+        items = [ui.Item(label="a", value="a"), ui.Item(label="b", value="b")]
+        ui.pick(app, items, title="Theme", preview=_boom)(lambda _value, _invert: None)
+        await settle(pilot)
+        await press(pilot, "down")
+        await settle(pilot)
+        assert app.is_running
+        assert "Theme preview failed: boom" in errors

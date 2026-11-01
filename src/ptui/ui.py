@@ -251,6 +251,8 @@ def pick(
     A `preview` is called with each highlighted value, and with `current` again
     when the picker is cancelled — back to what was there when it opened.
     """
+    if preview is not None:  # it runs on every highlight, outside any other guard
+        preview = guarded(f"{title} preview", preview)
 
     def run(on_confirm: Callable[[Any, bool], None]) -> None:
         def handle(result: tuple[Any, bool] | None) -> None:
