@@ -78,6 +78,31 @@ async def test_stacked_the_files_pane_alone_is_as_tall_as_its_entries(app):
         assert listing.region.bottom == app.query_one("#hint-bar").region.y
 
 
+async def test_the_hint_bar_shows_an_entry_whole_or_not_at_all(app):
+    """At 80 columns the bar ended in `space` with no words after it, and the
+    files pane at 120 cut `x remove from the list, keep`."""
+    from session_lib import hints
+
+    def entries() -> list[str]:
+        shown = hints(app).strip().split("   ")
+        whole = {f"{b.keys} {b.desc}" for b in app.km.modes[app.mode].values()}  # keys.toml's words
+        assert set(shown) <= whole, set(shown) - whole
+        return shown
+
+    async with app.run_test(size=(80, 24)) as pilot:
+        await settle(pilot)
+        assert entries()[0] == "enter open file"
+        narrow = len(entries())
+        await pilot.resize_terminal(120, 24)
+        await settle(pilot)
+        assert len(entries()) > narrow  # refitted to the wider bar
+        await press(pilot, "3")
+        assert "x remove from list, keep file" in entries()
+        await pilot.resize_terminal(80, 24)
+        await settle(pilot)
+        entries()
+
+
 async def test_z_chords_resize_the_panes(app):
     # this is about the manual chords, so pin the layout: at 80 columns `auto`
     # would choose stacked on its own

@@ -125,10 +125,6 @@ finishes it. The number in brackets is the review question it came from.
     re-asks papis's cache, which never saw the outside edit. Re-read that one
     document from disk right there and say "reloaded from disk; do it
     again", at every call site of the message. [98.2]
-58. **The hint bar never cuts an entry.** At 80 columns it ends in `space`
-    with no description, and in the files pane at 120 it cuts `x remove from
-    the list, keep`. Use the short `desc` from `keys.toml`, and leave out an
-    entry that does not fit whole. [98.3]
 59. **`g r` prefers the one match shown.** Near matches stay searched in the
     scope only, as now. When several refs in the scope match but exactly one
     is shown in the narrowed list, go to that one; still several, list them

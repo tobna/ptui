@@ -1110,12 +1110,18 @@ class PtuiApp(App[None]):
         # on screen, and advertising a key that logs "not implemented yet" there
         # is worse than showing one hint fewer.
         wanted = [name for name in wanted if name in commands.REGISTRY]
-        hints = []
+        # `ListTable.on_resize` redraws the rows, and so this, once `App.size` is real
+        hints, room = [], self.size.width - 1  # the bar starts with a space
         for name in wanted[: self.km.option("hint_bar_max", 6)]:
             keys = self.km.for_command(self.mode, name)
-            if keys:
-                cmd = commands.REGISTRY.get(name)
-                hints.append(f"[$accent bold]{keys}[/] [dim]{cmd.desc if cmd else name}[/]")
+            if not keys:
+                continue
+            desc = self.km.lookup(self.mode, tuple(keys.split(" "))).desc  # keys.toml's short one
+            width = cell_len(f"{keys} {desc}") + (3 if hints else 0)
+            if width > room:
+                continue  # whole or not at all: a key without its words says nothing
+            room -= width
+            hints.append(f"[$accent bold]{ui.literal(keys)}[/] [dim]{ui.literal(desc)}[/]")
         self.query_one("#hint-bar", Static).update(" " + "   ".join(hints))
 
     def log_line(self, message: str) -> None:

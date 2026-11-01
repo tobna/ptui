@@ -446,7 +446,8 @@ Required of the chrome, in any theme:
   then the left group goes, the mode block last.
 - The hint bar shows **only implemented commands**. It is always on screen, and
   advertising a key that logs "not implemented yet" there is worse than one
-  hint fewer.
+  hint fewer. Each entry is a key and its short `desc` from `keys.toml`, shown
+  whole or left out: a key cut from its words says nothing.
 
 ## Undo
 

@@ -642,7 +642,9 @@ Three things about the chrome that cost time to find:
   `refresh_status` builds the layouts from fullest to barest (sort dropped,
   then the queries cut to a falling `cap` with `library.fit`, then the left
   group) and draws the first whose `blocks()` widths fit; the counts are in
-  every one of them.
+  every one of them. `refresh_hints` takes the binding's `desc` (`keys.toml`'s
+  short one, falling back to the registry's) and skips any entry that would
+  not fit whole; `ListTable.on_resize` → `refresh_rows` refits it on a resize.
 
 Every `c` verb is `actions._set_field(app, key, value_of, what)` — plan one
 value per target, confirm when there is more than one, write through
