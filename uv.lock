@@ -488,6 +488,7 @@ source = { editable = "." }
 dependencies = [
     { name = "loguru" },
     { name = "papis" },
+    { name = "python-doi" },
     { name = "python-slugify" },
     { name = "ruamel-yaml" },
     { name = "textual" },
@@ -505,6 +506,7 @@ dev = [
 requires-dist = [
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "papis", specifier = ">=0.16.1,<0.17" },
+    { name = "python-doi", specifier = ">=0.2.0" },
     { name = "python-slugify", specifier = ">=8.0.4" },
     { name = "ruamel-yaml", specifier = ">=0.19.1" },
     { name = "textual", specifier = ">=8.2.8" },

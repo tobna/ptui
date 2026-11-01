@@ -15,6 +15,7 @@ dependencies = [
     # against 0.16.1 only — raise the ceiling after running the suite against a
     # real 0.17, not before; it fails on any DeprecationWarning raised from ptui.
     "papis>=0.16.1,<0.17",
+    "python-doi>=0.2.0",
     "python-slugify>=8.0.4",
     "ruamel-yaml>=0.19.1",
     "textual>=8.2.8",

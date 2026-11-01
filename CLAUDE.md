@@ -340,7 +340,7 @@ document-kind column. Its value comes from `{doc[kind]}`, which `library.kind()`
 derives: the `type` field (case-folded, `phdthesis` -> `thesis` through papis's
 `bibtex_type_aliases`), except that an article with no venue and no trace but
 arXiv's reads as `preprint`. The DOI decides whenever there is one — read
-through python-doi's `find_doi_in_text` (papis's dependency), so a `doi.org` URL
+through python-doi's `find_doi_in_text` (papis's dependency, and listed in ptui's own `pyproject.toml` since ptui imports it), so a `doi.org` URL
 counts as the bare DOI and arXiv's prefix cannot hide behind it; a document
 with **no** DOI falls through to `library.on_arxiv` (`eprinttype`, else an
 arxiv.org URL), which is what makes the 19 arXiv imports that never recorded a
