@@ -30,6 +30,31 @@ async def test_relocate_moves_files_and_rewrites_info_yaml(app, papis_lib, monke
     assert "papis_id: id0" in info  # the rest of the file survived
 
 
+async def test_relocate_writes_what_moved_when_a_later_entry_raises(app, papis_lib, monkeypatch):
+    """place() raising on one entry used to abandon the document after the
+    earlier entries had moved, leaving info.yaml naming paths that were gone."""
+    from ptui import place
+
+    _attach(papis_lib, "a.pdf")
+    _attach(papis_lib, "b.djvu", b"djvu")
+    real = place.place
+
+    def flaky(doc, entry, *args, **kwargs):
+        if str(entry).endswith(".djvu"):
+            raise OSError("the disk said no")
+        return real(doc, entry, *args, **kwargs)
+
+    monkeypatch.setattr(place, "place", flaky)
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "f", "r")
+        await settle(pilot)
+        files = app.current["files"]
+        assert files[1] == "b.djvu"
+        assert all(place.resolve(app.current, entry).exists() for entry in files), files
+        assert Path(files[0]).parent == papis_lib / "pdfs"
+
+
 async def test_relocate_reports_conflicts_without_touching_anything(app, papis_lib):
     _attach(papis_lib)
     (papis_lib / "pdfs").mkdir()

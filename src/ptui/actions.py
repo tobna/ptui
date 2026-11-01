@@ -1406,7 +1406,14 @@ def files_relocate(app: Any, force: bool = False) -> None:
     tally: dict[str, int] = {}
     for doc in app.targets:
         entries = list(doc.get("files", []))
-        results = [place.place(doc, e, rules, force=force, previous=e) for e in entries]
+        results = []
+        for entry in entries:
+            # One entry's surprise must not strand the ones already moved: they
+            # are written below, and this one keeps its old path.
+            try:
+                results.append(place.place(doc, entry, rules, force=force, previous=entry))
+            except Exception as exc:
+                results.append(place.PlaceResult("error", place.resolve(doc, entry), "", message=str(exc)))
         for result in results:
             tally[result.status] = tally.get(result.status, 0) + 1
             if result.status not in ("ok", "already", "unmanaged"):

@@ -95,9 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-32. **`f r` leaves dangling entries when one entry raises.** Nothing guards
-    `place()` across a document's entries: the earlier ones have moved, and
-    `info.yaml` still names their old paths. [test_edge_actions.py]
 33. **`undo.strategy = "git"` without a repository half-deletes.** Decided:
     check at startup, and on `:config.set undo.strategy`, that the library is a
     git work tree; if not, say so and use `trash`, the way config repair

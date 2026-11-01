@@ -80,12 +80,6 @@ async def test_untagging_a_document_without_tags_adds_no_key(app, papis_lib):
     assert "tags" not in info.read_text()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: files.relocate runs place() over every entry before writing and catches nothing "
-    "around it; when a later entry raises (a dangling symlink at its destination) the earlier "
-    "entries are already moved and info.yaml still names their old paths",
-)
 async def test_a_relocate_that_fails_on_one_entry_leaves_no_dangling_entry(app, papis_lib):
     folder = papis_lib / "lib" / "doc0"
     (folder / "a.pdf").write_bytes(b"pdf")
