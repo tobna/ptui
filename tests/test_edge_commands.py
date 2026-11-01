@@ -63,3 +63,21 @@ async def test_a_command_that_fails_from_a_prompt_does_not_end_the_session(app, 
         monkeypatch.setattr(actions, "prompt_result", broken)
         await press(pilot, "g", "r", *"nobody", "enter")
         assert app.is_running
+
+
+async def test_a_picker_answer_that_raises_does_not_end_the_session(app):
+    """What runs after `enter` in a picker is a screen callback, which no prompt guard covers."""
+    from conftest import press, settle
+
+    from ptui import ui
+
+    def broken(value, _invert):
+        raise ValueError(value)
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        ui.pick(app, [ui.Item(label="boom", value="boom")], title="Broken")(broken)
+        await settle(pilot)
+        await press(pilot, "enter")
+        await settle(pilot)
+        assert app.is_running

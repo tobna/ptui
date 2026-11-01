@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 
+from loguru import logger
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
@@ -227,6 +228,20 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
             self.dismiss(None)
 
 
+def guarded(what: str, fn: Callable[..., None]) -> Callable[..., None]:
+    """`fn` as a screen callback that cannot end the session. An exception out
+    of a `push_screen` callback ends a Textual app, so it is logged once, as in
+    `PtuiApp.run_command`: the message in the pane, the traceback in log.file."""
+
+    def call(*args: Any) -> None:
+        try:
+            fn(*args)
+        except Exception as exc:  # a broken answer must not kill the session
+            logger.exception(f"{what} failed: {exc}")
+
+    return call
+
+
 def pick(
     app: Any, items: list[Item], *, title: str, current: Any = None, preview: Callable[[Any], None] | None = None
 ) -> Callable[..., Any]:
@@ -244,7 +259,7 @@ def pick(
             elif preview is not None:
                 preview(current)
 
-        app.push_screen(SelectList(items, title=title, current=current, preview=preview), handle)
+        app.push_screen(SelectList(items, title=title, current=current, preview=preview), guarded(title, handle))
 
     return run
 

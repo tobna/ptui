@@ -923,7 +923,8 @@ def doc_edit(app: Any, other: bool = False) -> None:
             _fields_apply(app, doc, changes)
 
     ref = doc.get("ref") or doc.get("title", "")
-    app.push_screen(ui.EditForm(f"Edit {ref}", fields, initial), confirm)  # the keys are the form's last line
+    # the keys are the form's last line
+    app.push_screen(ui.EditForm(f"Edit {ref}", fields, initial), ui.guarded("edit", confirm))
 
 
 def _authors_from(line: str, before: Any) -> list[dict[str, Any]]:
@@ -1329,7 +1330,7 @@ def add_form(app: Any, path: Path | None, fetched: dict[str, Any] | None = None)
             extra = {k: v for k, v in fetched.items() if k in _KEEP_FETCHED and v}
             _add_document(app, path, data, extra)
 
-    app.push_screen(ui.AddForm(path, initial, preview), confirm)
+    app.push_screen(ui.AddForm(path, initial, preview), ui.guarded("add", confirm))
 
 
 def _duplicate(app: Any, data: dict[str, Any]) -> tuple[Any, str] | None:
@@ -2584,7 +2585,7 @@ def doc_delete(app: Any, force: bool = False) -> None:
             [d.choice for d in doomed],
             title=f"Delete {len(targets)} document(s)",
         ),
-        confirm,
+        ui.guarded("delete", confirm),
     )
 
 

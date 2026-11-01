@@ -116,11 +116,14 @@ Data flow: a keypress becomes a chord in `app.on_key`, resolves through
 command means adding one decorated function — help, the hint bar and which-key
 pick it up for free. An unregistered command logs "not implemented yet" rather
 than crashing, which is how the shipped keymap can bind post-v0 commands.
-There are two entry points and both are guarded — log the failure once, the
-traceback to `log.file`, keep the session: `PtuiApp.run_command` for keys and
-the `:` line, `PtuiApp.on_input_submitted` for every prompt's result
-(`actions.prompt_result`). An exception that escapes a Textual handler ends the
-app, so a new entry point needs the same `try`.
+Every entry point is guarded — log the failure once, the traceback to
+`log.file`, keep the session: `PtuiApp.run_command` for keys and the `:` line,
+`PtuiApp.on_input_submitted` for every prompt's result
+(`actions.prompt_result`), and `ui.guarded` for what runs after a screen is
+dismissed — `ui.pick` wraps its own answer, and every other `push_screen`
+callback (the add and edit forms, the delete dialog) is passed through it. An
+exception that escapes a Textual handler ends the app, so a new entry point
+needs the same guard.
 
 User config lives in `$XDG_CONFIG_HOME/papis/ptui/` and mirrors
 `src/ptui/defaults/`. `config.load` repairs what cannot work — a value outside

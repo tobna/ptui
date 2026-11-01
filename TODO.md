@@ -140,10 +140,6 @@ finishes it. The number in brackets is the review question it came from.
     scope only, as now. When several refs in the scope match but exactly one
     is shown in the narrowed list, go to that one; still several, list them
     as now. Nothing outside the scope is searched or reported. [104, 59.1]
-44b. **An error after a picker answer ends the session.** H.44 guarded what
-    runs after a prompt; what runs after `enter` in a picker (`ui.pick`'s
-    `on_confirm`) and after the forms and dialogs (`push_screen` callbacks)
-    is still unguarded. Guard them the way `run_command` is. [107.1]
 60. **`r` reloads from disk.** Today `r` re-asks papis's cache, which never
     sees a file changed outside papis (vim, a sync, `git pull`); only
     `:app.reload true` does. Make `r` the rescan (`args = { rescan = true }`
