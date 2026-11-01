@@ -498,13 +498,30 @@ async def test_query_prompts_share_a_history_that_up_and_down_walk(app, papis_li
         assert (papis_lib / "history").read_text().splitlines() == ["neural", "year:>2010"]
 
         prompt = app.query_one(Input)
-        await press(pilot, "/", *"draft", "up")
+        await press(pilot, "/", "up")
         assert prompt.value == "year:>2010"
         assert len(app.rows) == 2  # recalled into the narrow prompt, so it narrows
         await press(pilot, "up", "up")  # stops at the oldest
         assert prompt.value == "neural"
         await press(pilot, "down", "down")  # past the newest: what was being typed
-        assert prompt.value == "draft"
+        assert prompt.value == ""
+
+
+async def test_up_after_typing_walks_only_the_history_that_starts_with_it(app, papis_lib):
+    from textual.widgets import Input
+
+    (papis_lib / "history").write_text("neural\nyear:>2010\nne\nnet\nyear:<2000\n")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        prompt = app.query_one(Input)
+        await press(pilot, "s", *"ne", "up")
+        assert prompt.value == "net"  # `year:<2000` is newer but does not start with `ne`
+        await press(pilot, "up")
+        assert prompt.value == "neural"  # `ne` itself is skipped: recalling it changes nothing
+        await press(pilot, "up")  # stops at the oldest match
+        assert prompt.value == "neural"
+        await press(pilot, "down", "down")
+        assert prompt.value == "ne"
 
 
 def test_refetchers_come_from_the_document_itself_without_the_network():

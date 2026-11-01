@@ -344,7 +344,9 @@ place, the narrow the per-keystroke layer on top of it. `g s` lists both;
 Every query prompt — scope, narrow, mark-by-query — submits into one history,
 `query.history_file`: plain lines, newest last, each query once (running it
 again moves it to the end), capped at 500. `up`/`down` in any of those prompts
-walk it, and past the newest entry is the line that was being typed. One
+walk it, and past the newest entry is the line that was being typed. Typing
+first makes it a prefix search: only the entries that start with what is typed
+are walked, as in a shell. One
 history rather than one per prompt: the grammars share their shape, and a
 narrow worth repeating is often a scope worth trying.
 

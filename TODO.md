@@ -132,8 +132,6 @@ finishes it. The number in brackets is the review question it came from.
     target (it works). When `g r` has to drop a narrow to reach the target, the
     range ends instead of stretching — that one is a decision for the user, not
     to be guessed.
-22. **Prefix search in the query prompts**: after typing, `up`/`down` walk only
-    the history entries that start with what was typed. [40.1]
 24. **`c u` from Crossref asks first.** A title search can match the wrong
     paper and fill gaps from it; show what was found (title, year, first
     author) and ask "is this the paper?" before planning anything. [42.1]

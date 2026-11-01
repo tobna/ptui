@@ -87,7 +87,8 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 
 - **Searches you come back to** — `\ s` saves the scope and sort under a name,
   `g s` lists them next to the ones in `config.toml`, and `up` in any query
-  prompt recalls what you typed before. `g r` jumps to a pasted
+  prompt recalls what you typed before (type a few letters first to recall
+  only the queries that start with them). `g r` jumps to a pasted
   `\cite{key}`; `m q` marks by query without touching the view.
 
 - **A files pane** — `3` lists the document's files in order; `x` detaches one

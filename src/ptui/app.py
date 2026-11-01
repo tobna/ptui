@@ -1116,12 +1116,14 @@ class PtuiApp(App[None]):
 
     def recall(self, step: int) -> None:
         """Up (`step` 1) walks back through the query history, down forward;
-        past the newest entry is whatever was being typed before."""
-        past = actions.history(self)
-        if self._recall == 0:
-            self._draft = self.query_one(Input).value
-        self._recall = max(0, min(len(past), self._recall + step))
+        past the newest entry is whatever was being typed before. Only entries
+        that start with that, and are not it, are walked: typing first is the
+        prefix search."""
         prompt = self.query_one(Input)
+        if self._recall == 0:
+            self._draft = prompt.value
+        past = [line for line in actions.history(self) if line.startswith(self._draft) and line != self._draft]
+        self._recall = max(0, min(len(past), self._recall + step))
         prompt.value = past[-self._recall] if self._recall else self._draft
         prompt.cursor_position = len(prompt.value)
 

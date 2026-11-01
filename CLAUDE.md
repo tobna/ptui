@@ -215,7 +215,9 @@ Built:
   one line at a time, `g g`/`G` with `end`)
 - **query history**: `actions.history` / `remember` over `query.history_file`
   (plain lines, newest last); `app.recall` walks it on `up`/`down` in the
-  prompts named by `actions.HISTORY_KINDS`
+  prompts named by `actions.HISTORY_KINDS`, only the entries that start with
+  what was typed before the first `up` (a prefix search; the typed line itself
+  is skipped)
 - **session state** (opt-in, `general.persist_state = false` shipped):
   `actions.restore_state` before the first `reload`,
   `save_state` from `PtuiApp.on_unmount` — which runs after the widgets are
