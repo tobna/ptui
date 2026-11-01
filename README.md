@@ -129,14 +129,15 @@ Config lives in `~/.config/papis/ptui/`:
 The shipped defaults in [`src/ptui/defaults/`](src/ptui/defaults) are the
 reference; your files hold only what you change. In `keys.toml` a binding of
 yours replaces every shipped one it collides with — the same key, a prefix of it
-or one it is a prefix of, or another key for the same command — and `"o" = false`
-unbinds a key:
+or one it is a prefix of, or the only shipped key for the same command, which
+moves — and `"o" = false` unbinds a key. A command with several shipped keys
+keeps them all (`enter` stays beside the new `O` below):
 
 ```toml
 [modes.list]
 "o" = { cmd = "doc.open_folder" }   # swap o and O
 "O" = { cmd = "doc.open" }
-"enter" = { cmd = "doc.open" }      # O took doc.open from enter as well: keep it
+"D" = { cmd = "doc.delete" }        # delete moves from d d to D
 "b" = false                         # unbind
 ```
 

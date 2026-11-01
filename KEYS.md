@@ -5,9 +5,9 @@ and the command registry — run `uv run python scripts/keydoc.py` after changin
 either. Your `$XDG_CONFIG_HOME/papis/ptui/keys.toml` holds only your changes,
 laid over these key by key. Each of your bindings drops every shipped one it
 collides with in the modes it reaches — the same key, a chord either is a prefix
-of, or another key for the same command and args — so swapping two keys takes
-two lines. To keep a shipped key as well, bind it again. `"o" = false` unbinds
-a key, and a whole namespace for a prefix.
+of, or the mode's only key for the same command and args — so swapping two keys
+takes two lines. A command with several keys (`o` and `enter`) keeps them all as
+aliases. `"o" = false` unbinds a key, and a whole namespace for a prefix.
 
 `escape` always leaves the current mode and `?` always opens the help, in every
 mode, whatever the tables below say — the dispatcher guarantees both so no pane

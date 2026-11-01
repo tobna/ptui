@@ -127,13 +127,17 @@ def _over(
     top: dict[Chord, Binding | None], under: dict[Chord, Binding | None], *, same_command: bool = False
 ) -> dict[Chord, Binding | None]:
     """`top` laid over `under`: an entry of `under` survives only if it collides
-    with nothing in `top` — and, with `same_command`, runs nothing `top` binds."""
+    with nothing in `top` — and, with `same_command`, if it is not the one key
+    `under` has for a command `top` binds with the same args."""
     taken = [(b.cmd, b.args) for b in top.values() if b is not None] if same_command else []
-    kept = {
-        chord: b
-        for chord, b in under.items()
-        if not any(_collide(chord, c) for c in top) and (b is None or (b.cmd, b.args) not in taken)
-    }
+
+    def moved(b: Binding | None) -> bool:
+        # A command with several keys keeps them all: those are aliases, not a home to move.
+        if b is None or (b.cmd, b.args) not in taken:
+            return False
+        return sum((o.cmd, o.args) == (b.cmd, b.args) for o in under.values() if o is not None) == 1
+
+    kept = {chord: b for chord, b in under.items() if not any(_collide(chord, c) for c in top) and not moved(b)}
     return {**kept, **top}
 
 
@@ -154,9 +158,10 @@ def load(path: Path | None = None) -> Keymap:
     """The shipped keymap with the user's keys.toml laid over it, key by key.
 
     A user binding drops every shipped binding it would collide with in the
-    modes it reaches: the same key, a chord one is a prefix of, or a key for the
-    same command with the same args — so moving a command moves it, and swapping
-    two keys takes two lines. `"o" = false` drops `o` (and everything under it,
+    modes it reaches: the same key, a chord one is a prefix of, or the only key
+    the mode has for the same command with the same args — so moving a command
+    moves it, swapping two keys takes two lines, and aliases (`enter` beside
+    `o`) stay unless unbound. `"o" = false` drops `o` (and everything under it,
     for a prefix) without binding anything. The conflict check is left with the
     collisions inside the user's own tables.
 
