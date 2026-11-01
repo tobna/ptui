@@ -403,7 +403,10 @@ caller.
 - `escape` never clears marks (see `escape_chain`); only `m c` does.
 - **Visual mode** (`v`, `V` unmarking) marks the range between where it started
   and the cursor, live, so a verb pressed mid-range acts on what is drawn.
-  Escape or the same key ends it and keeps the marks. vim's charwise/linewise
+  Escape or the same key ends it and keeps the marks, and so does anything
+  that refilters the list — `g r` dropping a narrow to reach its target
+  included: the rows between the ends were never on screen to be chosen.
+  vim's charwise/linewise
   split means nothing for a list of rows, so `V` is the SHIFT-unmarks half of
   `visual.start` rather than a `visual.line` command.
 - **Every way of marking has a way of unmarking the same set.** Marking 40

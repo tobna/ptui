@@ -153,6 +153,18 @@ finishes it. The number in brackets is the review question it came from.
     Crossref, call papis's `papis.crossref.get_data(query=…, max_results=…)`
     and list the hits (title, year, first author, venue) in the picker, with
     "none of these"; one hit keeps H.24's "is this the paper?".
+57. **A refused write re-reads the document.** When an edit is refused because
+    `info.yaml` changed on disk ("press r to reload"), `r` does not help: it
+    re-asks papis's cache, which never saw the outside edit. Re-read that one
+    document from disk right there and say "reloaded from disk; do it
+    again", at every call site of the message. [98.2]
+58. **The hint bar never cuts an entry.** At 80 columns it ends in `space`
+    with no description, and in the files pane at 120 it cuts `x remove from
+    the list, keep`. Use the short `desc` from `keys.toml`, and leave out an
+    entry that does not fit whole. [98.3]
+59. **`g r` with several matches, one of them shown.** When several refs in
+    the scope match but only one is in the list as narrowed now, go to that
+    one instead of listing them. [104]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each
