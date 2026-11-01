@@ -1810,8 +1810,10 @@ def cmdline_run(app: Any, name: str, text: str) -> None:
 
 @command("theme.picker", "theme…")
 def theme_picker(app: Any, name: str | None = None) -> None:
-    """Switch palette, live. The themes are Textual's own — 21 of them, light
-    and dark — so there is no palette file here to rot against a release.
+    """Switch palette, live: the highlighted theme is shown as you move, and
+    `escape` puts back the one that was there. The themes are Textual's own —
+    21 of them, light and dark — so there is no palette file here to rot
+    against a release.
 
     The choice lasts the session: `[ui] theme` in `config.toml` is what makes it
     stick, and the log says so rather than writing to the user's config behind
@@ -1830,7 +1832,8 @@ def theme_picker(app: Any, name: str | None = None) -> None:
         app.refresh_rows()  # the marked-row colour is a Rich style, not CSS
         app.log_line(f'theme: {theme} — keep it with [bold]theme = "{theme}"[/] under [ui]')
 
-    ui.pick(app, items, title="Theme", current=app.theme)(apply)
+    # a preview leaves the list alone: repainting it is 0.3 s at 5000 documents, per theme passed
+    ui.pick(app, items, title="Theme", current=app.theme, preview=app.apply_theme)(apply)
 
 
 @command("keymap.check", "check keymap conflicts")

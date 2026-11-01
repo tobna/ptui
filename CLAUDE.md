@@ -521,7 +521,12 @@ toggle and focusing must not argue with it.
 
 **Themes are Textual's**, not files ptui ships: `App.available_themes` has 21,
 `apply_theme` switches, `theme.picker` (`\ t`) lists them, `[ui] theme` picks
-the startup one. `app.EXTRA_THEMES` registers the few where Textual's namesake
+the startup one. The picker previews through `SelectList.preview`, called
+from the highlight handler; `ui.pick` calls it with `current` again on cancel,
+and that is the whole restore. `on_mount` populates straight onto `current`
+(`_populate(highlight)`), or row 0 would be previewed first. A preview does not
+`refresh_rows` (0.3 s at 5000 documents, per row passed); `enter` does.
+`app.EXTRA_THEMES` registers the few where Textual's namesake
 is a *different* palette — `tokyonight-moon` (the shipped default, LazyVim's
 own) is not Textual's `tokyo-night`, which is the night variant. The old
 `defaults/themes/*.tcss` and `config.theme_dirs` are gone: that stylesheet

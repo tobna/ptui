@@ -357,12 +357,14 @@ Build once, use for sort selection, `query.load`, `lib.switch`,
 selection.
 
 ```
-SelectList(items, *, title, current=None, on_confirm, columns=None)
+SelectList(items, *, title, current=None, on_confirm, preview=None, columns=None)
 ```
 
 Fuzzy filter as you type, current item pre-highlighted and marked, `enter`
 confirms, `shift+enter` confirms with the picker-specific variant, `esc`
-cancels. Bindings live in `[modes.picker]`.
+cancels. Bindings live in `[modes.picker]`. A `preview` sees every value the
+highlight lands on, and `current` again on cancel, which is how the theme
+picker shows a theme before it is picked and puts the old one back on `esc`.
 
 Navigation in the picker is `up`/`down` and `ctrl+n`/`ctrl+p`, **not** `j`/`k`:
 the filter box has focus so that typing filters, and a key cannot be both a
@@ -398,8 +400,9 @@ caller.
 The palette is a **Textual theme**, not a stylesheet ptui ships: Textual's own
 set covers everything a hand-rolled `themes/*.tcss` did (catppuccin, gruvbox,
 nord, rosé pine, solarized, light and dark), each one a complete set of the
-variables the layout CSS already speaks. `theme.picker` switches live; `[ui]
-theme` makes it stick. ptui registers extra themes only where Textual's
+variables the layout CSS already speaks. `theme.picker` previews each theme
+as the highlight reaches it, and `escape` restores the one it opened on; `[ui]
+theme` makes a choice stick. ptui registers extra themes only where Textual's
 equivalent is a different palette — `tokyonight-moon`, the LazyVim default, is
 not Textual's `tokyo-night`.
 
@@ -691,7 +694,7 @@ from this. Adding a command must not require touching four places.
 | `doctor.fix_pick`               |                               | SelectList over this document's findings; `enter` fixes that one |
 | `lib.switch`                    | `name:str?`                   | SelectList over libraries                        |
 | `doc.move`                      | `to:str?`                     | `papis mv` into another library, batch confirms; not undoable |
-| `theme.picker`                  | `name:str?`                   | SelectList over the registered themes; applies live |
+| `theme.picker`                  | `name:str?`                   | SelectList over the registered themes; previews the highlighted one, `esc` restores |
 | `help.show`                     | `filter:str?`                 | generated help overlay                           |
 | `cmdline.open`                  |                               | `:` command line with completion                 |
 | `keymap.check`                  |                               | report conflicts + shadowed prefixes             |

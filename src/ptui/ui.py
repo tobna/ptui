@@ -142,11 +142,16 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
     }
     """
 
-    def __init__(self, items: list[Item], *, title: str, current: Any = None) -> None:
+    def __init__(
+        self, items: list[Item], *, title: str, current: Any = None, preview: Callable[[Any], None] | None = None
+    ) -> None:
         super().__init__()
         self.items = items
         self.title_text = title
         self.current = current
+        self.preview = preview
+        """Called with every value the highlight lands on: the theme picker shows
+        the theme you are on before you pick it."""
         self.shown: list[Item] = list(items)
         self._cursor_at = 0
 
@@ -157,10 +162,9 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
             yield OptionList()
 
     def on_mount(self) -> None:
-        self._populate()
-        index = next((i for i, it in enumerate(self.shown) if it.value == self.current), 0)
+        # straight to the current value: highlighting row 0 first would preview it
+        self._populate(next((i for i, it in enumerate(self.shown) if it.value == self.current), 0))
         options = self.query_one(OptionList)
-        options.highlighted = index
         # after the refresh: at mount time the list has no geometry yet, so the
         # scroll lands nowhere and a picker opened on a far-down current value
         # (21 themes, one library) shows the top of the list instead
@@ -178,12 +182,12 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
         hint = f"  [dim]{literal(item.hint)}[/]" if item.hint else ""
         return f"{glyph('cursor') if here else ' '} {label}{hint}"
 
-    def _populate(self) -> None:
+    def _populate(self, highlight: int = 0) -> None:
         options = self.query_one(OptionList)
         options.clear_options()
         for index, item in enumerate(self.shown):
-            options.add_option(self._prompt(item, here=index == 0))
-        options.highlighted = 0 if self.shown else None
+            options.add_option(self._prompt(item, here=index == highlight))
+        options.highlighted = highlight if self.shown else None
 
     def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted) -> None:
         """Move the cursor glyph with the highlight — two rows change, not the list."""
@@ -194,6 +198,8 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
                     index, self._prompt(self.shown[index], here=index == event.option_index)
                 )
         self._cursor_at = event.option_index
+        if self.preview is not None and 0 <= event.option_index < len(self.shown):
+            self.preview(self.shown[event.option_index].value)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         needle = event.value.casefold()
@@ -221,18 +227,24 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
             self.dismiss(None)
 
 
-def pick(app: Any, items: list[Item], *, title: str, current: Any = None) -> Callable[..., Any]:
+def pick(
+    app: Any, items: list[Item], *, title: str, current: Any = None, preview: Callable[[Any], None] | None = None
+) -> Callable[..., Any]:
     """`app.push_screen(SelectList(...), on_confirm)`, minus the ceremony.
 
     Usage: `ui.pick(app, items, title="Sort by")(lambda value, inverted: ...)`.
+    A `preview` is called with each highlighted value, and with `current` again
+    when the picker is cancelled — back to what was there when it opened.
     """
 
     def run(on_confirm: Callable[[Any, bool], None]) -> None:
         def handle(result: tuple[Any, bool] | None) -> None:
             if result is not None:
                 on_confirm(*result)
+            elif preview is not None:
+                preview(current)
 
-        app.push_screen(SelectList(items, title=title, current=current), handle)
+        app.push_screen(SelectList(items, title=title, current=current, preview=preview), handle)
 
     return run
 

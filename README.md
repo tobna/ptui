@@ -71,7 +71,7 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   `info.yaml` in `$EDITOR`, telling you if you saved YAML papis can no longer
   parse; `E` a form over the common fields (typed, one undo step).
   `edit.mode = "structured"` swaps the two.
-- **Looks like your editor** — 22 themes, live-switchable with `\ t`: the
+- **Looks like your editor** — 22 themes, previewed as you move through `\ t`: the
   catppuccin family, gruvbox, nord, rosé pine, solarized, dracula, and
   `tokyonight-moon` (LazyVim's default) shipped as the out-of-the-box palette.
   Titled panes, a lualine-shaped status bar, and marks in the theme's accent.

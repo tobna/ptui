@@ -251,6 +251,27 @@ async def test_theme_picker_lists_textual_themes_and_switches_live(app):
         assert app.theme == "gruvbox"
 
 
+async def test_the_theme_picker_previews_the_highlight_and_escape_restores(app, monkeypatch):
+    shown = []
+    apply_theme = app.apply_theme
+    monkeypatch.setattr(app, "apply_theme", lambda name: (shown.append(name), apply_theme(name)))
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        shown.clear()
+        await press(pilot, "\\", "t")
+        offered = [item.value for item in app.screen.items]
+        above = offered[offered.index("tokyonight-moon") - 1]
+        assert set(shown) <= {"tokyonight-moon"}  # opened on it, not on row 0 first
+        await press(pilot, "up")
+        assert app.theme == above  # live, before anything is picked
+        await press(pilot, *"nord")
+        assert app.theme == "nord"  # the filter moves the highlight too
+        await press(pilot, "escape")
+        assert app.theme == "tokyonight-moon"  # what was there when it opened
+        await press(pilot, "\\", "t", "up", "enter")
+        assert app.theme == above
+
+
 async def test_an_unknown_theme_says_so_instead_of_starting_unreadable(app):
     async with app.run_test() as pilot:
         await settle(pilot)
