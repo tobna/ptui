@@ -64,6 +64,8 @@ async def test_moving_shows_the_new_document_in_the_info_pane(app):
         ("files.open_pick", {}),
         ("doc.open_folder", {}),
         ("doc.browse", {}),
+        ("doc.edit", {}),
+        ("doc.edit", {"other": True}),
         ("doc.edit_raw", {}),
         ("doc.notes", {}),
         ("doc.tag", {"tags": "x"}),
@@ -246,3 +248,39 @@ async def test_escape_with_nothing_to_drop_clears_a_pending_chord(app):
         app.pending = ("g",)
         actions.app_escape(app)
         assert app.pending == ()
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [
+        ("c", "f"),
+        ("c", "t"),
+        ("c", "T"),
+        ("c", "s"),
+        ("c", "r"),
+        ("g", "s"),
+        ("g", "l"),
+        ("S",),
+        ("a",),
+        ("f", "a"),
+        ("\\", "s"),
+        (":",),
+        ("?",),
+        ("s",),
+        ("m", "q"),
+    ],
+)
+async def test_escaping_out_of_any_picker_or_prompt_changes_nothing(app, papis_lib, keys):
+    before = {p: p.read_text() for p in (papis_lib / "lib").rglob("info.yaml")}
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        state = (app.scope_query, app.sort_key, app.sort_reverse, set(app.marks))
+        await press(pilot, *keys)
+        assert len(app.screen_stack) > 1 or app.prompt_kind  # something did open
+        await press(pilot, "escape")
+        assert len(app.screen_stack) == 1
+        assert app.prompt_kind == ""
+        assert (app.scope_query, app.sort_key, app.sort_reverse, set(app.marks)) == state
+        assert not app.history.done
+    assert {p: p.read_text() for p in (papis_lib / "lib").rglob("info.yaml")} == before
+    assert not (papis_lib / "saved.json").exists()

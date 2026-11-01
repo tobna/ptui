@@ -2,6 +2,7 @@
 libraries: the state every view is built from."""
 
 import json
+import os
 
 import pytest
 from conftest import build_app, press, settle
@@ -301,3 +302,30 @@ async def test_moving_one_document_needs_no_confirmation(app, papis_lib):
         await settle(pilot)
         assert _ids(app.docs) == ["id1", "id2"]
     assert (other / "doc0" / "info.yaml").exists()
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root writes through a read-only folder")
+async def test_a_history_that_cannot_be_written_costs_the_history_not_the_query(app, papis_lib, monkeypatch):
+    state = papis_lib / "state"
+    state.mkdir()
+    app.cfg.data["query"]["history_file"] = str(state / "history")
+    state.chmod(0o555)
+    try:
+        async with app.run_test() as pilot:
+            await settle(pilot)
+            logged = logs(app, monkeypatch)
+            await press(pilot, "s", *"year:2016", "enter")
+            assert _ids(app.docs) == ["id1"]
+            assert any("query history not saved" in line for line in logged)
+    finally:
+        state.chmod(0o755)
+
+
+async def test_a_session_state_that_cannot_be_written_does_not_stop_the_app_closing(app, papis_lib):
+    (papis_lib / "blocker").write_text("a file where a folder should be")
+    app.cfg.data["general"]["persist_state"] = True
+    app.cfg.data["general"]["state_file"] = str(papis_lib / "blocker" / "state.json")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+    assert app.return_code in (0, None)
+    assert (papis_lib / "blocker").read_text() == "a file where a folder should be"
