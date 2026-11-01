@@ -543,6 +543,35 @@ async def test_the_pane_keys_work_from_every_pane(app):
         assert app.mode == "list"
 
 
+async def test_clicking_a_pane_focuses_it(app):
+    """A click lands on whatever widget is under it — the text inside the info
+    pane, a row of the list — and focuses the pane holding it, the same way
+    `1`-`4` do: transient panes open and close, the border follows."""
+    async with app.run_test() as pilot:
+
+        async def click(selector: str) -> None:
+            await pilot.click(selector, offset=(3, 1))  # inside, not on the border
+            await settle(pilot)
+
+        await settle(pilot)
+        await click("#info")  # the text, not the pane itself
+        assert app.mode == "info"
+        assert app.query_one("#info-pane").has_class("pane-active")
+        app.query_one("#log-pane").display = True  # how a batch shows its report
+        await click("#log-pane")
+        assert app.mode == "log"
+        await press(pilot, "g")  # pending in the log: must not carry over to the list
+        await click("#list-pane")
+        assert (app.mode, app.pending) == ("list", ())
+        assert app.query_one("#list-pane").has_class("pane-active")
+        assert not app.query_one("#info-pane").has_class("pane-active")
+        assert not app.query_one("#log-pane").display  # transient: it closes when focus leaves
+        await press(pilot, "3")
+        await click("#info")
+        assert app.mode == "info"
+        assert not app.query_one("#files-pane").display
+
+
 async def test_h_and_l_walk_the_panes_from_every_pane(app):
     async with app.run_test() as pilot:
         await settle(pilot)

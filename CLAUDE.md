@@ -143,6 +143,10 @@ per key.
   whoever runs them having a library named `papers`.
 - Textual widgets are driven manually: `can_focus = False` everywhere except the
   prompt `Input`, so every key reaches `App.on_key` and the keymap owns dispatch.
+  **The log pane is the exception, and must stay one**: RichLog is focusable, so
+  it is what Textual's auto-focus picks at startup. Make it unfocusable and the
+  auto-focus lands on the hidden prompt `Input`, which then swallows `4` before
+  the keymap sees it.
 - Do not shadow Textual internals: `SelectList._populate` is called that because
   `Widget._render` already exists and overriding it renders nothing.
 - `Static.update` parses markup, and a destination path is full of
@@ -496,7 +500,8 @@ pane cannot be hidden and takes the whole window when it is alone.
 `PtuiApp.focus_pane()` owns the **log** and **files** panes' visibility: they
 are the transient panes (the files pane is the right column's second half,
 `#side`, under the info pane; `j`/`k` there move `app.file_index`); each opens when focused and closes when focus leaves. Every
-path routes through there — `1`-`4`, `tab`/`l`, escape and `g o` (`app.log` is now
+path routes through there — `1`-`4`, `tab`/`l`, escape, `g o` and a mouse click
+(`PtuiApp.on_click` walks up from the clicked widget to the pane) (`app.log` is now
 just "focus it, or focus the list if it is already up") — which is what fixed
 both halves of the old bug: escape left the pane on screen looking dead, and
 `4` focused a pane that was never shown, putting the keyboard somewhere

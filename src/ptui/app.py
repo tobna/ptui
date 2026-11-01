@@ -722,6 +722,16 @@ class PtuiApp(App[None]):
             self.query_one(f"#{name}-pane").set_class(name == pane, "pane-active")
         self.refresh_status()
 
+    def on_click(self, event: events.Click) -> None:
+        """A click focuses the pane it lands in, the way `1`-`4` do. It lands on
+        the innermost widget — the info pane's text, not the pane — so look up."""
+        panes = {f"{name}-pane": name for name in PANES}
+        hit = event.widget.ancestors_with_self if event.widget else []
+        if pane := next((panes[widget.id] for widget in hit if widget.id in panes), None):
+            self.pending = ()  # a chord begun in one pane is not the next pane's
+            self.hide_which_key()
+            self.focus_pane(pane)
+
     # ── data ────────────────────────────────────────────────────────────────
 
     @property

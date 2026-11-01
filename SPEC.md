@@ -398,7 +398,8 @@ not Textual's `tokyo-night`.
 Required of the chrome, in any theme:
 
 - Panes are titled and bordered; **the focused one is the one in `$primary`**,
-  which is the only indication of where the keyboard is.
+  which is the only indication of where the keyboard is. A click on a pane
+  focuses it, exactly as its number key does.
 - The status bar is a row of coloured blocks: mode, scope, narrow, doctor on
   the left; pending chord, sort and counts on the right. Powerline separators
   come from `ui.glyph`, so an ASCII terminal gets plain blocks at the same
