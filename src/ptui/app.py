@@ -40,7 +40,7 @@ from ptui import (
     undo,
 )
 
-PANES = ("list", "info", "files", "log")
+PANES = keymap.PANES
 
 DEFAULT_THEME = "tokyonight-moon"
 """LazyVim's own default colourscheme. `\\ t` switches, `[ui] theme` makes it stick."""

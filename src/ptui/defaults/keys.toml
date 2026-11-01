@@ -20,6 +20,26 @@ show_keys_in_cmdline = true      # teach bindings via the command line
 # always returns to the list, so no pane can trap the keyboard.
 escape_chain = ["modal", "visual", "narrow"]
 
+# Keys that work in every pane — list, info, files and log — so that no pane
+# can be left without a way to the others. A pane's own table wins where both
+# bind a key. Not in a picker: its filter box has the keyboard, and letters there
+# are text.
+[global]
+"1"        = { cmd = "pane.focus", args = { pane = "list" } }
+"2"        = { cmd = "pane.focus", args = { pane = "info" } }
+"3"        = { cmd = "pane.focus", args = { pane = "files" } }
+"4"        = { cmd = "pane.focus", args = { pane = "log" } }
+"tab"      = { cmd = "pane.cycle" }
+"shift+tab"= { cmd = "pane.cycle", args = { back = true } }
+"l"        = { cmd = "pane.cycle", desc = "next pane" }
+"h"        = { cmd = "pane.cycle", args = { back = true }, desc = "previous pane" }
+"u"        = { cmd = "app.undo" }
+"ctrl+r"   = { cmd = "app.redo" }
+"g o"      = { cmd = "app.log", desc = "operation log" }
+":"        = { cmd = "cmdline.open" }
+"ctrl+p"   = { cmd = "cmdline.open" }
+"q"        = { cmd = "app.quit" }
+
 [modes.list]
 # — navigation ————————————————————————————————
 "j"        = { cmd = "nav.down" }
@@ -31,16 +51,6 @@ escape_chain = ["modal", "visual", "narrow"]
 "J"        = { cmd = "info.scroll", desc = "scroll info down" }
 "K"        = { cmd = "info.scroll", args = { up = true }, desc = "scroll info up" }
 "G"        = { cmd = "nav.bottom" }
-
-# — panes ——————————————————————————————————
-"1"        = { cmd = "pane.focus", args = { pane = "list" } }
-"2"        = { cmd = "pane.focus", args = { pane = "info" } }
-"3"        = { cmd = "pane.focus", args = { pane = "files" } }
-"4"        = { cmd = "pane.focus", args = { pane = "log" } }
-"tab"      = { cmd = "pane.cycle" }
-"shift+tab"= { cmd = "pane.cycle", args = { back = true } }
-"l"        = { cmd = "pane.cycle", desc = "next pane" }
-"h"        = { cmd = "pane.cycle", args = { back = true }, desc = "previous pane" }
 
 # — verbs on the current document ——————————————————
 "enter"    = { cmd = "doc.open",        desc = "open file" }
@@ -65,16 +75,11 @@ escape_chain = ["modal", "visual", "narrow"]
 "v"        = { cmd = "visual.start" }
 "V"        = { cmd = "visual.start", args = { unmark = true }, desc = "visual unmark" }
 
-# — undo / refresh ————————————————————————————
-"u"        = { cmd = "app.undo" }
-"ctrl+r"   = { cmd = "app.redo" }
+# — refresh ——————————————————————————————————
 "r"        = { cmd = "app.reload", desc = "reload library" }
 
 # — meta ———————————————————————————————————
 "?"        = { cmd = "help.show" }
-":"        = { cmd = "cmdline.open" }
-"ctrl+p"   = { cmd = "cmdline.open" }
-"q"        = { cmd = "app.quit" }
 
 # ————— g : go somewhere —————————————————————————
 "g g"      = { cmd = "nav.top",     desc = "top" }
@@ -83,7 +88,6 @@ escape_chain = ["modal", "visual", "narrow"]
 "g m"      = { cmd = "mark.show_only", desc = "marked only" }
 "g l"      = { cmd = "lib.switch",  desc = "switch library" }
 "g r"      = { cmd = "nav.goto",    desc = "go to a citekey" }
-"g o"      = { cmd = "app.log",     desc = "operation log" }
 
 # ————— c : change a field ———————————————————————
 "c t"      = { cmd = "doc.tag",    desc = "add tags" }
@@ -150,17 +154,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "up"       = { cmd = "nav.up" }
 "enter"    = { cmd = "doc.open", desc = "open this file" }
 "o"        = { cmd = "doc.open", desc = "open this file" }
-"u"        = { cmd = "app.undo" }
-"ctrl+r"   = { cmd = "app.redo" }
-"1"        = { cmd = "pane.focus", args = { pane = "list" } }
-"2"        = { cmd = "pane.focus", args = { pane = "info" } }
-"4"        = { cmd = "pane.focus", args = { pane = "log" } }
-"tab"      = { cmd = "pane.cycle" }
-"shift+tab"= { cmd = "pane.cycle", args = { back = true } }
-"l"        = { cmd = "pane.cycle", desc = "next pane" }
-"h"        = { cmd = "pane.cycle", args = { back = true }, desc = "previous pane" }
 "z f"      = { cmd = "pane.toggle", args = { pane = "files" }, desc = "close the files pane" }
-"g o"      = { cmd = "app.log", desc = "operation log" }
 "r"        = { cmd = "files.rename",   desc = "rename to scheme" }
 "m"        = { cmd = "files.relocate", desc = "apply placement rules" }
 "p"        = { cmd = "files.repoint",  desc = "fix broken path" }
@@ -169,8 +163,6 @@ escape_chain = ["modal", "visual", "narrow"]
 "J"        = { cmd = "files.reorder", args = { to =  1 } }
 # escape needs no binding here: the dispatcher always returns to the list.
 
-# The pane keys again: a mode is its own table, and without them `tab` could
-# never get from the info pane to the log, nor `g o` close the log.
 [modes.info]
 "j"        = { cmd = "nav.down" }
 "k"        = { cmd = "nav.up" }
@@ -179,17 +171,6 @@ escape_chain = ["modal", "visual", "narrow"]
 "J"        = { cmd = "info.scroll" }
 "K"        = { cmd = "info.scroll", args = { up = true } }
 "e"        = { cmd = "doc.edit" }
-"u"        = { cmd = "app.undo" }
-"ctrl+r"   = { cmd = "app.redo" }
-"1"        = { cmd = "pane.focus", args = { pane = "list" } }
-"2"        = { cmd = "pane.focus", args = { pane = "info" } }
-"3"        = { cmd = "pane.focus", args = { pane = "files" } }
-"4"        = { cmd = "pane.focus", args = { pane = "log" } }
-"tab"      = { cmd = "pane.cycle" }
-"shift+tab"= { cmd = "pane.cycle", args = { back = true } }
-"l"        = { cmd = "pane.cycle", desc = "next pane" }
-"h"        = { cmd = "pane.cycle", args = { back = true }, desc = "previous pane" }
-"g o"      = { cmd = "app.log", desc = "operation log" }
 
 [modes.log]
 "j"        = { cmd = "log.scroll", args = { lines = 1 }, desc = "scroll down a line" }
@@ -198,15 +179,6 @@ escape_chain = ["modal", "visual", "narrow"]
 "ctrl+u"   = { cmd = "log.scroll", args = { up = true } }
 "g g"      = { cmd = "log.scroll", args = { up = true, end = true }, desc = "top of the log" }
 "G"        = { cmd = "log.scroll", args = { end = true }, desc = "bottom of the log" }
-"1"        = { cmd = "pane.focus", args = { pane = "list" } }
-"2"        = { cmd = "pane.focus", args = { pane = "info" } }
-"3"        = { cmd = "pane.focus", args = { pane = "files" } }
-"4"        = { cmd = "pane.focus", args = { pane = "log" } }
-"tab"      = { cmd = "pane.cycle" }
-"shift+tab"= { cmd = "pane.cycle", args = { back = true } }
-"l"        = { cmd = "pane.cycle", desc = "next pane" }
-"h"        = { cmd = "pane.cycle", args = { back = true }, desc = "previous pane" }
-"g o"      = { cmd = "app.log", desc = "close the log" }
 
 # The filter box has focus so that typing filters, so motions cannot be letters.
 [modes.picker]

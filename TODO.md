@@ -95,9 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-3. **One `keys.toml` section for keys that work in every mode** (the pane keys,
-   `h`/`l`, `u`/`ctrl+r`, …) instead of copying them into each mode's table —
-   the copies are how the log pane once trapped the keyboard. [11.1]
 4. **The doctor re-checks stale documents in a background thread.** Today a
    stale entry is re-scanned inside the redraw (~2 ms each), so a mass change
    on disk (a sync, a `git pull`) freezes the next redraw. While the thread

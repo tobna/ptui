@@ -22,9 +22,12 @@ from ptui.config import DEFAULTS_DIR
 ROOT = Path(__file__).resolve().parent.parent
 
 MODE_INTROS = {
+    "global": "Every pane — list, info, files and log — has these as well, unless its own table "
+    "binds the same keys. A picker does not: its filter box has the keyboard.",
     "list": "The document list — the mode ptui starts in, and the one every other mode falls back to.",
-    "files": "The files pane. Not built yet, so these bindings only log.",
+    "files": "The files pane, focused with `3`: the file verbs act on the entry under its cursor.",
     "info": "The info pane, focused with `2` or `tab`.",
+    "log": "The log pane, focused with `4` or `g o`.",
     "picker": "Any modal picker (`S`, `f o`, `g l`, `?`). The filter box has focus, so motions cannot be letters.",
 }
 
@@ -48,7 +51,8 @@ def render() -> str:
         "Every binding ptui ships with, generated from `src/ptui/defaults/keys.toml`",
         "and the command registry — run `uv run python scripts/keydoc.py` after changing",
         "either. Copy the file to `$XDG_CONFIG_HOME/papis/ptui/keys.toml` to override:",
-        "a mode you define replaces ours wholesale, so a shipped binding can be removed.",
+        "a table you define (`[global]` or a mode) replaces ours wholesale, so a shipped",
+        "binding can be removed.",
         "",
         "`escape` always leaves the current mode and `?` always opens the help, in every",
         "mode, whatever the tables below say — the dispatcher guarantees both so no pane",
@@ -59,8 +63,9 @@ def render() -> str:
         "",
     ]
 
-    for mode, bindings in data.get("modes", {}).items():
-        out += [f"## `[modes.{mode}]`", ""]
+    tables = {"global": data.get("global", {}), **data.get("modes", {})}
+    for mode, bindings in tables.items():
+        out += [f"## `[{'global' if mode == 'global' else f'modes.{mode}'}]`", ""]
         if mode in MODE_INTROS:
             out += [MODE_INTROS[mode], ""]
         out += ["| Keys | Command | Does what |", "| --- | --- | --- |"]

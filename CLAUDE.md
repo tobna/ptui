@@ -618,6 +618,13 @@ imports `papis.paths.download_remote_files` at call time, so monkeypatching it
 for a fake download also catches addto's own call on the local copy — the fake
 has to pass non-URLs through unchanged.
 
+`[global]` in `keys.toml` holds the keys every pane has — `1`-`4`, `tab`,
+`h`/`l`, `u`/`ctrl+r`, `g o`, `:`, `q` — and `keymap.load` lays it under each of
+`keymap.PANES`, the pane's own table winning on the same chord. Not under
+`[modes.picker]`: `SelectList.on_key` swallows every key the picker table binds,
+so a global letter would never reach the filter box. Each mode used to carry its
+own copy, and a missing copy is how the log pane once trapped the keyboard.
+
 `escape` and the help key are dispatched above the keymap (`app.on_key`):
 outside `[modes.list]` escape drops any pending chord and returns to the list,
 so a mode with few or no bindings can never trap the keyboard; inside the list

@@ -51,13 +51,13 @@ async def test_chord_and_unknown_command(app):
 
 async def test_escape_leaves_any_mode(app):
     async with app.run_test() as pilot:
-        await press(pilot, "4")  # the log mode defines no bindings at all
+        await press(pilot, "4")
         assert app.mode == "log"
         assert app.query_one("#log-pane").display  # focusing a pane shows it
         await press(pilot, "escape")
         assert app.mode == "list"
         assert not app.query_one("#log-pane").display  # escape closes it, not just unfocuses
-        await press(pilot, "tab")  # info: defines four keys, none of them q
+        await press(pilot, "tab")
         assert app.mode == "info"
         await press(pilot, "g")  # a pending prefix must not survive the escape
         await press(pilot, "escape")
@@ -555,6 +555,17 @@ async def test_h_and_l_walk_the_panes_from_every_pane(app):
             await press(pilot, "h")
             seen.append(app.mode)
         assert seen[4:] == ["log", "files", "info", "list"]
+
+
+async def test_q_quits_from_every_pane(app, monkeypatch):
+    """`q` was bound in [modes.list] only, so it did nothing in the other panes."""
+    quit_from = []
+    monkeypatch.setattr(app, "exit", lambda *_a, **_k: quit_from.append(app.mode))
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        for pane in "1234":
+            await press(pilot, pane, "q")
+        assert quit_from == ["list", "info", "files", "log"]
 
 
 async def test_a_failing_command_is_reported_once(app, monkeypatch):

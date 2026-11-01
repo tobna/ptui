@@ -86,34 +86,52 @@ def normalize(key: str, character: str | None = None) -> str:
     return key
 
 
+PANES = ("list", "info", "files", "log")
+"""The modes `[global]` reaches: every pane, but not the picker, whose filter box
+has the keyboard — a letter bound there would never reach the filter."""
+
+
+def _table(section: str, bindings: dict[str, Any], path: Path, unknown: list[str]) -> dict[Chord, Binding]:
+    """One keys.toml table as chords. Unknown commands are collected, not fatal."""
+    out: dict[Chord, Binding] = {}
+    for keys, spec in bindings.items():
+        chord = tuple(normalize(k) for k in keys.split(" ") if k)
+        if not isinstance(spec, dict) or "cmd" not in spec:
+            raise ValueError(f'{path}: [{section}] {keys!r} needs a cmd, like {{ cmd = "nav.down" }}')
+        cmd = spec["cmd"]
+        registered = commands.REGISTRY.get(cmd)
+        if registered is None:
+            unknown.append(f"[{section}] {keys!r} -> unknown command {cmd!r}")
+        out[chord] = Binding(
+            chord=chord,
+            cmd=cmd,
+            args=spec.get("args", {}),
+            desc=spec.get("desc") or (registered.desc if registered else ""),
+        )
+    return out
+
+
 def load(path: Path | None = None) -> Keymap:
-    """Load shipped defaults, then the user's keys.toml — per mode, replacing wholesale."""
+    """Load shipped defaults, then the user's keys.toml — per table, replacing wholesale.
+
+    `[global]` is laid under every pane's own table, which wins on the same keys:
+    one copy of the pane keys rather than one per mode, which is how a mode once
+    ended up with none and trapped the keyboard.
+    """
     data = tomllib.loads((DEFAULTS_DIR / "keys.toml").read_text())
     if path is None:
         path = config_dir() / "keys.toml"
     if path.is_file():
         user = read_toml(path)
         data["options"] = {**data.get("options", {}), **user.get("options", {})}
-        # A mode the user defines replaces ours: partial merges make it impossible
+        # A table the user defines replaces ours: partial merges make it impossible
         # to remove a shipped binding.
         data["modes"] = {**data.get("modes", {}), **user.get("modes", {})}
+        data["global"] = user.get("global", data.get("global", {}))
 
-    modes: dict[str, dict[Chord, Binding]] = {}
     unknown: list[str] = []
-    for mode, bindings in data.get("modes", {}).items():
-        modes[mode] = {}
-        for keys, spec in bindings.items():
-            chord = tuple(normalize(k) for k in keys.split(" ") if k)
-            if not isinstance(spec, dict) or "cmd" not in spec:
-                raise ValueError(f'{path}: [modes.{mode}] {keys!r} needs a cmd, like {{ cmd = "nav.down" }}')
-            cmd = spec["cmd"]
-            registered = commands.REGISTRY.get(cmd)
-            if registered is None:
-                unknown.append(f"[modes.{mode}] {keys!r} -> unknown command {cmd!r}")
-            modes[mode][chord] = Binding(
-                chord=chord,
-                cmd=cmd,
-                args=spec.get("args", {}),
-                desc=spec.get("desc") or (registered.desc if registered else ""),
-            )
+    shared = _table("global", data.get("global", {}), path, unknown)
+    modes = {mode: _table(f"modes.{mode}", bindings, path, unknown) for mode, bindings in data["modes"].items()}
+    for mode in PANES:
+        modes[mode] = {**shared, **modes.get(mode, {})}
     return Keymap(modes, data.get("options", {}), tuple(sorted(unknown)))

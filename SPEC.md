@@ -549,7 +549,11 @@ jump-style narrow mode is added.
 **Second hard invariant**: no mode may trap the keyboard. Outside `[modes.list]`,
 `escape` is handled by the dispatcher *above* the keymap — it discards any pending
 chord and returns to the list — so a mode is free to define very few bindings, or
-none at all. In the list mode `escape` keeps its `escape_chain` meaning.
+none at all. In the list mode `escape` keeps its `escape_chain` meaning. The
+keys that get from any pane to the others — `1`–`4`, `tab`, `h`/`l`, undo and
+redo, the log, `:`, `q` — are written once, in `[global]`, and every pane has them
+unless its own table binds the same keys. A picker does not: its filter box has
+the keyboard, and a letter there is text.
 
 **Hard invariant**: no single-key binding may be a proper prefix of any chord
 in the same mode. `keymap.check` runs automatically at config load and
