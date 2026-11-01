@@ -460,7 +460,8 @@ The checks themselves live in `papis.doctor` since 0.16, and findings come from
 names go through papis's `DEPRECATED_CHECK_NAMES`, so `key-type` still means
 `field-type`, as it does on papis's own command line.
 A fix runs the check's own `fix_action` (which mutates the in-memory `Document`),
-diffs the keys it touched, and writes only those through `safewrite`; on any
+diffs the keys it touched against a **deep** copy (papis's `files` and initials
+fixes edit a list or the author dicts in place, which a shallow copy shares), and writes only those through `safewrite`; on any
 failure the document is reloaded, or it would keep an edit that never landed.
 `[doctor] checks = []` means every registered check — a shipped list would rot
 against whatever a papis release registers.

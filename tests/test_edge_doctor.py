@@ -5,7 +5,6 @@ import os
 
 import papis.database
 import papis.document
-import pytest
 
 from ptui import doctor
 
@@ -29,22 +28,12 @@ def test_a_fix_that_renames_a_key_drops_the_old_one_and_keeps_the_comment_after_
     assert info.read_text() == "title: T\n# about ref\nref: r\npapis_id: edge\ninstitution: S\n"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: doctor.fix diffs against a shallow dict(doc); papis's `files` fixer removes the entry "
-    "in place, so the change is invisible and nothing is written",
-)
 def test_fixing_a_missing_file_removes_it_from_info_yaml(papis_lib):
     doc, info = _doc(papis_lib, "title: T\nfiles:\n- gone.pdf\npapis_id: edge\n")
     assert doctor.fix(doc, _fixable(doc, "files")) == ["files"]
     assert "gone.pdf" not in info.read_text()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: doctor.fix diffs against a shallow dict(doc); string-cleaner's initials fix edits the "
-    "author dicts in place, so `author` is written and `author_list` is not",
-)
 def test_fixing_initials_writes_author_list_too(papis_lib):
     doc, info = _doc(
         papis_lib,

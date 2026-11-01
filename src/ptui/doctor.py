@@ -8,6 +8,8 @@ read-only, and a fix is applied one finding at a time through `safewrite`.
 
 from __future__ import annotations
 
+import copy
+
 import papis.doctor as _doctor
 from papis.document import Document
 
@@ -168,7 +170,9 @@ def fix(doc: Document, finding: Finding) -> list[str]:
     """
     if finding.fix_action is None:
         return []
-    before = dict(doc)
+    # deep: papis's fixes edit lists and author dicts in place (`files`, initials),
+    # and a shallow copy shares them, so the diff saw no change and wrote nothing
+    before = copy.deepcopy(dict(doc))
     finding.fix_action()
     changed = {key: value for key, value in doc.items() if before.get(key) != value}
     dropped = [key for key in before if key not in doc]

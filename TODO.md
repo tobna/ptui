@@ -102,9 +102,6 @@ finishes it. The number in brackets is the review question it came from.
     target (it works). When `g r` has to drop a narrow to reach the target, the
     range ends instead of stretching — that one is a decision for the user, not
     to be guessed.
-35. **`doctor.fix` misses fixes made in place.** It diffs against a shallow
-    `dict(doc)`, so papis's `files` fix writes nothing, and string-cleaner's
-    initials fix writes `author` but not `author_list`. [test_edge_doctor.py]
 44. **An error after a prompt ends the session.** What runs after a prompt is
     submitted (`s`, `/`, `\ s`, `g r`, `m q`, the `:` line's arguments, …) has
     no guard, unlike a command started from a key, so any exception there
