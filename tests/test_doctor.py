@@ -132,6 +132,30 @@ async def test_a_named_doctor_run_narrows_by_its_check_and_keeps_the_other_marke
         assert [f.name for f in doctor.cached(doc1)] == ["field-type"]  # its marker stays
 
 
+def _outside(info, old: str, new: str) -> None:
+    """A script's edit: the file changes, the copy in memory does not."""
+    info.write_text(info.read_text().replace(old, new))
+    stat = info.stat()  # a distinct mtime, whatever the clock granularity
+    os.utime(info, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+
+
+def test_a_stale_document_is_checked_as_its_file_holds_it_not_as_loaded(tmp_path, papis_lib):
+    """No reload after the outside edits, so the copy in memory keeps `bad ref!`:
+    findings from it stored under the new mtime would never go stale again."""
+    doc, info = broken_doc(tmp_path)
+    assert [f.name for f in doctor.scan(doc, ["refs"])] == ["refs"]
+
+    _outside(info, "ref: bad ref!", "ref: fine")
+    doctor.peek(doc)
+    doctor.recheck()  # the background path: a fresh read, the shared copy untouched
+    assert doctor.cached(doc) == []
+    assert doc["ref"] == "bad ref!"
+
+    _outside(info, "ref: fine", "ref: fine-too")
+    assert doctor.scan(doc, ["refs"]) == []  # the main-thread path re-reads in place
+    assert doc["ref"] == "fine-too"
+
+
 def test_findings_are_read_only(tmp_path):
     """The whole point: looking must not change the document. papis's own
     `doctor.run` defaults to `fix=True`, so this is the regression that matters."""

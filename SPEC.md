@@ -311,7 +311,10 @@ at it. Findings come from each check's own `operate`.
   checks it was scanned with, in a background thread the redraw starts: one
   document is ~2 ms, so a mass change on disk (a sync, a `git pull`) would
   freeze a redraw that re-checked them itself. Until the thread has looked, a
-  stale document keeps showing its old findings; then the rows repaint.
+  stale document keeps showing its old findings; then the rows repaint. The
+  re-check reads the file again rather than the copy loaded before it changed,
+  and so does the list: a row drawn before an outside edit is formatted from
+  the file the next time it is drawn.
   A scan with named checks replaces only those checks' findings: the markers the
   other checks left stay where they are.
   A document never scanned reads *not checked*, never clean.

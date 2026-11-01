@@ -321,7 +321,11 @@ papis config on every call, and every narrow keystroke redraws every row —
 3 s at 5000 documents before the cache, 0.2–0.4 s after (the rest is Textual's
 `add_row`). It formats without `default=`: with one, papis logs a warning plus
 traceback for each `{doc[author_list][0][family]}` on a document with no
-authors, 10 ms apiece. `row_cells` paints one row with what the last
+authors, 10 ms apiece. A stale entry means the file changed since the row was
+drawn, so `cell_text` `load()`s the document before formatting it again (stat
+first, then read): formatting the copy in memory stored the old title under the
+new stamp, and the row kept it even through a rescan. A document's *first* draw
+trusts what papis loaded. `row_cells` paints one row with what the last
 `refresh_rows` decided (`app._paint`), so `mark.toggle` redraws its row alone
 through `refresh_row`.
 
@@ -508,7 +512,11 @@ findings and the document goes into `doctor.STALE`, and `refresh_info` (the end
 of every redraw) starts `PtuiApp.recheck`, a thread worker that drains it
 through `cached()` — the blocking read, which re-scans with the checks the entry
 was scanned with — and repaints the rows. Re-checking inside the redraw froze
-it after a mass change on disk. `None` means *never scanned*, which the info pane
+it after a mass change on disk. Anything stored under a newer stamp is checked
+on the file as it is now: `cached()` reads a fresh copy (`_from_disk`; it runs
+in that thread, and `load()` empties a document before refilling it under the
+redraw reading it), and `scan()`, the main thread's call, `load()`s the
+document in place so the findings it returns can still be fixed on it. `None` means *never scanned*, which the info pane
 renders as "not checked" — never as clean. The cache is module state keyed by
 `papis_id`, so the `papis_lib` fixture clears it and `STALE`: every fixture
 reuses `id0`.

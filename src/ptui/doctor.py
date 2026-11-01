@@ -11,6 +11,7 @@ from __future__ import annotations
 import copy
 
 import papis.doctor as _doctor
+import papis.document
 from papis.document import Document
 
 from ptui import library, safewrite
@@ -81,13 +82,30 @@ def scan(doc: Document, checks: list[str] | None = None) -> list[Finding]:
 
     Only their findings are replaced in the cache entry: replacing the whole of
     it made `:doctor.run refs` wipe every other check's marker until `! d`.
+
+    A document written since its last scan is re-read first, in place: the
+    stamp names the file, so the findings must come from the file and not from
+    the copy loaded before it changed. In place, so a fix can act on what is
+    returned — which makes this the main thread's call (`load` empties the
+    document before refilling it, under whoever is reading it).
     """
-    return _scan(doc, check_names(checks))
+    stamp = library.mtime(doc)  # before the read: the data is then at least this new
+    hit = CACHE.get(library.doc_id(doc))
+    if hit is not None and hit[0] != stamp:
+        doc.load()
+    return _scan(doc, check_names(checks), stamp)
 
 
-def _scan(doc: Document, names: list[str]) -> list[Finding]:
+def _from_disk(doc: Document) -> Document:
+    """The document as its file holds it now, in a new object. `cached` runs in
+    `recheck`'s thread, where reloading the redraw's own copy would empty it
+    under the redraw."""
+    folder = doc.get_main_folder()
+    return papis.document.from_folder(folder) if folder else doc
+
+
+def _scan(doc: Document, names: list[str], stamp: int) -> list[Finding]:
     key = library.doc_id(doc)
-    stamp = library.mtime(doc)
     hit = CACHE.get(key)
     others = [name for name in hit[2] if name not in names] if hit else []
     # A stale entry's other checks run again too: the new stamp vouches for them.
@@ -102,13 +120,15 @@ def cached(doc: Document) -> list[Finding] | None:
     which is not the same as "clean".
 
     A document written since its scan is re-checked here, with the checks it
-    was scanned with: one document costs ~2 ms, and an edit should show its
-    effect on the findings at once rather than read "not checked" until `! d`.
+    was scanned with, on a fresh read of its file (`_from_disk`): checking the
+    copy in memory stamped findings from before an outside edit with the mtime
+    from after it, so they never went stale again.
     """
     hit = CACHE.get(library.doc_id(doc))
     if hit is None:
         return None
-    return hit[1] if hit[0] == library.mtime(doc) else _scan(doc, hit[2])
+    stamp = library.mtime(doc)
+    return hit[1] if hit[0] == stamp else _scan(_from_disk(doc), hit[2], stamp)
 
 
 def peek(doc: Document, checks: tuple[str, ...] | None = None) -> list[Finding] | None:

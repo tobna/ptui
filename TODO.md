@@ -110,16 +110,6 @@ finishes it. The number in brackets is the review question it came from.
     much went. A new `undo.auto_empty_trash`, shipped `true`, turns it off.
     Once ptui is closed `u` cannot restore from the trash anyway, so it is only
     a safety net. SPEC's "never unasked" for `lib.empty_trash` goes with it.
-51. **After an outside edit, the list row keeps the old title.** Edit a title
-    in `info.yaml` outside ptui, then `:app.reload true`: the info pane shows
-    the new title, the row the old one, until the file is written again.
-    `cell_text` stamps its cache with the file's *current* mtime while
-    formatting the stale in-memory document, so the redraw the `:` prompt
-    causes stores the old text under the new stamp. `doctor.CACHE` has the
-    same flaw (H.4's background re-check runs on the stale copy and stamps
-    the result with the new mtime): fix both, by re-reading the document
-    from disk before anything is stored under a newer stamp. (Pinned in
-    `tests/test_session_sync.py`.)
 52. **Ask about the same title in a different year on add.** H.15's check
     knows the same title in the same year; the same title in another year
     (a preprint and its journal version, a reprint) should ask "is this the

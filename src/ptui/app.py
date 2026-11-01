@@ -580,10 +580,15 @@ class PtuiApp(App[None]):
         Cached per document, stamped with `info.yaml`'s mtime: formatting is most
         of a redraw (papis reads its config on every call), and every narrow
         keystroke, mark and sort redraws every row — 3 s at 5000 documents.
+        A document written since it was drawn is re-read before it is drawn
+        again: formatting the copy in memory cached the old text under the new
+        stamp, and the row kept it even after a rescan.
         """
-        key, stamp = library.doc_id(doc), library.mtime(doc)
+        key, stamp = library.doc_id(doc), library.mtime(doc)  # stat, then read
         hit = self._cells.get(key)
         if hit is None or hit[0] != stamp:
+            if hit is not None:
+                doc.load()
             hit = self._cells[key] = (stamp, library.flatten(doc), {})
         texts = hit[2]
         slot = (column["format"], column.get("glyph"))

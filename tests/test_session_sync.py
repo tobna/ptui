@@ -3,7 +3,6 @@
 
 import shutil
 
-import pytest
 import yaml
 from conftest import press, settle
 from session_lib import awkward_app, info_text, list_lines, status
@@ -48,11 +47,6 @@ async def test_a_tag_added_outside_survives_a_tag_added_inside(papis_lib):
         assert "from-script" in tags
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a redraw between an outside edit and the reload caches the old cell text under the new "
-    "mtime, so after `:app.reload true` the list row keeps the old title while the info pane shows the new one",
-)
 async def test_after_a_rescan_the_list_and_the_info_pane_agree_on_an_edited_title(papis_lib):
     app = awkward_app(papis_lib)
     async with app.run_test(size=(120, 40)) as pilot:
