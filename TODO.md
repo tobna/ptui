@@ -140,8 +140,10 @@ finishes it. The number in brackets is the review question it came from.
     the new title, the row the old one, until the file is written again.
     `cell_text` stamps its cache with the file's *current* mtime while
     formatting the stale in-memory document, so the redraw the `:` prompt
-    causes stores the old text under the new stamp. `doctor.CACHE` uses the
-    same stamp and probably has the same problem. (Pinned in
+    causes stores the old text under the new stamp. `doctor.CACHE` has the
+    same flaw (H.4's background re-check runs on the stale copy and stamps
+    the result with the new mtime): fix both, by re-reading the document
+    from disk before anything is stored under a newer stamp. (Pinned in
     `tests/test_session_sync.py`.)
 52. **Ask about the same title in a different year on add.** H.15's check
     knows the same title in the same year; the same title in another year
@@ -157,6 +159,11 @@ finishes it. The number in brackets is the review question it came from.
     build what they write from the copy ptui loaded, so a change made to the
     same document on disk since then is lost. Write tests that change the
     file on disk first, then fix each one.
+56. **Show several Crossref hits.** papis's Crossref importer gets every hit and
+    keeps the first ("Picking the first one!"). For `c u` and for adding from
+    Crossref, call papis's `papis.crossref.get_data(query=…, max_results=…)`
+    and list the hits (title, year, first author, venue) in the picker, with
+    "none of these"; one hit keeps H.24's "is this the paper?".
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each
