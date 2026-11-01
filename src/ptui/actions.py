@@ -910,7 +910,7 @@ def doc_edit(app: Any, other: bool = False) -> None:
                     continue
                 if field == "author_list":  # both keys, as papis's own add writes them
                     changes["author"] = value or None
-                    changes["author_list"] = papis.document.split_authors_name([value]) if value else None
+                    changes["author_list"] = _authors_from(value, doc.get("author_list")) or None
                 else:
                     changes[field] = library.typed(field, value, doc.get(field))
         except ValueError as exc:  # `year = soon`: nothing is written
@@ -921,6 +921,17 @@ def doc_edit(app: Any, other: bool = False) -> None:
 
     ref = doc.get("ref") or doc.get("title", "")
     app.push_screen(ui.EditForm(f"Edit {ref}", fields, initial), confirm)  # the keys are the form's last line
+
+
+def _authors_from(line: str, before: Any) -> list[dict[str, Any]]:
+    """papis's list for an author line, each author who is still named exactly
+    as before keeping their entry whole — affiliation, ORCID and all, which a
+    line of names cannot carry."""
+    import papis.document
+
+    known = {(a.get("family"), a.get("given")): a for a in before or [] if isinstance(a, dict)}
+    fresh = papis.document.split_authors_name([line]) if line else []
+    return [known.get((a.get("family"), a.get("given")), a) for a in fresh]
 
 
 def _put_all(data: Any, values: dict[str, Any]) -> None:

@@ -681,7 +681,9 @@ would redraw the document as having lost every field. `doc.edit` opens what
 true` (`E`) the other one. The structured one is `ui.EditForm`, the add form's layout over
 `edit.structured_fields`, returning every field (empty means remove) into
 `actions._fields_apply` — one safe write and one undo step for all the keys.
-`author_list` is edited as papis's `author` string and written back as both.
+`author_list` is edited as papis's `author` string and written back as both;
+`actions._authors_from` keeps the whole entry of every author whose family and
+given name are unchanged, so an edited line does not strip ORCIDs.
 Both forms end in `#form-keys`, a legend written by hand like the delete
 dialog's: the keys are Textual's (`focus_next`, `Input.Submitted`) and the
 form's own `on_key`, not `keys.toml`, so there is no binding to derive it from.

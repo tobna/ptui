@@ -469,8 +469,10 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
 - `edit.mode` decides what `e` opens; `E` opens the other one.
 - `edit.mode = "structured"`: a form over `edit.structured_fields` —
   the add form's layout, one line per field, `author_list` edited as papis's
-  `author` string. Both forms end in their keys, on one line: `tab`/`shift+tab`
-  move, `enter` saves, `escape` cancels. Every value goes through papis's declared field types and the
+  `author` string — an author still named exactly as before keeps the rest of
+  their entry (affiliation, ORCID), which a line of names cannot carry. Both
+  forms end in their keys, on one line: `tab`/`shift+tab` move, `enter` saves,
+  `escape` cancels. Every value goes through papis's declared field types and the
   safe write, so it cannot emit invalid YAML; emptying a field removes the key;
   the whole edit is one undo step.
 - `edit.mode = "editor"` (default): `App.suspend()` → `$EDITOR` on `info.yaml`,

@@ -776,3 +776,21 @@ async def test_edit_mode_structured_swaps_e_and_shift_e(papis_lib, monkeypatch):
         await press(pilot, "escape")
         await press(pilot, "E")
         assert raw == [True]
+
+
+async def test_editing_the_author_line_keeps_what_each_matching_author_had(app, papis_lib):
+    """Editing the author line rebuilt `author_list` from the names alone, and
+    every author lost their affiliation and ORCID."""
+    from conftest import press, settle
+
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    info.write_text(info.read_text().replace("  given: X\n", "  given: X\n  orcid: 0000-0001\n"))
+    async with app.run_test(size=(100, 40)) as pilot:
+        await settle(pilot)
+        await press(pilot, "E")
+        app.screen.query_one("#add-author_list").value = "Vaswani, X and Shazeer, Noam"
+        await press(pilot, "enter")
+        authors = app.current["author_list"]
+        assert authors[0] == {"family": "Vaswani", "given": "X", "orcid": "0000-0001"}
+        assert authors[1]["family"] == "Shazeer" and "orcid" not in authors[1]
+        assert "orcid: 0000-0001" in info.read_text()

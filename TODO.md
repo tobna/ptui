@@ -102,9 +102,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-18. **Editing the author line in the form keeps each author's extra keys**
-    (affiliation, ORCID, …) when the name still matches; today the whole
-    `author_list` is rebuilt from the line. [32.2]
 21. **`v`/`V` + `g r`**: pin with a test that the range stretches to the jump
     target (it works). When `g r` has to drop a narrow to reach the target, the
     range ends instead of stretching — that one is a decision for the user, not
