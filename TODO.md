@@ -95,10 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-8. **A doctor scan with named checks keeps the other findings.** `:doctor.run X`
-   and `:doctor.fix X` replace a document's whole cache entry with X's
-   findings, so every other finding's marker vanishes until `! d`. Replace only
-   X's findings. Do it together with 4. [26.1]
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.

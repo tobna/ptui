@@ -97,6 +97,41 @@ async def test_a_redraw_rechecks_a_stale_document_off_the_main_thread(app, papis
         assert "refs" in str(app.query_one("#info").render())
 
 
+def test_a_scan_with_named_checks_replaces_only_their_findings(tmp_path, papis_lib):
+    doc, info = broken_doc(tmp_path)  # a bad ref, and a year stored as text
+    assert sorted(f.name for f in doctor.scan(doc, ["refs", "field-type"])) == ["field-type", "refs"]
+    assert [f.name for f in doctor.scan(doc, ["refs"])] == ["refs"]  # returns what it ran
+    assert [f.name for f in doctor.cached(doc)] == ["field-type", "refs"]  # keeps the rest
+    assert doctor.CACHE[doc["papis_id"]][2] == ["field-type", "refs"]
+
+    # written since: the other check runs again too, or the new stamp would vouch for it
+    info.write_text(info.read_text().replace("year: '2024'", "year: 2024"))
+    stat = info.stat()
+    os.utime(info, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+    doc.load()
+    doctor.scan(doc, ["refs"])
+    assert [f.name for f in doctor.cached(doc)] == ["refs"]
+
+
+async def test_a_named_doctor_run_narrows_by_its_check_and_keeps_the_other_markers(app, tmp_path, papis_lib):
+    from ptui import actions, library
+
+    broken_doc(tmp_path)  # refs and field-type
+    info = papis_lib / "lib" / "doc1" / "info.yaml"
+    info.write_text(info.read_text().replace("year: 2016", "year: '2016'"))  # field-type only
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
+        app.cfg.data.setdefault("doctor", {})["checks"] = ["refs", "field-type"]
+        actions.reload(app)
+        actions.doctor_run(app)
+        assert sorted(library.doc_id(d) for d in app.rows) == ["id-broken", "id1"]
+
+        actions.cmdline_run(app, "doctor.run", "refs")
+        assert [library.doc_id(d) for d in app.rows] == ["id-broken"]  # what refs found
+        doc1 = next(d for d in app.docs if library.doc_id(d) == "id1")
+        assert [f.name for f in doctor.cached(doc1)] == ["field-type"]  # its marker stays
+
+
 def test_findings_are_read_only(tmp_path):
     """The whole point: looking must not change the document. papis's own
     `doctor.run` defaults to `fix=True`, so this is the regression that matters."""

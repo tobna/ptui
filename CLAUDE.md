@@ -469,7 +469,8 @@ against whatever a papis release registers.
 info pane (`PtuiApp.doctor_lines`), rendered like `files` and shown only when
 there is something to say. Over the library, `doctor.run` narrows the list —
 `app.doctor_only` is a filter over the scoped set, the same shape as
-`marked_only`, so jumping to an entry is moving the cursor and `escape` (the
+`marked_only` (the tuple of check names that ran, `False` when off, read through
+`doctor.peek(doc, checks)`), so jumping to an entry is moving the cursor and `escape` (the
 `narrow` step of `escape_chain`) drops it. Fixing is a verb: `doctor.fix`, or
 `doctor.fix_pick` for one finding. The old `view.doctor` picker is gone — it
 made the reader dismiss a modal to see the next finding.
@@ -482,8 +483,12 @@ from the first. It is the **only** stateful registered check in papis 0.16 —
 per-document. `findings()` excludes the library-wide set; `scan_library()` is
 their one pass and clears papis's state first.
 
-`doctor.CACHE` maps `papis_id` -> (`info.yaml` mtime, findings, checks),
-filled by `PtuiApp.scan_library` (a thread worker at startup, ~1.7 s for 754
+`doctor.CACHE` maps `papis_id` -> (`info.yaml` mtime, findings, the check names
+run). `scan` replaces only the named checks' findings and adds their names; a
+stale entry's other checks run again in the same pass, since the new stamp
+vouches for them. The stored names are already resolved, so `cached` re-scans
+through `_scan`, never `scan`: back through `check_names`, an empty list would
+mean *every* check. It is filled by `PtuiApp.scan_library` (a thread worker at startup, ~1.7 s for 754
 documents, off with `[doctor] scan_on_startup`), which repaints the rows when it
 is done. Staleness is the mtime, not a notification: every write goes through
 `safewrite` or `place`, both touch the file, and a `stat` cannot be forgotten at

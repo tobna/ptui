@@ -248,8 +248,9 @@ class PtuiApp(App[None]):
         self.narrow_query = ""
         self.marked_only = False
         self.doctor_only = False
-        """The doctor view: narrow to documents with findings. Same shape as
-        `marked_only` — a filter over the scoped set, not a separate widget."""
+        """The doctor view: narrow to documents with findings, as the names of
+        the checks that ran (`False` when off). Same shape as `marked_only` — a
+        filter over the scoped set, not a separate widget."""
         self.sort_key, self.sort_reverse = self._default_sort()
         self.prompt_kind = ""
         layout = cfg.get("ui.layout", "auto")
@@ -841,7 +842,7 @@ class PtuiApp(App[None]):
         if self.marked_only:
             docs = [d for d in docs if library.doc_id(d) in self.marks]
         if self.doctor_only:
-            docs = [d for d in docs if doctor.peek(d)]
+            docs = [d for d in docs if doctor.peek(d, self.doctor_only)]
         self.rows = self.matching(docs, query)
         self.refresh_rows(keep)
 

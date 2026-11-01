@@ -2361,7 +2361,8 @@ def doctor_run(app: Any, checks: str = "", current: bool = False) -> None:
     if current:
         app.refresh_info()
         return
-    app.doctor_only = True
+    # By the checks that ran: the cache keeps every other check's findings too
+    app.doctor_only = tuple(doctor.check_names(names))
     app.refilter()
 
 

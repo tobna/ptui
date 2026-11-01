@@ -26,8 +26,8 @@ name, `duplicated-values` looks for repeats *inside* one list field and is
 per-document and stateless.
 """
 
-CACHE: dict[str, tuple[int, list[Finding], list[str] | None]] = {}
-"""`papis_id` -> (`info.yaml` mtime, findings, the checks that found them).
+CACHE: dict[str, tuple[int, list[Finding], list[str]]] = {}
+"""`papis_id` -> (`info.yaml` mtime, findings, the names of the checks run).
 
 Stamped with the mtime rather than invalidated by whoever writes: every write
 goes through `safewrite` or `place`, and both of them touch the file, so a
@@ -65,13 +65,33 @@ def findings(doc: Document, checks: list[str] | None = None) -> list[Finding]:
     `LIBRARY_WIDE` checks are excluded — running one against a single document
     is what made a second look invent findings; `scan_library` is their pass.
     """
-    return [error for name in check_names(checks) for error in _doctor.REGISTERED_CHECKS[name].operate(doc)]
+    return _operate(doc, check_names(checks))
+
+
+def _operate(doc: Document, names: list[str]) -> list[Finding]:
+    """The named checks, already resolved — an empty list runs nothing here."""
+    return [error for name in names for error in _doctor.REGISTERED_CHECKS[name].operate(doc)]
 
 
 def scan(doc: Document, checks: list[str] | None = None) -> list[Finding]:
-    """`findings`, cached against `info.yaml`'s mtime for the info pane to read."""
-    found = findings(doc, checks)
-    CACHE[library.doc_id(doc)] = (library.mtime(doc), found, checks)
+    """`findings` for `checks`, cached against `info.yaml`'s mtime for the info
+    pane to read. Returns only what those checks found.
+
+    Only their findings are replaced in the cache entry: replacing the whole of
+    it made `:doctor.run refs` wipe every other check's marker until `! d`.
+    """
+    return _scan(doc, check_names(checks))
+
+
+def _scan(doc: Document, names: list[str]) -> list[Finding]:
+    key = library.doc_id(doc)
+    stamp = library.mtime(doc)
+    hit = CACHE.get(key)
+    others = [name for name in hit[2] if name not in names] if hit else []
+    # A stale entry's other checks run again too: the new stamp vouches for them.
+    kept = [f for f in hit[1] if f.name in others] if hit and hit[0] == stamp else _operate(doc, others)
+    found = _operate(doc, names)
+    CACHE[key] = (stamp, sorted([*kept, *found], key=lambda f: f.name), sorted({*others, *names}))
     return found
 
 
@@ -86,12 +106,13 @@ def cached(doc: Document) -> list[Finding] | None:
     hit = CACHE.get(library.doc_id(doc))
     if hit is None:
         return None
-    return hit[1] if hit[0] == library.mtime(doc) else scan(doc, hit[2])
+    return hit[1] if hit[0] == library.mtime(doc) else _scan(doc, hit[2])
 
 
-def peek(doc: Document) -> list[Finding] | None:
+def peek(doc: Document, checks: tuple[str, ...] | None = None) -> list[Finding] | None:
     """`cached` for a redraw, which never runs a check: a document written since
     its scan keeps showing what that scan found and is queued for `recheck`.
+    `checks` keeps only those checks' findings — the doctor view of a named run.
 
     At ~2 ms a document, re-checking inside the redraw froze the first one after
     a mass change on disk — a sync or a `git pull` — for as long as it took.
@@ -102,7 +123,7 @@ def peek(doc: Document) -> list[Finding] | None:
         return None
     if hit[0] != library.mtime(doc):
         STALE[key] = doc
-    return hit[1]
+    return hit[1] if checks is None else [f for f in hit[1] if f.name in checks]
 
 
 def recheck() -> int:

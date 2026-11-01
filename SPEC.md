@@ -299,7 +299,8 @@ at it. Findings come from each check's own `operate`.
   view; there is no modal to open and dismiss.
 - **Whole library: the list, narrowed.** `doctor.run` scans the target set,
   writes the flat report to the log pane, and narrows the list to the documents
-  that have findings. Jumping to an entry is then just moving the cursor, and
+  that have findings — from the checks it ran, so `:doctor.run refs` shows what
+  `refs` found. Jumping to an entry is then just moving the cursor, and
   every other verb still works on the row. `escape` drops the narrow like any
   other. Marks first, otherwise the whole narrowed set — a library-wide check
   cannot say anything about a single document under the cursor.
@@ -310,6 +311,8 @@ at it. Findings come from each check's own `operate`.
   document is ~2 ms, so a mass change on disk (a sync, a `git pull`) would
   freeze a redraw that re-checked them itself. Until the thread has looked, a
   stale document keeps showing its old findings; then the rows repaint.
+  A scan with named checks replaces only those checks' findings: the markers the
+  other checks left stay where they are.
   A document never scanned reads *not checked*, never clean.
 - **Per-document and library-wide checks are different sets.**
   `duplicated-keys` accumulates the values it has seen in papis's module state,
