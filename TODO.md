@@ -144,6 +144,32 @@ finishes it. The number in brackets is the review question it came from.
     much went. A new `undo.auto_empty_trash`, shipped `true`, turns it off.
     Once ptui is closed `u` cannot restore from the trash anyway, so it is only
     a safety net. SPEC's "never unasked" for `lib.empty_trash` goes with it.
+50. **The status bar loses its counts at 80 columns.** With a scope, a narrow
+    and one mark, the right-hand group runs off the edge and "/ 3 total" is
+    gone. Decide what shortens first so the counts always stay. (Pinned in
+    `tests/test_session_display.py`.)
+51. **After an outside edit, the list row keeps the old title.** Edit a title
+    in `info.yaml` outside ptui, then `:app.reload true`: the info pane shows
+    the new title, the row the old one, until the file is written again.
+    `cell_text` stamps its cache with the file's *current* mtime while
+    formatting the stale in-memory document, so the redraw the `:` prompt
+    causes stores the old text under the new stamp. `doctor.CACHE` uses the
+    same stamp and probably has the same problem. (Pinned in
+    `tests/test_session_sync.py`.)
+52. **Ask about the same title in a different year on add.** H.15's check
+    knows the same title in the same year; the same title in another year
+    (a preprint and its journal version, a reprint) should ask "is this the
+    same paper?" too, with the same go to / add anyway / cancel choice.
+53. **Low priority: `/bert` should find `{B}ERT`.** The list shows the title
+    without LaTeX braces, but `/` searches the stored text, so what you see
+    is not what you can find.
+54. **Blank rows under the files pane.** At 80x24 in the stacked layout,
+    `z i` and then `3` leave about five empty rows under the files pane.
+55. **The file verbs and the edit form overwrite an outside change.** H.45
+    fixed the `c` verbs; `x`, `J`/`K`, `p`, `r`, `f n` and the `E` form still
+    build what they write from the copy ptui loaded, so a change made to the
+    same document on disk since then is lost. Write tests that change the
+    file on disk first, then fix each one.
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each
