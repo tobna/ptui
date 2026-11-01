@@ -1026,6 +1026,8 @@ class PtuiApp(App[None]):
             wanted = ["doc.open", "files.rename", "files.repoint", "files.detach", "files.reorder", "files.normalize"]
         elif self.mode == "info":
             wanted = ["nav.down", "info.scroll", "doc.edit", "app.undo", "pane.cycle"]
+        elif self.mode == "log":
+            wanted = ["log.scroll", "pane.cycle", "app.log"]
         elif self.marks:
             wanted = ["doc.tag", "doc.merge", "export.bibtex", "mark.clear", "files.relocate", "doc.delete"]
         else:

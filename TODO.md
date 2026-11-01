@@ -95,8 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-1. **The log pane scrolls.** `j`/`k` and `ctrl+d`/`ctrl+u` in `[modes.log]`,
-   the same keys as the info pane. [10.2]
 2. **`h`/`l` move to the previous/next pane** in every pane, the same as
    `shift+tab`/`tab`.
 3. **One `keys.toml` section for keys that work in every mode** (the pane keys,

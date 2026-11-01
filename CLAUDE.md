@@ -198,7 +198,9 @@ Built:
 - **the abstract** closes the info pane (whitespace collapsed — fetched ones
   keep the source's hard wraps); `info.scroll` (`J`/`K` in the list,
   `ctrl+d`/`ctrl+u` in the pane) scrolls `#info-pane` by half its height, and
-  `refresh_info` scrolls home when the document changes (`app._info_of`)
+  `refresh_info` scrolls home when the document changes (`app._info_of`);
+  `log.scroll` is the same over `#log-pane` (`ctrl+d`/`ctrl+u`, and `j`/`k`
+  one line at a time)
 - **query history**: `actions.history` / `remember` over `query.history_file`
   (plain lines, newest last); `app.recall` walks it on `up`/`down` in the
   prompts named by `actions.HISTORY_KINDS`

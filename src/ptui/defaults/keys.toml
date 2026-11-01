@@ -186,6 +186,10 @@ escape_chain = ["modal", "visual", "narrow"]
 "g o"      = { cmd = "app.log", desc = "operation log" }
 
 [modes.log]
+"j"        = { cmd = "log.scroll", args = { lines = 1 }, desc = "scroll down a line" }
+"k"        = { cmd = "log.scroll", args = { up = true, lines = 1 }, desc = "scroll up a line" }
+"ctrl+d"   = { cmd = "log.scroll" }
+"ctrl+u"   = { cmd = "log.scroll", args = { up = true } }
 "1"        = { cmd = "pane.focus", args = { pane = "list" } }
 "2"        = { cmd = "pane.focus", args = { pane = "info" } }
 "3"        = { cmd = "pane.focus", args = { pane = "files" } }

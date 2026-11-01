@@ -163,7 +163,11 @@ The info pane, focused with `2` or `tab`.
 | `2` | `pane.focus` pane=info | focus a pane |
 | `3` | `pane.focus` pane=files | focus a pane |
 | `4` | `pane.focus` pane=log | focus a pane |
+| `ctrl+d` | `log.scroll` | scroll the log |
+| `ctrl+u` | `log.scroll` up=True | scroll the log |
 | `g o` | `app.log` | close the log |
+| `j` | `log.scroll` lines=1 | scroll down a line |
+| `k` | `log.scroll` up=True lines=1 | scroll up a line |
 | `shift+tab` | `pane.cycle` back=True | next pane |
 | `tab` | `pane.cycle` | next pane |
 

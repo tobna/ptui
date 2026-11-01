@@ -573,6 +573,24 @@ async def test_a_long_log_line_wraps_instead_of_being_cut(app):
         assert max(line.cell_length for line in log.lines) <= log.size.width
 
 
+async def test_the_log_pane_scrolls_with_the_info_pane_keys(app):
+    async with app.run_test(size=(80, 30)) as pilot:
+        await press(pilot, "4")
+        for n in range(60):
+            app.log_line(f"line {n}")
+        await settle(pilot)
+        log = app.query_one("#log-pane")
+        bottom = log.scroll_y
+        assert bottom > 0  # new lines keep it at the end
+        await press(pilot, "ctrl+u")
+        half = max(1, log.size.height // 2)
+        assert log.scroll_y == bottom - half
+        await press(pilot, "k")
+        assert log.scroll_y == bottom - half - 1
+        await press(pilot, "j", "ctrl+d")
+        assert log.scroll_y == bottom
+
+
 async def test_two_flexible_columns_share_the_room(papis_lib):
     """A second `width = 0` column used to be squeezed to nothing and vanish."""
     from conftest import build_app

@@ -72,12 +72,23 @@ def nav_page_up(app: Any) -> None:
     _move(app, -max(1, _table(app).size.height - 2))
 
 
+def _scroll(app: Any, pane: str, up: bool, lines: int = 0) -> None:
+    """`lines`, or half the pane when that is 0."""
+    widget = app.query_one(pane)
+    step = lines or max(1, widget.size.height // 2)
+    widget.scroll_relative(y=-step if up else step, animate=False)
+
+
 @command("info.scroll", "scroll the info pane")
 def info_scroll(app: Any, up: bool = False) -> None:
     """Half a pane, from wherever the keyboard is — an abstract is read from the list."""
-    pane = app.query_one("#info-pane")
-    half = max(1, pane.size.height // 2)
-    pane.scroll_relative(y=-half if up else half, animate=False)
+    _scroll(app, "#info-pane", up)
+
+
+@command("log.scroll", "scroll the log")
+def log_scroll(app: Any, up: bool = False, lines: int = 0) -> None:
+    """Half a pane, or `lines` of it — `j`/`k` in the log move one."""
+    _scroll(app, "#log-pane", up, lines)
 
 
 _CITE = re.compile(r"\\\w*cite\w*\*?(?:\[[^]]*\])*\{([^}]*)\}")
