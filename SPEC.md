@@ -734,7 +734,7 @@ from this. Adding a command must not require touching four places.
 | `cmdline.open`                  |                               | `:` command line with completion                 |
 | `keymap.check`                  |                               | report conflicts + shadowed prefixes             |
 | `app.escape`                    |                               | resolve per `escape_chain`                       |
-| `app.reload`                    | `rescan:bool=false`           | clear papis cache + reload; `rescan` drops the on-disk cache too |
+| `app.reload`                    | `rescan:bool=false`           | clear papis cache + reload; `rescan` drops the on-disk cache too, so an `info.yaml` changed outside papis shows (`r` rescans) |
 | `app.undo` / `app.redo`         |                               | per undo strategy                                |
 | `lib.empty_trash`               | `days:int?`                   | delete trash older than `undo.trash_retention_days`, after asking; never unasked |
 | `app.log`                       |                               | log pane                                         |

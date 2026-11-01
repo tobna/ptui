@@ -855,3 +855,16 @@ async def test_a_document_with_no_citekey_is_named_in_the_log_and_nothing_is_yan
         "[yellow]no citekey for Attention Is All You Need; skipped[/]",
         "[yellow]nothing to yank for 0 citekey(s)[/]",
     ]
+
+
+async def test_r_finds_an_info_yaml_edited_on_disk_after_startup(app, papis_lib):
+    """papis's own cache never sees an edit made outside papis: vim, a sync, `git pull`."""
+    from conftest import press, settle
+
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        info.write_text(info.read_text().replace("Attention Is All You Need", "Edited Elsewhere"))
+        await press(pilot, "r")
+        await settle(pilot)
+        assert "Edited Elsewhere" in [doc["title"] for doc in app.docs]

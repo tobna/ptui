@@ -299,7 +299,8 @@ Two things that cost time here:
   reappear.** It drops the in-process handle; the backend then re-reads its
   *on-disk* pickle, which papis rewrote when the document was deleted. Undo
   calls `reload(app, rescan=True)`, which calls the database's own `clear()`
-  first and pays for a rescan of the library.
+  first and pays for a rescan of the library. `r` is bound to that rescan
+  too: the pickle never sees an `info.yaml` edited outside papis either.
 - **`ConfirmDelete` binds `enter` with `priority=True`.** `SelectionList` binds
   both `space` and `enter` to toggling, so without the priority the confirm key
   ticks a checkbox instead.

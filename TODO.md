@@ -135,11 +135,6 @@ finishes it. The number in brackets is the review question it came from.
     scope only, as now. When several refs in the scope match but exactly one
     is shown in the narrowed list, go to that one; still several, list them
     as now. Nothing outside the scope is searched or reported. [104, 59.1]
-60. **`r` reloads from disk.** Today `r` re-asks papis's cache, which never
-    sees a file changed outside papis (vim, a sync, `git pull`); only
-    `:app.reload true` does. Make `r` the rescan (`args = { rescan = true }`
-    in `keys.toml`, desc "reload library from disk"), and update SPEC's
-    command table and KEYS.md. [98.2]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each

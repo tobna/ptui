@@ -99,7 +99,7 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `m q` | `mark.query` | mark by query |
 | `O` | `doc.open_folder` | open folder |
 | `o` | `doc.open` | open file |
-| `r` | `app.reload` | reload library |
+| `r` | `app.reload` rescan=True | reload library from disk |
 | `S` | `sort.picker` | sort by… |
 | `s` | `query.scope` | search (papis query) |
 | `space` | `mark.toggle` | mark/unmark |

@@ -76,7 +76,7 @@ escape_chain = ["modal", "visual", "narrow"]
 "V"        = { cmd = "visual.start", args = { unmark = true }, desc = "visual unmark" }
 
 # — refresh ——————————————————————————————————
-"r"        = { cmd = "app.reload", desc = "reload library" }
+"r"        = { cmd = "app.reload", args = { rescan = true }, desc = "reload library from disk" }
 
 # — meta ———————————————————————————————————
 "?"        = { cmd = "help.show" }
