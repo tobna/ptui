@@ -90,6 +90,92 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
   code, but expect this question from every user who has papis from pipx or the
   distro.
 
+## H. From the commit-by-commit review of `test-and-improve` (2026-11-01)
+
+Worked in this order, one commit each; an entry is deleted in the commit that
+finishes it. The number in brackets is the review question it came from.
+
+1. **The log pane scrolls.** `j`/`k` and `ctrl+d`/`ctrl+u` in `[modes.log]`,
+   the same keys as the info pane. [10.2]
+2. **`h`/`l` move to the previous/next pane** in every pane, the same as
+   `shift+tab`/`tab`.
+3. **One `keys.toml` section for keys that work in every mode** (the pane keys,
+   `h`/`l`, `u`/`ctrl+r`, …) instead of copying them into each mode's table —
+   the copies are how the log pane once trapped the keyboard. [11.1]
+4. **The doctor re-checks stale documents in a background thread.** Today a
+   stale entry is re-scanned inside the redraw (~2 ms each), so a mass change
+   on disk (a sync, a `git pull`) freezes the next redraw. While the thread
+   runs, a stale document keeps showing its old findings. [13.1, 13.2]
+5. **A config value in the wrong case is repaired, not silently misread.**
+   `config.repair` checks `CHOICES` case-insensitively but the code compares
+   exactly, so `layout = "Horizontal"` passes the check and then reads as side
+   by side. Write the case-folded value back. [21.1]
+6. **CI:** a GitHub Actions workflow that runs `uv run pytest` on every push.
+7. **The log pane wraps short of its scrollbar.** Wrapped lines currently run
+   under the vertical scrollbar. (Found in use.)
+8. **A doctor scan with named checks keeps the other findings.** `:doctor.run X`
+   and `:doctor.fix X` replace a document's whole cache entry with X's
+   findings, so every other finding's marker vanishes until `! d`. Replace only
+   X's findings. Do it together with 4. [26.1]
+9. **`:config.set` refuses keys read only at startup** — `log.level`,
+   `log.file`, `log.max_entries`, `ui.mouse`, `undo.stack_size`,
+   `general.startup_query`, `doctor.scan_on_startup` — with "takes effect on
+   restart; set it in config.toml", instead of claiming "until you quit". [27.1]
+10. **The theme picker previews the highlighted theme live**; `escape` restores
+    the one that was active.
+11. **Open, needs a decision before building:** an option to write a
+    `:config.set` change into `config.toml`. Keeping the user's comments needs
+    `tomlkit`, a new dependency.
+12. **Clicking a pane focuses it**, through `focus_pane` like `1`–`4`, with a
+    test. (Found in use.)
+13. **The `:` line's argument prompt shows each argument's type and default**,
+    e.g. `[unmark: bool = false]`, not just its name.
+14. **`g r` without an exact match** logs a warning, and if the key is a
+    substring of exactly one `ref`, jumps to that one. [28.1]
+15. **Deduplication on add** (DOI, arXiv id, title + year). First find what
+    `papis add` already does and reuse it (golden rule 3).
+16. **The add and edit forms show their keys** at the bottom: `tab`/`shift+tab`
+    move, `enter` saves, `escape` cancels.
+17. **Test `:doc.add <source> <id>` for `doi` as well as `arxiv`**: parametrise
+    `test_doc_add_with_a_uri_skips_both_prompts`. [30.2]
+18. **Editing the author line in the form keeps each author's extra keys**
+    (affiliation, ORCID, …) when the name still matches; today the whole
+    `author_list` is rebuilt from the line. [32.2]
+19. **`keys.toml` merges per key over the shipped keymap.** Today a mode the user
+    defines replaces the whole shipped mode, so swapping two keys means copying
+    every binding. Also: a way to unset a shipped binding, and a user binding
+    that takes a shipped key (or a prefix of a shipped chord), or rebinds a
+    shipped command, unsets the shipped binding.
+20. **`f n` never follows symlinks, and a relative entry is always the shortest
+    one.** It resolves the file through symlinks but builds the relative path
+    from the folder as papis names it, so a library reached through a symlink
+    gets entries like `../../../../data/cloud/papers/doc/paper.pdf` — wrong,
+    not merely ugly — and a symlinked PDF is replaced by its target. Build both
+    sides from the same unresolved form (`paper.pdf`). A relative entry never
+    climbs to `/`: when that is the only relative path, write the absolute path
+    and log that it did. Tests with a symlinked library folder and a symlinked
+    PDF. [37.2, 38.0]
+21. **`v`/`V` + `g r`**: pin with a test that the range stretches to the jump
+    target (it works). When `g r` has to drop a narrow to reach the target, the
+    range ends instead of stretching — that one is a decision for the user, not
+    to be guessed.
+22. **Prefix search in the query prompts**: after typing, `up`/`down` walk only
+    the history entries that start with what was typed. [40.1]
+23. **Session restore is opt-in**: ship `general.persist_state = false`, so a
+    plain start opens the library as it did before restore existed. [41.1]
+24. **`c u` from Crossref asks first.** A title search can match the wrong
+    paper and fill gaps from it; show what was found (title, year, first
+    author) and ask "is this the paper?" before planning anything. [42.1]
+25. **Data loss: an empty export overwrites its target.** papis's export returns
+    empty text on failure (`csl` without `citeproc-py`), and `export.as` then
+    writes it over the target file, or copies it and reports success. Write
+    nothing, copy nothing, log the failure. [43.1]
+26. **A README for people**, written carefully and readably, describing the
+    project as it stands once the entries above are done.
+27. **More and better tests**: more cases where they find bugs — the edges each
+    entry above turned up, the paths only one test walks today — rather than a
+    count.
+
 ## Not yet exercised
 
 Regex narrow mode, marks at scale, `lib.switch`, and the `[modes.files]` keymap.
