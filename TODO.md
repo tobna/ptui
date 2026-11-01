@@ -95,11 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-31. **The delete dialog ticks a shared file spelled differently.** The
-    shared-file check compares unresolved paths, so a file another document
-    names relative where this one names it absolute is checked by default and
-    trashed. Compare normalised paths, without following symlinks (the H.20
-    rule). [test_edge_undo.py]
 32. **`f r` leaves dangling entries when one entry raises.** Nothing guards
     `place()` across a document's entries: the earlier ones have moved, and
     `info.yaml` still names their old paths. [test_edge_actions.py]

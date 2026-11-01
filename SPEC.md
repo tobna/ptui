@@ -698,7 +698,8 @@ recalling a name).
   (the document folder, plus `files.pdf_root` if it is configured). Never
   default-delete a file in a directory ptui did not place it in.
 - Before deleting a path, query the library for other documents referencing
-  the same realpath. If found, warn and default to unchecked. With a shared
+  the same file, however their entry spells it: relative or absolute, with
+  `..` in it, or through a link. If found, warn and default to unchecked. With a shared
   root and a script appending links, two entries pointing at one file
   is a realistic accident.
 - "Apply to all N marked documents" for batch deletes: the dialog confirms

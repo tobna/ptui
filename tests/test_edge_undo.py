@@ -72,11 +72,6 @@ async def test_a_relative_entry_that_climbs_out_of_the_folder_is_offered(papis_l
         await press(pilot, "escape")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: _doomed_files compares unresolved paths, so a file another document spells "
-    "differently (relative vs absolute) is checked by default and trashed under it",
-)
 async def test_a_shared_file_spelled_differently_is_never_checked(papis_lib):
     shared = _pdf(papis_lib, "shared.pdf")
     _add_entry(papis_lib, "doc0", str(shared))

@@ -115,3 +115,14 @@ def test_relative_entry_style_is_kept(lib):
     )
     result = place.place(doc, src, rules, previous="downloaded file.pdf")
     assert result.entry == "../pdfs/x.pdf"
+
+
+def test_same_file_sees_through_spelling_and_links(tmp_path):
+    real = tmp_path / "pdfs" / "x.pdf"
+    real.parent.mkdir()
+    real.write_bytes(b"pdf")
+    link = tmp_path / "x-link.pdf"
+    link.symlink_to(real)
+    assert place.same_file(tmp_path / "lib" / "doc" / ".." / ".." / "pdfs" / "x.pdf", real)
+    assert place.same_file(link, real)
+    assert not place.same_file(tmp_path / "pdfs" / "y.pdf", real)

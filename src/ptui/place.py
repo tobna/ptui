@@ -150,6 +150,12 @@ def normal(path: Path) -> Path:
     return Path(os.path.normpath(os.path.abspath(path)))
 
 
+def same_file(a: Path, b: Path) -> bool:
+    """One file under two spellings — `../../pdfs/x.pdf` beside `/data/pdfs/x.pdf`:
+    the same path once normalised, or the same target once links are followed."""
+    return normal(a) == normal(b) or a.resolve() == b.resolve()
+
+
 def resolve(doc: Document, entry: str) -> Path:
     """A `files` entry as an absolute path (entries may be relative to the doc folder)."""
     path = Path(entry).expanduser()

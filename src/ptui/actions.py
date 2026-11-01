@@ -2322,7 +2322,8 @@ def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
             others = [
                 other.get("ref") or library.doc_id(other)
                 for other in app.docs
-                if other is not doc and any(place.resolve(other, e) == path for e in other.get("files") or [])
+                if other is not doc
+                and any(place.same_file(place.resolve(other, e), path) for e in other.get("files") or [])
             ]
             note = "" if managed else "outside the managed roots"
             if others:
