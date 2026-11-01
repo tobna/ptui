@@ -107,13 +107,6 @@ finishes it. The number in brackets is the review question it came from.
     knows the same title in the same year; the same title in another year
     (a preprint and its journal version, a reprint) should ask "is this the
     same paper?" too, with the same go to / add anyway / cancel choice.
-61. **Keep an outside change when a file verb or the form writes.** The H.55
-    tests in `tests/test_sync_writes.py` pin it: `x`, `J`/`K`, `p`, `r`, `f n`,
-    saving the `E` form, `c u` and the date backfill build what they write
-    from the copy ptui loaded, so a script's edit to the same `info.yaml`
-    since then is lost, and `u` restores the stale copy. Compute each write
-    from the file as `safewrite.edit` reads it, the way H.45 did for the `c`
-    verbs, and drop each xfail as its verb is fixed. [119.1]
 62. **Guard the background threads and the picker preview.** After H.44 and
     H.44b, an exception in a thread worker (the doctor's startup scan and
     `recheck`, metadata fetches, downloads) or in a picker's `preview`

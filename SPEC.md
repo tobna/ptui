@@ -94,7 +94,12 @@ desync with an external script that appends to `files`.
 4. If git is active, stage and commit (see Undo).
 
 Papis has no locking. Two ptui instances, or ptui plus a user script, will
-interleave eventually. This is the whole defence.
+interleave eventually. This is the whole defence — and it only holds if a
+verb works out what it writes from the file it is rewriting, not from the copy
+loaded earlier: the `c` verbs, the file verbs, `lib.backfill_dates` and `c u`
+compute their value from the stored one inside the write, the edit form opens
+on a fresh read, and undo restores what the write replaced. A tag or a file a
+script added in between survives.
 
 **`files.attach` is the deliberate exception: it is `papis addto`.** papis
 copies the file (or a downloaded URL) into the document folder under its own

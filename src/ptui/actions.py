@@ -642,7 +642,8 @@ def lib_backfill_dates(app: Any) -> None:
     and it is monotone enough for a library nobody has bulk-rewritten.
     """
     planned = [
-        (doc, library.stamp(Path(doc.get_info_file()).stat().st_mtime))
+        # a stamp the file gained while the question was open is kept
+        (doc, lambda old, stamp=library.stamp(Path(doc.get_info_file()).stat().st_mtime): old or stamp)
         for doc in app.docs
         if not doc.get(library.TIME_ADDED)
     ]
@@ -893,6 +894,7 @@ def doc_edit(app: Any, other: bool = False) -> None:
     if (app.cfg.get("edit.mode", "editor") == "structured") == other:
         doc_edit_raw(app)
         return
+    doc.load()  # the form shows the file, not the copy loaded before a script changed it
     fields = tuple(app.cfg.get("edit.structured_fields") or ui.ADD_FIELDS)
 
     def text(field: str) -> str:
@@ -911,11 +913,13 @@ def doc_edit(app: Any, other: bool = False) -> None:
             for field, value in data.items():
                 if value == initial[field]:
                     continue
+                # functions of what the file holds when written (see `_fields_apply`)
                 if field == "author_list":  # both keys, as papis's own add writes them
                     changes["author"] = value or None
-                    changes["author_list"] = _authors_from(value, doc.get("author_list")) or None
+                    changes["author_list"] = lambda old, value=value: _authors_from(value, old) or None
                 else:
-                    changes[field] = library.typed(field, value, doc.get(field))
+                    library.typed(field, value, doc.get(field))  # a bad number aborts here, before any write
+                    changes[field] = lambda old, field=field, value=value: library.typed(field, value, old)
         except ValueError as exc:  # `year = soon`: nothing is written
             app.log_line(f"[red]{exc}[/]")
             return
@@ -948,20 +952,37 @@ def _put_all(data: Any, values: dict[str, Any]) -> None:
 
 
 def _fields_apply(app: Any, doc: Any, changes: dict[str, Any]) -> None:
-    """Several keys of one document, one write and one undo step. `None` removes."""
-    before = {key: doc.get(key) for key in changes}
+    """Several keys of one document, one write and one undo step. `None` removes.
+
+    A value may be a function of what the file holds under its key as it is
+    rewritten, as in `_set_field`: a `files` list worked out from the copy
+    loaded earlier dropped the file a script had attached since. Undo puts back
+    what the write replaced, read from that same file; redo writes what it wrote.
+    """
+    replaced: dict[str, Any] = {}
+    written: dict[str, Any] = {}
+
+    def mutate(data: Any) -> None:
+        for key, new in changes.items():
+            replaced[key] = old = safewrite.plain(data.get(key))
+            written[key] = new(old) if callable(new) else new
+        _put_all(data, written)
 
     def write(values: dict[str, Any]) -> None:
         safewrite.edit(doc, lambda data: _put_all(data, values))
         _resort(app)
 
     try:
-        write(changes)
+        safewrite.edit(doc, mutate)
     except safewrite.StaleError:
         app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
         return
+    except ValueError as exc:  # a value the file's own type turns down: nothing was written
+        app.log_line(f"[red]{exc}[/]")
+        return
+    _resort(app)
     label = f"edit {', '.join(changes)} of {doc.get('ref', '')}"
-    app.history.push(undo.Step(label, lambda: write(before), lambda: write(changes)))
+    app.history.push(undo.Step(label, lambda: write(replaced), lambda: write(written)))
     app.log_line(label)
 
 
@@ -1593,9 +1614,23 @@ def files_detach(app: Any, index: int | None = None) -> None:
     if found is None:
         return
     doc, entries, at = found
-    gone = entries.pop(at)
-    _fields_apply(app, doc, {"files": entries or None})
+    gone = entries[at]
+    _fields_apply(app, doc, {"files": lambda old: _without(old, gone)})
     app.log_line(f"detached {gone}; the file is still at {place.resolve(doc, gone)}")
+
+
+def _entries(stored: Any) -> list[str]:
+    """A `files` value as read inside a write, entry by entry — `place.entries`
+    for the value itself, so a hand-written `files: paper.pdf` is one entry."""
+    return place.entries({"files": stored})
+
+
+def _without(stored: Any, entry: str) -> list[str] | None:
+    """`files` as the file holds it, less the first `entry`; `None` for none left."""
+    entries = _entries(stored)
+    if entry in entries:
+        entries.remove(entry)
+    return entries or None
 
 
 @command("files.reorder", "move a file up or down")
@@ -1609,9 +1644,19 @@ def files_reorder(app: Any, index: int | None = None, to: int = 1) -> None:
     target = max(0, min(len(entries) - 1, at + to))
     if target == at:
         return
-    entries.insert(target, entries.pop(at))
-    _fields_apply(app, doc, {"files": entries})
-    app.file_index = target  # the cursor stays on the file it moved
+    entry = entries[at]
+
+    def moved(old: Any) -> list[str]:
+        """The move, made on `files` as the file holds it."""
+        old = _entries(old)
+        if entry in old:
+            here = old.index(entry)
+            old.insert(max(0, min(len(old) - 1, here + to)), old.pop(here))
+        return old
+
+    _fields_apply(app, doc, {"files": moved})
+    now = place.entries(doc)
+    app.file_index = now.index(entry) if entry in now else target  # the cursor stays on the file it moved
     app.refresh_files()
 
 
@@ -1630,8 +1675,8 @@ def files_repoint(app: Any, index: int | None = None, path: str | None = None) -
         if not target.is_file():
             app.log_line(f"[red]no such file:[/] {target}")
             return
-        entries[at] = place._entry(target, doc, "keep", entries[at])
-        _fields_apply(app, doc, {"files": entries})
+        before, after = entries[at], place._entry(target, doc, "keep", entries[at])
+        _fields_apply(app, doc, {"files": lambda old: [after if e == before else e for e in _entries(old)]})
         return
     folder = Path(doc.get_main_folder() or ".")
     held = {place.resolve(doc, entry) for entry in entries}
@@ -1693,9 +1738,13 @@ def files_rename(app: Any, index: int | None = None) -> None:
     def move(a: Path, b: Path, before: str, after: str) -> None:
         place._reserve(a, b)  # raises rather than clobber
         a.unlink()
-        files = [after if entry == before else entry for entry in place.entries(doc)]
+
+        def repoint(data: Any) -> None:  # `files` as the file holds it, not as it was loaded
+            old = _entries(safewrite.plain(data.get("files")))
+            safewrite.put(data, "files", [after if entry == before else entry for entry in old])
+
         try:
-            safewrite.edit(doc, lambda data: safewrite.put(data, "files", files))
+            safewrite.edit(doc, repoint)
         except Exception:
             place._reserve(b, a)
             b.unlink()
@@ -1720,11 +1769,11 @@ def files_normalize(app: Any) -> None:
     outside it — and drop entries that point at the same file twice. Explicit
     only: nothing else in ptui changes a path's style. One undo step."""
     rules = place.Rules.from_config(app.cfg)
-    planned = []
-    for doc in app.targets:
+
+    def normalized(doc: Any, entries: Any) -> list[str]:
         folder = place.normal(Path(doc.get_main_folder() or "."))
-        entries, seen, new = place.entries(doc), set(), []
-        for entry in entries:
+        seen, new = set(), []
+        for entry in _entries(entries):
             # Never through a link: a linked PDF stays the link, and a library
             # reached through one keeps its own spelling of the folder.
             path = place.normal(place.resolve(doc, entry))
@@ -1735,8 +1784,13 @@ def files_normalize(app: Any) -> None:
             if style == "keep":
                 style = "relative-doc" if folder in path.parents else "absolute"
             new.append(place._entry(path, doc, style, None))
-        if new != entries:
-            planned.append((doc, new))
+        return new
+
+    planned = []
+    for doc in app.targets:
+        if normalized(doc, doc.get("files")) != place.entries(doc):
+            # written from `files` as the file holds it then: an entry a script added stays
+            planned.append((doc, lambda old, doc=doc: normalized(doc, old)))
     if not planned:
         app.log_line("every path is already in its style")
         return
@@ -2180,13 +2234,21 @@ def _refresh_merge(app: Any, doc: Any, source: str, data: dict[str, Any], *, con
 
         ui.pick(app, items, title=f"Crossref found: {found} — is this the paper?")(answer)
         return
+    doc.load()  # a value the file gained since loading is a question, not a gap
     plan = merge.plan(doc, [data])
     if not plan.gaps and not plan.clashes:
         app.log_line(f"{source}: nothing new for {doc.get('ref', '')}")
         return
 
+    def gap(value: Any) -> Any:  # still one when written, or what filled it meanwhile stays
+        return lambda old: value if old in merge.BLANK else old
+
     def apply(resolved: dict[str, Any]) -> None:
-        changes = {k: v for k, v in merge.resolve(plan, resolved).items() if str(v) != str(doc.get(k))}
+        changes = {
+            k: gap(v) if k in plan.gaps else v
+            for k, v in merge.resolve(plan, resolved).items()
+            if str(v) != str(doc.get(k))
+        }
         if changes:
             _fields_apply(app, doc, changes)
         else:

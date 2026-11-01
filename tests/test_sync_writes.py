@@ -9,7 +9,6 @@ redraw re-reads a document it finds stale (TODO H.51), which would hide the bug.
 import os
 
 import papis.config
-import pytest
 import yaml
 from conftest import press, settle
 from cover_helpers import attach, info
@@ -17,7 +16,6 @@ from cover_helpers import attach, info
 from ptui import actions, ui
 
 SCHEME = "{doc[year]}-{doc[author_list][0][family]}"
-STALE = "BUG: builds what it writes from the copy loaded before the outside edit (TODO H.55)"
 
 
 def _outside(papis_lib, old: str, new: str, folder: str = "doc0") -> None:
@@ -39,7 +37,6 @@ def _script_attaches(papis_lib, after: str, name: str = "c.pdf") -> None:
     _outside(papis_lib, f"- {after}\n", f"- {after}\n- {name}\n")
 
 
-@pytest.mark.xfail(strict=True, reason=STALE)
 async def test_detach_keeps_a_file_a_script_attached(app, papis_lib):
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     async with app.run_test() as pilot:
@@ -51,7 +48,6 @@ async def test_detach_keeps_a_file_a_script_attached(app, papis_lib):
         assert _disk(papis_lib, "files") == ["a.pdf", "b.pdf", "c.pdf"]
 
 
-@pytest.mark.xfail(strict=True, reason=STALE)
 async def test_reorder_keeps_a_file_a_script_attached(app, papis_lib):
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     async with app.run_test() as pilot:
@@ -63,7 +59,6 @@ async def test_reorder_keeps_a_file_a_script_attached(app, papis_lib):
         assert _disk(papis_lib, "files") == ["a.pdf", "b.pdf", "c.pdf"]
 
 
-@pytest.mark.xfail(strict=True, reason=STALE)
 async def test_repoint_keeps_a_file_a_script_attached(app, papis_lib):
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     other = papis_lib / "lib" / "doc0" / "other.pdf"
@@ -77,7 +72,6 @@ async def test_repoint_keeps_a_file_a_script_attached(app, papis_lib):
         assert _disk(papis_lib, "files") == ["a.pdf", "b.pdf", "c.pdf"]
 
 
-@pytest.mark.xfail(strict=True, reason=STALE)
 async def test_rename_keeps_a_file_a_script_attached(app, papis_lib):
     attach(papis_lib, "doc0", "paper.pdf", "b.pdf")
     async with app.run_test() as pilot:
@@ -90,7 +84,6 @@ async def test_rename_keeps_a_file_a_script_attached(app, papis_lib):
         assert _disk(papis_lib, "files") == ["paper.pdf", "b.pdf", "c.pdf"]
 
 
-@pytest.mark.xfail(strict=True, reason=STALE)
 async def test_normalize_keeps_a_file_a_script_attached(app, papis_lib):
     attach(papis_lib, "doc0", "a.txt")  # not a PDF: the fixture's catch-all rule keeps the style
     absolute = str(papis_lib / "lib" / "doc0" / "a.txt")
@@ -105,7 +98,6 @@ async def test_normalize_keeps_a_file_a_script_attached(app, papis_lib):
         assert _disk(papis_lib, "files") == [absolute, "c.txt"]
 
 
-@pytest.mark.xfail(strict=True, reason=STALE)
 async def test_the_edit_form_starts_from_the_file_and_undo_puts_the_file_back(app, papis_lib):
     async with app.run_test(size=(100, 40)) as pilot:
         await settle(pilot)
@@ -125,7 +117,6 @@ async def test_the_edit_form_starts_from_the_file_and_undo_puts_the_file_back(ap
         assert _disk(papis_lib, "year") == 2018
 
 
-@pytest.mark.xfail(strict=True, reason=STALE)
 async def test_refresh_asks_before_replacing_a_value_a_script_wrote(app, papis_lib):
     """The fetched DOI fills a gap only while there is one: a DOI the file gained
     since loading is a disagreement, and a disagreement is a question."""
@@ -139,7 +130,6 @@ async def test_refresh_asks_before_replacing_a_value_a_script_wrote(app, papis_l
         assert _disk(papis_lib, "doi") == "10.1/from-script"
 
 
-@pytest.mark.xfail(strict=True, reason=STALE)
 async def test_backfill_keeps_a_date_a_script_wrote_while_it_asked(app, papis_lib):
     for folder in ("doc0", "doc1"):
         path = info(papis_lib, folder)

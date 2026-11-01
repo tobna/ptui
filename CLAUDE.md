@@ -722,7 +722,15 @@ would redraw the document as having lost every field. `doc.edit` opens what
 true` (`E`) the other one. The structured one is `ui.EditForm`, the add form's layout over
 `edit.structured_fields`, returning every field (empty means remove) into
 `actions._fields_apply` — one safe write and one undo step for all the keys.
-`author_list` is edited as papis's `author` string and written back as both;
+Like `_set_field`'s, a value there may be a function of what the file holds
+under its key as it is rewritten, and undo restores what the write replaced:
+the file verbs (`x`, `J`/`K`, `p`, `f n`; `r` does it in its own mutation) and
+`lib.backfill_dates` pass such functions, so an entry or a stamp a script
+added since loading survives (`actions._entries` reads a stored `files` the way
+`place.entries` reads a document's). The form and `c u` also `load()` the
+document before they start, so the form shows the file and a value the file
+gained is a clash for `c u` rather than a gap; a gap is still only filled if it
+is one when written. `author_list` is edited as papis's `author` string and written back as both;
 `actions._authors_from` keeps the whole entry of every author whose family and
 given name are unchanged, so an edited line does not strip ORCIDs.
 Both forms end in `#form-keys`, a legend written by hand like the delete
