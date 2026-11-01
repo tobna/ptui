@@ -275,7 +275,7 @@ async def test_a_stale_file_aborts_a_detach_and_records_no_step(app, papis_lib, 
         logged = logs(app, monkeypatch)
         monkeypatch.setattr(safewrite, "write", stale)
         actions.files_detach(app, 0)
-        assert any("changed on disk; press r" in line for line in logged)
+        assert any("changed on disk; reloaded from disk" in line for line in logged)
         assert not app.history.done
     assert _files(papis_lib) == ["a.pdf"]
 

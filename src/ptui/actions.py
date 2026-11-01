@@ -810,7 +810,7 @@ def _touch_opened_at(app: Any, doc: Any) -> None:
     try:
         safewrite.edit(doc, lambda data: safewrite.put(data, "opened_at", stamp))
     except safewrite.StaleError:
-        app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
+        _reread(app, doc)
 
 
 @command("files.open_pick", "open which file…")
@@ -874,6 +874,14 @@ def _resync(app: Any, doc: Any) -> None:
     doc.load()
     papis.database.get().update(doc)
     app.refresh_rows()
+
+
+def _reread(app: Any, doc: Any) -> None:
+    """A write `safewrite` refused because `info.yaml` changed under it. `r`
+    only re-asks papis's cache, which never saw that change, so this one
+    document is read from disk right here, and running the verb again works."""
+    _resync(app, doc)
+    app.log_line(f"[yellow]{doc.get('ref') or 'info.yaml'} changed on disk; reloaded from disk; do it again[/]")
 
 
 @command("doc.edit", "edit")
@@ -975,7 +983,7 @@ def _fields_apply(app: Any, doc: Any, changes: dict[str, Any]) -> None:
     try:
         safewrite.edit(doc, mutate)
     except safewrite.StaleError:
-        app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
+        _reread(app, doc)
         return
     except ValueError as exc:  # a value the file's own type turns down: nothing was written
         app.log_line(f"[red]{exc}[/]")
@@ -1078,7 +1086,7 @@ def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> list[tup
         try:
             safewrite.edit(doc, write)
         except safewrite.StaleError:
-            app.log_line(f"[yellow]{doc.get('ref', '')} changed on disk; press r to reload[/]")
+            _reread(app, doc)
         except Exception as exc:
             app.log_line(f"[red]{key} on {doc.get('ref', '')} failed:[/] {exc}")
         else:
@@ -2335,10 +2343,10 @@ def _merge_run(app: Any, plan: Any, resolved: dict[str, Any]) -> Callable[[], No
         safewrite.edit(plan.survivor, lambda info: _put_all(info, data))
     except Exception as exc:
         files_back()  # file first, info.yaml second: a write that did not land takes the files back
-        stale = isinstance(exc, safewrite.StaleError)
-        app.log_line(
-            "[yellow]info.yaml changed on disk; press r to reload[/]" if stale else f"[red]merge failed:[/] {exc}"
-        )
+        if isinstance(exc, safewrite.StaleError):
+            _reread(app, plan.survivor)
+        else:
+            app.log_line(f"[red]merge failed:[/] {exc}")
         return None
 
     # Moving the folder is not enough: papis keeps its own index, and a document
@@ -2477,7 +2485,7 @@ def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
     try:
         changed = doctor.fix(doc, finding)
     except safewrite.StaleError:
-        app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
+        _reread(app, doc)
         return False
     except Exception as exc:
         app.log_line(f"[red]fix failed:[/] {exc}")

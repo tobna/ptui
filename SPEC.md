@@ -87,8 +87,9 @@ desync with an external script that appends to `files`.
 ### Safe write (required for every mutation)
 
 1. Record `st_mtime_ns` of `info.yaml` at read time.
-2. Before writing, re-stat. If changed → abort, reload, tell the user.
-   Never merge silently.
+2. Before writing, re-stat. If changed → abort, re-read that document from
+   disk, and tell the user to do it again. Never merge silently. Not `r`:
+   that re-asks papis's cache, which never saw the outside change.
 3. Write `info.yaml.ptui.tmp` in the same directory, `fsync`,
    `os.replace()` onto the target.
 4. If git is active, stage and commit (see Undo).

@@ -730,7 +730,11 @@ added since loading survives (`actions._entries` reads a stored `files` the way
 `place.entries` reads a document's). The form and `c u` also `load()` the
 document before they start, so the form shows the file and a value the file
 gained is a clash for `c u` rather than a gap; a gap is still only filled if it
-is one when written. `author_list` is edited as papis's `author` string and written back as both;
+is one when written. A write `safewrite` refuses (`StaleError`: the file
+changed between its read and its write) goes to `actions._reread` at every
+call site, which `load()`s that one document and says "reloaded from disk; do
+it again" — `r` only re-asks papis's cache, which never saw the change.
+`author_list` is edited as papis's `author` string and written back as both;
 `actions._authors_from` keeps the whole entry of every author whose family and
 given name are unchanged, so an edited line does not strip ORCIDs.
 Both forms end in `#form-keys`, a legend written by hand like the delete

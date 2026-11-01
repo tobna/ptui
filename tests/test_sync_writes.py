@@ -9,11 +9,12 @@ redraw re-reads a document it finds stale (TODO H.51), which would hide the bug.
 import os
 
 import papis.config
+import pytest
 import yaml
 from conftest import press, settle
 from cover_helpers import attach, info
 
-from ptui import actions, ui
+from ptui import actions, library, merge, safewrite, ui
 
 SCHEME = "{doc[year]}-{doc[author_list][0][family]}"
 
@@ -141,3 +142,58 @@ async def test_backfill_keeps_a_date_a_script_wrote_while_it_asked(app, papis_li
         await press(pilot, "enter")
         assert _disk(papis_lib, "time-added") == "2020-05-05-00:00:00"
         assert _disk(papis_lib, "time-added", "doc1")  # the other one is stamped
+
+
+def _race(monkeypatch, papis_lib, old: str, new: str) -> None:
+    """A script writes between safewrite's read and its write — once."""
+    real = safewrite.write
+
+    def write(info_file) -> None:
+        monkeypatch.setattr(safewrite, "write", real)
+        _outside(papis_lib, old, new)
+        real(info_file)
+
+    monkeypatch.setattr(safewrite, "write", write)
+
+
+def _doc(app, papis_id: str):
+    return next(d for d in app.docs if library.doc_id(d) == papis_id)
+
+
+REFUSED = [
+    pytest.param(lambda app: actions.doc_set(app, "note", "mine"), lambda lib: _disk(lib, "note") == "mine", id="c f"),
+    pytest.param(lambda app: actions.files_detach(app, 0), lambda lib: _disk(lib, "files") == ["b.pdf"], id="x"),
+    pytest.param(
+        lambda app: actions.cmdline_run(app, "doctor.fix", "refs"), lambda lib: _disk(lib, "ref") == "badref!", id="! f"
+    ),
+    pytest.param(
+        lambda app: actions._touch_opened_at(app, app.current), lambda lib: bool(_disk(lib, "opened_at")), id="o"
+    ),
+    pytest.param(
+        lambda app: actions._merge_apply(app, merge.plan(_doc(app, "id0"), [_doc(app, "id1")]), {}),
+        lambda lib: not (lib / "lib" / "doc1").exists(),
+        id="m m",
+    ),
+]
+
+
+@pytest.mark.parametrize(("verb", "done"), REFUSED)
+async def test_a_refused_write_rereads_the_file_so_doing_it_again_works(app, papis_lib, monkeypatch, verb, done):
+    """`r` re-asked papis's cache, which never saw the outside edit (TODO H.57)."""
+    from cover_helpers import logs
+
+    attach(papis_lib, "doc0", "a.pdf", "b.pdf")
+    path = info(papis_lib)
+    path.write_text(path.read_text().replace("ref: Vaswani2017", "ref: bad ref!"))  # for `! f`
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = logs(app, monkeypatch)
+        _race(monkeypatch, papis_lib, "tags: [test]", "tags: [test, from-script]")
+        verb(app)
+        assert any("changed on disk; reloaded from disk; do it again" in line for line in logged)
+        assert not done(papis_lib)
+        assert _doc(app, "id0")["tags"] == ["test", "from-script"]  # the file, read right there
+
+        verb(app)
+        assert done(papis_lib)
+        assert _disk(papis_lib, "tags") == ["test", "from-script"]

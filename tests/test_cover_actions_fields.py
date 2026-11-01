@@ -199,7 +199,7 @@ async def test_a_stale_file_aborts_the_write_and_says_to_reload(app, papis_lib, 
         logged = logs(app, monkeypatch)
         monkeypatch.setattr(safewrite, "write", stale)
         actions.doc_set(app, "note", "x")
-        assert any("changed on disk; press r" in line for line in logged)
+        assert any("changed on disk; reloaded from disk" in line for line in logged)
         assert not app.history.done
         assert "note" not in app.current
 
