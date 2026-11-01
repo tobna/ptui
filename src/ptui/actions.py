@@ -424,16 +424,30 @@ def _import(app: Any, source: str, uri: str) -> None:
 
     def job() -> None:
         try:
-            data, files = fetch.from_url(uri) if source == "url" else fetch.fetch(source, uri)
+            if source == "crossref":  # a search: every hit, to choose from
+                found = [(hit, []) for hit in fetch.crossref(uri)]
+            else:
+                found = [fetch.from_url(uri) if source == "url" else fetch.fetch(source, uri)]
         except Exception as exc:
             app.call_from_thread(app.log_line, f"[red]{source} failed:[/] {exc}")
             return
-        app.call_from_thread(_fetched, app, source, data, files)
+        app.call_from_thread(_fetched, app, source, found)
 
     app.run_worker(job, thread=True, group="import", exit_on_error=False)
 
 
-def _fetched(app: Any, source: str, data: dict[str, Any], files: list[Path]) -> None:
+def _fetched(app: Any, source: str, found: list[tuple[dict[str, Any], list[Path]]]) -> None:
+    if len(found) > 1:
+
+        def chosen(index: int, _invert: bool) -> None:
+            if index == NONE_OF_THESE:
+                app.log_line(f"{source}: none of them; nothing added")
+            else:
+                _fetched(app, source, [found[index]])
+
+        ui.pick(app, _hit_items([data for data, _ in found]), title=f"{source} found {len(found)} — which one?")(chosen)
+        return
+    data, files = found[0]
     got = ", ".join(k for k in ("title", "author", "year", "doi") if data.get(k))
     app.log_line(f"{source}: {got or 'metadata'}" + (f" + {len(files)} file(s)" if files else ""))
     # papis downloads to a temp file; `place()` moves it where the rules say.
@@ -462,6 +476,27 @@ def _bib_pick(app: Any, path: Path) -> None:
     ui.pick(app, items, title=f"{len(entries)} entries in {path.name}")(
         lambda index, _i: add_form(app, None, entries[index])
     )
+
+
+def _hit_summary(hit: dict[str, Any]) -> str:
+    """Year, first author, venue: what tells two papers of one title apart."""
+    names = merge._authors(hit) or [{}]
+    first = names[0].get("family") if isinstance(names[0], dict) else None
+    return " · ".join(str(part) for part in (hit.get("year"), first, library.venue(hit)) if part)
+
+
+NONE_OF_THESE = -1
+"""The value of a "none of these" row: `None` is the picker's own "no current
+value", so a row holding it opens highlighted."""
+
+
+def _hit_items(hits: list[dict[str, Any]]) -> list[ui.Item]:
+    """A search's hits, best first, then "none of these"."""
+    items = [
+        ui.Item(label=library.display(hit.get("title", "<untitled>")), value=index, hint=_hit_summary(hit))
+        for index, hit in enumerate(hits)
+    ]
+    return [*items, ui.Item(label="none of these", value=NONE_OF_THESE)]
 
 
 @command("query.scope", "search (papis query)")
@@ -2205,7 +2240,7 @@ def doc_refresh(app: Any, source: str = "") -> None:
     if len(importers) == 1:
         _refresh_fetch(app, doc, importers[0])
         return
-    hints = {"crossref": "a title search: check what it found"}
+    hints = {"crossref": "a title search: pick the paper"}
     items = [
         ui.Item(label=imp.name, value=index, hint=hints.get(imp.name, str(imp.uri)))
         for index, imp in enumerate(importers)
@@ -2220,36 +2255,44 @@ def _refresh_fetch(app: Any, doc: Any, importer: Any) -> None:
 
     def job() -> None:
         try:
-            data = fetch.refetch(importer)
+            hits = fetch.refetch(importer)
         except Exception as exc:
             app.call_from_thread(app.log_line, f"[red]{importer.name} failed:[/] {exc}")
             return
-        app.call_from_thread(_refresh_merge, app, doc, importer.name, data)
+        app.call_from_thread(_refresh_found, app, doc, importer.name, hits)
 
     app.run_worker(job, thread=True, group="import", exit_on_error=False)
 
 
-def _refresh_merge(app: Any, doc: Any, source: str, data: dict[str, Any], *, confirmed: bool = False) -> None:
-    if source == "crossref" and not confirmed:
-        # A title search finds *a* paper, and the gaps would be filled from it
-        # without a question: so the first question is whether it is this one.
-        import papis.document
-
-        names = data.get("author_list") or (
-            papis.document.split_authors_name([str(data["author"])]) if data.get("author") else []
-        )
-        first = str(names[0].get("family") or "?") if names and isinstance(names[0], dict) else "?"
-        found = f"{library.display(data.get('title', '?'))} ({data.get('year', '?')}), {first}"
-        items = [ui.Item(label="yes, update from it", value=True), ui.Item(label="no, leave it as it is", value=False)]
-
-        def answer(ok: bool, _invert: bool) -> None:
-            if ok:
-                _refresh_merge(app, doc, source, data, confirmed=True)
-            else:
-                app.log_line(f"{source}: not the paper; {doc.get('ref', '')} left as it was")
-
-        ui.pick(app, items, title=f"Crossref found: {found} — is this the paper?")(answer)
+def _refresh_found(app: Any, doc: Any, source: str, hits: list[dict[str, Any]]) -> None:
+    """An id names its record. A title search finds *a* paper, whose gaps would
+    be filled without a question — so the first question is which one, if any,
+    is this paper."""
+    if source != "crossref":
+        _refresh_merge(app, doc, source, hits[0])
         return
+    if len(hits) == 1:
+        summary = _hit_summary(hits[0])
+        found = library.display(hits[0].get("title", "?")) + (f" ({summary})" if summary else "")
+        title = f"Crossref found: {found} — is this the paper?"
+        items = [
+            ui.Item(label="yes, update from it", value=0),
+            ui.Item(label="no, leave it as it is", value=NONE_OF_THESE),
+        ]
+    else:
+        title = f"Crossref found {len(hits)} — which is {doc.get('ref', '')}?"
+        items = _hit_items(hits)
+
+    def answer(index: int, _invert: bool) -> None:
+        if index == NONE_OF_THESE:
+            app.log_line(f"{source}: not the paper; {doc.get('ref', '')} left as it was")
+        else:
+            _refresh_merge(app, doc, source, hits[index])
+
+    ui.pick(app, items, title=title)(answer)
+
+
+def _refresh_merge(app: Any, doc: Any, source: str, data: dict[str, Any]) -> None:
     doc.load()  # a value the file gained since loading is a question, not a gap
     plan = merge.plan(doc, [data])
     if not plan.gaps and not plan.clashes:

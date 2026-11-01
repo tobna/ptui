@@ -98,11 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-56. **Show several Crossref hits.** papis's Crossref importer gets every hit and
-    keeps the first ("Picking the first one!"). For `c u` and for adding from
-    Crossref, call papis's `papis.crossref.get_data(query=…, max_results=…)`
-    and list the hits (title, year, first author, venue) in the picker, with
-    "none of these"; one hit keeps H.24's "is this the paper?".
 59. **`g r` prefers the one match shown.** Near matches stay searched in the
     scope only, as now. When several refs in the scope match but exactly one
     is shown in the narrowed list, go to that one; still several, list them

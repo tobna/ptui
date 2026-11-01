@@ -554,6 +554,89 @@ def test_refetchers_come_from_the_document_itself_without_the_network():
     assert names({}) == []
 
 
+def test_refetch_by_id_never_downloads_and_drops_the_keys_that_are_the_librarys_own(monkeypatch):
+    def fetch_importers(importers, download_files):  # the network, and nothing else
+        assert not download_files
+        for importer in importers:
+            importer.ctx.data = {"title": "T", "ref": "Theirs2020", "citations": [{"doi": "10.1/y"}], "files": ["x"]}
+        return list(importers)
+
+    monkeypatch.setattr("papis.importer.fetch_importers", fetch_importers)
+    (by_doi,) = fetch.refetchers({"doi": "10.1/x"})
+    assert fetch.refetch(by_doi) == [{"title": "T"}]
+
+
+def _crossref(monkeypatch, hits):
+    """papis's Crossref search, without the network; the calls are recorded."""
+    asked = []
+    monkeypatch.setattr("papis.crossref.get_data", lambda **kwargs: asked.append(kwargs) or [dict(h) for h in hits])
+    return asked
+
+
+HITS = [
+    {"title": "Attention Is Not All You Need", "year": 2021, "author_list": [{"family": "Dong", "given": "Y"}]},
+    {
+        "title": "Attention Is All You Need",
+        "year": 2017,
+        "author_list": [{"family": "Vaswani", "given": "X"}],
+        "journal": "NeurIPS",
+        "doi": "10.5555/3295222.3295349",
+    },
+]
+
+
+async def test_refresh_from_crossref_lists_the_hits_and_merges_the_one_picked(app, papis_lib, monkeypatch):
+    """papis's importer kept the first hit ("Picking the first one!"): here, another paper."""
+    from ptui import ui
+
+    asked = _crossref(monkeypatch, HITS)
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "c", "u")  # title only: Crossref is the one source
+        await settle(pilot)
+        assert asked == [{"query": "Attention Is All You Need", "max_results": fetch.CROSSREF_HITS}]
+        assert isinstance(app.screen, ui.SelectList)
+        assert [item.label for item in app.screen.items] == [*(hit["title"] for hit in HITS), "none of these"]
+        assert [item.hint for item in app.screen.items[:2]] == ["2021 · Dong", "2017 · Vaswani · NeurIPS"]
+        await press(pilot, "down", "enter")
+        await settle(pilot)
+    assert "doi: 10.5555/3295222.3295349" in info.read_text()  # a gap of the paper picked
+
+
+async def test_none_of_the_crossref_hits_writes_nothing(app, papis_lib, monkeypatch):
+    _crossref(monkeypatch, HITS)
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    before = info.read_text()
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "c", "u")
+        await settle(pilot)
+        await press(pilot, "down", "down", "enter")  # none of these
+        await settle(pilot)
+    assert info.read_text() == before
+
+
+async def test_adding_from_crossref_lists_the_hits_and_fills_the_form_with_the_one_picked(app, monkeypatch):
+    """papis's Crossref importer matches no typed text at all: this source never worked."""
+    from textual.widgets import Input
+
+    from ptui import ui
+
+    asked = _crossref(monkeypatch, HITS)
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        actions.cmdline_run(app, "doc.add", "crossref 'attention is all'")
+        await app.workers.wait_for_complete()
+        await settle(pilot)
+        assert asked == [{"query": "attention is all", "max_results": fetch.CROSSREF_HITS}]
+        assert isinstance(app.screen, ui.SelectList)
+        assert app.screen.items[-1].label == "none of these"
+        await press(pilot, "down", "enter")
+        assert isinstance(app.screen, ui.AddForm)
+        assert app.screen.query_one("#add-title", Input).value == "Attention Is All You Need"
+
+
 async def test_refresh_fills_gaps_asks_each_clash_and_undoes_in_one_step(app, papis_lib, monkeypatch):
     from ptui import ui
 
@@ -565,19 +648,13 @@ async def test_refresh_fills_gaps_asks_each_clash_and_undoes_in_one_step(app, pa
         "citations": [{"doi": "10.1/y"}],  # never into info.yaml
     }
 
-    def fetch_importers(importers, download_files):  # the network, and nothing else
-        assert not download_files
-        for importer in importers:
-            importer.ctx.data = dict(fetched)
-        return list(importers)
-
-    monkeypatch.setattr("papis.importer.fetch_importers", fetch_importers)
+    _crossref(monkeypatch, [fetched])  # one hit: "is this the paper?"
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "c", "u")  # title only: Crossref is the one source
         await settle(pilot)
-        assert "Attention is All you Need (2017), Vaswani — is this the paper?" in app.screen.title_text
+        assert "Attention is All you Need (2017 · Vaswani) — is this the paper?" in app.screen.title_text
         await press(pilot, "enter")  # yes
         assert isinstance(app.screen, ui.SelectList)
         assert [item.label for item in app.screen.items][:2] == [
@@ -598,19 +675,14 @@ async def test_refresh_fills_gaps_asks_each_clash_and_undoes_in_one_step(app, pa
 async def test_refresh_from_crossref_writes_nothing_when_it_found_another_paper(app, papis_lib, monkeypatch):
     """A title search can find the wrong paper, and its gaps were filled silently."""
 
-    def fetch_importers(importers, download_files):
-        for importer in importers:
-            importer.ctx.data = {"title": "Attention Is Not All You Need", "year": 2021, "doi": "10.1/other"}
-        return list(importers)
-
-    monkeypatch.setattr("papis.importer.fetch_importers", fetch_importers)
+    _crossref(monkeypatch, [{"title": "Attention Is Not All You Need", "year": 2021, "doi": "10.1/other"}])
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     before = info.read_text()
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "c", "u")
         await settle(pilot)
-        assert "Attention Is Not All You Need (2021), ? — is this the paper?" in app.screen.title_text
+        assert "Attention Is Not All You Need (2021) — is this the paper?" in app.screen.title_text
         await press(pilot, "down", "enter")  # no
         await settle(pilot)
     assert info.read_text() == before

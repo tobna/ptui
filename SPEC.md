@@ -222,6 +222,11 @@ Rules learned by measuring the papis API, all load-bearing:
   anything and would try to GET a filesystem path.
 - Constructors differ per importer (`ArxivImporter` takes `arxivid`, not `uri`),
   so `cls.match(uri)` is the only generic way to build one.
+- **Crossref is a search**, and papis's importer cannot serve it: its `match()`
+  accepts no typed text at all, and its fetch keeps the first hit whatever it
+  is. The `crossref` source calls `papis.crossref.get_data` and lists the hits
+  (title; year, first author, venue; "none of these"), and the one picked
+  opens the form.
 - Importers fetch **files** as well as metadata: `ctx.files` is a PDF papis has
   already downloaded. `place()` then files it by the normal rules.
 - A fetched record carries keys the form does not show (abstract, eprint, venue,
@@ -289,9 +294,12 @@ changes` — so a title fixed by hand reverts on the next update. `doc.refresh`
 and the result is one write and one undo step. The sources come from the
 document, without the network: papis's own data matching (the DOI; the title,
 for Crossref — offered last, since a title search can find the wrong paper),
-plus arXiv for an arXiv id. What Crossref found — title, year, first author —
-is shown and confirmed ("is this the paper?") before anything is planned, or
-its gaps would be filled from another paper without a question. Data only, never the PDF; the fetched `ref` and
+plus arXiv for an arXiv id. Crossref is searched, not matched: papis's own
+importer fetches every hit and keeps the first, so ptui calls
+`papis.crossref.get_data` and lists the hits — title, then year, first author
+and venue — with "none of these" last. A single hit is shown and confirmed ("is
+this the paper?"). Nothing is planned before that, or the gaps would be filled
+from another paper without a question. Data only, never the PDF; the fetched `ref` and
 `citations` are dropped (the ref is the library's own, citations have their own
 file in papis).
 

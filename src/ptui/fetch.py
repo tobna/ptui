@@ -123,18 +123,39 @@ def refetchers(doc: dict[str, Any]) -> list[Any]:
     return sorted(found, key=lambda imp: order.index(imp.name) if imp.name in order else len(order))
 
 
-def refetch(importer: Any) -> dict[str, Any]:
-    """Metadata only, never the PDF — the document already has its files. Network."""
+CROSSREF_HITS = 10
+"""How many hits a Crossref search lists; Crossref's own page is 20."""
+
+
+def crossref(query: str) -> list[dict[str, Any]]:
+    """Every hit of a Crossref search, best first. papis's `crossref` importer
+    keeps only the first ("Picking the first one!") and its `match()` accepts no
+    text at all, so neither `c u` nor the add flow could choose. Network."""
+    import papis.crossref
+
+    hits = papis.crossref.get_data(query=query.strip(), max_results=CROSSREF_HITS)
+    if not hits:  # papis logs a failed request itself and returns []
+        raise ValueError(f"Crossref found nothing for {query!r}")
+    return [dict(hit) for hit in hits]
+
+
+def refetch(importer: Any) -> list[dict[str, Any]]:
+    """Metadata only, never the PDF — the document already has its files. One
+    record for an id; every hit for a Crossref title search. Network."""
     import papis.importer
 
-    done = papis.importer.fetch_importers([importer], download_files=False)
-    data = dict(done[0].ctx.data or {}) if done else {}
-    if not data:
+    if importer.name == "crossref":
+        found = crossref(importer.uri)
+    else:
+        done = papis.importer.fetch_importers([importer], download_files=False)
+        found = [dict(done[0].ctx.data)] if done and done[0].ctx.data else []
+    if not found:
         raise ValueError(f"{importer.name} found nothing for {importer.uri}")
     # the ref is the library's own; citations live in papis's citations file
-    for key in ("ref", "citations", "files"):
-        data.pop(key, None)
-    return data
+    for data in found:
+        for key in ("ref", "citations", "files"):
+            data.pop(key, None)
+    return found
 
 
 def bib_entries(path: Path) -> list[dict[str, Any]]:

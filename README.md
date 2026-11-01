@@ -31,8 +31,8 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   session in each library come back.
 - **Update without losing your edits** — `c u` refetches a document from its
   DOI, arXiv id or title and merges: missing fields are filled, and every real
-  disagreement is a question. A title search shows what it found and asks
-  whether that is the paper first. `papis update --auto` just overwrites.
+  disagreement is a question. A title search lists what Crossref found and
+  asks which one is the paper first. `papis update --auto` just overwrites.
 - **Read before you open** — the info pane shows the abstract under the
   metadata; `J`/`K` scroll it without leaving the list.
 - **Marks that survive** — marks are keyed by document, not by row, so sorting
@@ -42,8 +42,8 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   mtime, writes atomically, and leaves unknown keys and comments untouched.
   Files move via `os.link`, never a clobbering `mv`.
 - **Add from anywhere papis can reach** — `a` lists the sources: a file, the
-  inbox, an arXiv id, a DOI, an ISBN, a `.bib`, a publisher URL, or a PDF to read
-  an id out of. arXiv adds fetch the paper too, and a paper the library already
+  inbox, an arXiv id, a DOI, an ISBN, a `.bib`, a publisher URL, a Crossref
+  search (pick the paper from its hits), or a PDF to read an id out of. arXiv adds fetch the paper too, and a paper the library already
   has (same DOI, arXiv id or URL, or the same title) is asked about first.
   The list comes from papis's own importer plugins, so installing one adds a
   row. `f a` attaches a file or URL to the document you are on, exactly as

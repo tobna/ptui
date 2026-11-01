@@ -244,11 +244,20 @@ Built:
 - **`doc.refresh`** (`c u`): `fetch.refetchers` builds importers from the
   document (papis `get_matching_importers_by_doc` + arXiv by id, no network),
   `fetch.refetch` runs papis's `fetch_importers(download_files=False)` in a
-  thread worker, then (for `crossref`, a title search, only after "is this the
-  paper?" — `_refresh_merge(confirmed=True)`) `merge.plan` with the fetched
-  dict as the other record and `actions._ask_clashes` — the loop `doc.merge` uses too — into
-  `_fields_apply`. Tests stub `papis.importer.fetch_importers`, not
-  `fetch.refetch`, so ptui's own filtering still runs
+  thread worker — except for `crossref`, which is `fetch.crossref`, below —
+  then `_refresh_found` (a Crossref hit is picked first) and `_refresh_merge`:
+  `merge.plan` with the fetched dict as the other record and
+  `actions._ask_clashes` — the loop `doc.merge` uses too — into
+  `_fields_apply`. Tests stub `papis.importer.fetch_importers` or
+  `papis.crossref.get_data`, not `fetch.refetch`, so ptui's own filtering
+  still runs
+- **Crossref is `fetch.crossref`**, `papis.crossref.get_data(query=…,
+  max_results=fetch.CROSSREF_HITS)`, for `c u` and the `crossref` add source
+  alike: papis's `CrossrefImporter.match` returns `None` for any text and its
+  fetch keeps the first hit, so the add source never worked and `c u` could
+  not choose. `actions._hit_items` lists the hits plus "none of these", whose
+  value is `actions.NONE_OF_THESE`, not `None` — `SelectList` opens on the row
+  whose value equals its `current`, which defaults to `None`
 - **`doc.move`** (`:` only): `papis.commands.mv.run` per target into another
   library, folder name kept. The target's index is built *before* the move —
   papis's `mv` adds to it, and an index built afterwards already holds the
