@@ -225,3 +225,21 @@ async def test_a_losers_file_outside_its_folder_stays_put_and_stays_attached(app
         kept = next(d for d in app.docs if d["papis_id"] == "id0")
         assert [place.resolve(kept, entry) for entry in kept["files"]] == [elsewhere]
         assert elsewhere.read_bytes() == b"djvu"
+
+
+def test_a_bare_author_string_is_a_side_when_the_lists_disagree_and_agrees_otherwise():
+    """A survivor holding only `author` used to take the other record's
+    `author_list` as a silent gap, and `resolve` rewrote its `author` from it."""
+    smith = papis.document.from_data({"author": "Smith, J."})
+    jones = papis.document.from_data({"author_list": [{"family": "Jones", "given": "X"}], "author": "Jones, X"})
+    plan = merge.plan(smith, [jones])
+    assert plan.questions == ["author_list"]
+    assert "author" not in merge.resolve(plan, {})  # unanswered: the survivor keeps its own
+
+    rich = [{"family": "Smith", "given": "J.", "affiliation": [{"name": "Uni"}]}]
+    agreeing = papis.document.from_data({"author_list": rich, "author": "Smith, J."})
+    plan = merge.plan(smith, [agreeing])
+    assert plan.questions == []
+    assert plan.gaps["author_list"] == rich  # the record's own list, extra keys and all
+    assert merge.resolve(plan, {})["author"] == "Smith, J."
+    assert merge.plan(smith, [papis.document.from_data({"author_list": []})]).gaps == {}

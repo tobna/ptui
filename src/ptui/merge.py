@@ -61,15 +61,31 @@ class Plan:
         return list(self.clashes)
 
 
+BLANK = (None, "", [], {})
+
+
+def _authors(doc: Document) -> Any:
+    """`author_list`, or the list papis makes of a bare `author` string — so a
+    record holding only the string still has a side when the lists disagree."""
+    if doc.get("author_list") not in BLANK:
+        return doc["author_list"]
+    return papis.document.split_authors_name([str(doc["author"])]) if doc.get("author") not in BLANK else None
+
+
 def _values(docs: list[Document], key: str) -> list[Any]:
     """Distinct values for `key`, in document order, blanks ignored. Compared as
-    text: a fetched `year: 2017` and a stored `year: '2017'` are no question."""
+    text: a fetched `year: 2017` and a stored `year: '2017'` are no question,
+    and two author lists naming the same people are one, whatever else they hold."""
+
+    def text(value: Any) -> str:
+        return papis.document.author_list_to_author({"author_list": value}) if key == "author_list" else str(value)
+
     out: list[Any] = []
     for doc in docs:
-        value = doc.get(key)
-        if value in (None, "", [], {}):
+        value = _authors(doc) if key == "author_list" else doc.get(key)
+        if value in BLANK:
             continue
-        if str(value) not in {str(seen) for seen in out}:
+        if text(value) not in {text(seen) for seen in out}:
             out.append(value)
     return out
 
@@ -88,9 +104,11 @@ def plan(survivor: Document, others: list[Document]) -> Plan:
         if not values:
             continue
         if len(values) == 1:
-            # everyone who has it agrees; if the survivor lacked it, that is a gap
-            if survivor.get(key) in (None, "", [], {}):
-                gaps[key] = values[0]
+            # everyone who has it agrees; if the survivor lacked it, that is a
+            # gap — filled with a record's own value, never the derived authors
+            filler = next((doc[key] for doc in others if doc.get(key) not in BLANK), None)
+            if survivor.get(key) in BLANK and filler is not None:
+                gaps[key] = filler
             continue
         clashes[key] = values
 

@@ -365,7 +365,10 @@ Narrowing filters and never reorders — the sort is the user's.
 into *gaps* (only the others had them — filled silently) and *clashes* (a real
 disagreement — one question each), `resolve()` turns answers into the field set,
 `survivor_choices()` maps distinct refs to documents because **the ref you keep
-is the document you keep**. `actions._merge_apply` does the writing, and two
+is the document you keep**. `author_list` values go through `merge._authors`
+(a bare `author` string becomes papis's `split_authors_name` list) and compare
+by the names they hold, so a survivor with only `author` is asked rather than
+silently overwritten, and a gap is always filled with a record's own list. `actions._merge_apply` does the writing, and two
 things there are load-bearing: a loser's `files` entry may be relative to the
 folder about to be trashed, so it is resolved *before* the move and routed
 through `place()` — and a file `place()` leaves in place (`unmanaged`, every

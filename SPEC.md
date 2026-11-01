@@ -251,7 +251,11 @@ genuinely disagree.
 - Finding duplicates is a **separate job** from merging them; ptui merges what
   you marked and does not go looking.
 - `author` is never asked about next to `author_list`: it is derived from
-  whichever list is kept, the way papis derives it on import. Values are
+  whichever list is kept, the way papis derives it on import. A record holding
+  only an `author` string takes part with the list papis would make of it, so
+  its authors are a side to choose rather than a gap the other list fills
+  silently, and two lists naming the same people are one value whatever else
+  their entries hold. Values are
   compared as text, so a YAML `'2016'` against a fetched `2016` is no question.
 
 **Updating from a source is the same merge**, with the fetched record as the

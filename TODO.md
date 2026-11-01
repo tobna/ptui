@@ -158,9 +158,6 @@ finishes it. The number in brackets is the review question it came from.
     `place()` returning a `conflict` or `error` status. Pinned by the xfail
     `test_a_dangling_symlink_at_the_destination_is_a_conflict_not_a_crash` in
     `tests/test_edge_place.py`. Worked after 25, before the README.
-34. **A merge overwrites a survivor's `author` without asking** when the
-    survivor has `author` but no `author_list`: the loser's list is a silent
-    gap, and `resolve()` rewrites `author` from it. [test_edge_merge.py]
 35. **`doctor.fix` misses fixes made in place.** It diffs against a shallow
     `dict(doc)`, so papis's `files` fix writes nothing, and string-cleaner's
     initials fix writes `author` but not `author_list`. [test_edge_doctor.py]

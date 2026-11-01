@@ -2,7 +2,6 @@
 loser's attachment survives its folder going to the trash."""
 
 import papis.document
-import pytest
 from conftest import settle
 
 from ptui import merge, place
@@ -35,11 +34,6 @@ def test_choosing_an_author_list_rewrites_author_to_match():
     assert merge.resolve(plan, {"author_list": other["author_list"]})["author"] == "C, D"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a survivor with `author` but no `author_list` gets the loser's authors as a silent gap; "
-    "resolve() then overwrites the survivor's `author` without asking",
-)
 def test_an_unanswered_merge_does_not_replace_the_survivors_author():
     survivor = _doc(title="T", author="Smith, J.")
     other = _doc(title="T", author_list=[{"family": "Jones", "given": "X"}], author="Jones, X")
