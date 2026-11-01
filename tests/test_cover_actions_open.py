@@ -144,11 +144,6 @@ async def test_notes_are_created_from_papis_and_recorded_on_the_document(app, pa
 # ── export ──────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: export.citekey drops empty keys, but the shipped format wraps the ref, so a "
-    "document with no ref still yanks an empty \\cite{}",
-)
 async def test_a_citekey_for_a_document_with_no_ref_is_skipped_not_yanked_empty(app, papis_lib, yanked):
     path = info(papis_lib, "doc1")
     path.write_text(path.read_text().replace("ref: He2016\n", ""))

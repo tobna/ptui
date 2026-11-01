@@ -1449,12 +1449,23 @@ def _yank(app: Any, text: str, what: str) -> None:
 
 @command("export.citekey", "\\cite{ref}")
 def export_citekey(app: Any) -> None:
+    """The citekeys of the targets, per `export.citekey_format`. A document the
+    format gives nothing for — what it makes of an empty one, `\\cite{}` by
+    default — is skipped and named, rather than yanked as an empty cite."""
+    import papis.document
     import papis.format
 
     fmt = app.cfg.get("export.citekey_format", "{doc[ref]}")
-    # Verbatim stored values: LaTeX in a title is display-stripped, never yanked stripped.
-    keys = [papis.format.format(fmt, doc, default="") for doc in app.targets]
-    _yank(app, " ".join(k for k in keys if k), f"{len(keys)} citekey(s)")
+    blank = papis.format.format(fmt, papis.document.from_data({}), default="")
+    keys = []
+    for doc in app.targets:
+        # Verbatim stored values: LaTeX in a title is display-stripped, never yanked stripped.
+        key = papis.format.format(fmt, doc, default="")
+        if key and key != blank:
+            keys.append(key)
+        else:
+            app.log_line(f"[yellow]no citekey for {library.display(doc.get('title', '?'))}; skipped[/]")
+    _yank(app, " ".join(keys), f"{len(keys)} citekey(s)")
 
 
 @command("export.path", "absolute path")

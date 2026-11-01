@@ -838,3 +838,20 @@ async def test_editing_the_author_line_keeps_what_each_matching_author_had(app, 
         assert authors[0] == {"family": "Vaswani", "given": "X", "orcid": "0000-0001"}
         assert authors[1]["family"] == "Shazeer" and "orcid" not in authors[1]
         assert "orcid: 0000-0001" in info.read_text()
+
+
+async def test_a_document_with_no_citekey_is_named_in_the_log_and_nothing_is_yanked(app, papis_lib, monkeypatch):
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    info.write_text(info.read_text().replace("ref: Vaswani2017\n", ""))
+    yanked = []
+    monkeypatch.setattr(clip, "copy", lambda _app, text: yanked.append(text) or "test")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = []
+        monkeypatch.setattr(app, "log_line", logged.append)
+        actions.export_citekey(app)
+    assert yanked == []
+    assert logged == [
+        "[yellow]no citekey for Attention Is All You Need; skipped[/]",
+        "[yellow]nothing to yank for 0 citekey(s)[/]",
+    ]

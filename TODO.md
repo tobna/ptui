@@ -98,10 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-47. **`y y` on a document with no `ref` yanks `\cite{}`.** The empty-key
-    filter runs after `citekey_format` has wrapped the ref, so it never sees
-    an empty key. Skip the document and say so. (Pinned in
-    `tests/test_cover_actions_open.py`.)
 48. **`\ c` calls `files.pdf_root` an unknown key**, though the shipped
     `config.toml` tells you to set it (it is only in a comment there). (Pinned
     in `tests/test_cover_actions_cmdline.py`.)
