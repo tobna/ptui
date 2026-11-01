@@ -103,10 +103,6 @@ finishes it. The number in brackets is the review question it came from.
    and `:doctor.fix X` replace a document's whole cache entry with X's
    findings, so every other finding's marker vanishes until `! d`. Replace only
    X's findings. Do it together with 4. [26.1]
-9. **`:config.set` refuses keys read only at startup** — `log.level`,
-   `log.file`, `log.max_entries`, `ui.mouse`, `undo.stack_size`,
-   `general.startup_query`, `doctor.scan_on_startup` — with "takes effect on
-   restart; set it in config.toml", instead of claiming "until you quit". [27.1]
 10. **The theme picker previews the highlighted theme live**; `escape` restores
     the one that was active.
 11. **Open, needs a decision before building:** an option to write a

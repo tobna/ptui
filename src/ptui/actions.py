@@ -1842,6 +1842,20 @@ def keymap_check(app: Any) -> None:
     app.query_one("#log-pane").display = True
 
 
+STARTUP_ONLY = frozenset(
+    {
+        "log.level",
+        "log.file",
+        "log.max_entries",
+        "ui.mouse",
+        "undo.stack_size",
+        "general.startup_query",
+        "doctor.scan_on_startup",
+    }
+)
+"""Config keys read once while ptui starts: `config.set` on one would change nothing."""
+
+
 @command("config.set", "set a config value for this session")
 def config_set(app: Any, key: str, value: str) -> None:
     """Try a setting without editing `config.toml` and restarting. Session only:
@@ -1857,6 +1871,9 @@ def config_set(app: Any, key: str, value: str) -> None:
     table = app.cfg.get(section) if section else None
     if not isinstance(table, dict) or leaf not in table:
         app.log_line(f"[red]no config key[/] {key}")  # a new key would be read by nothing
+        return
+    if key in STARTUP_ONLY:
+        app.log_line(f"[yellow]{key} takes effect on restart; set it in config.toml[/]")
         return
     if key == "general.library":  # papis has a current library too; switching moves both
         lib_switch(app, value)

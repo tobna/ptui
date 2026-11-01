@@ -590,6 +590,27 @@ async def test_config_set_applies_for_the_session_and_checks_the_value(app):
         assert app.cfg.get("ui.nonsense") is None  # a new key would be read by nothing
 
 
+def test_config_set_refuses_a_key_read_only_at_startup(app, monkeypatch):
+    """Setting one used to report "until you quit" and change nothing at all."""
+    from ptui import actions
+
+    logged = []
+    monkeypatch.setattr(app, "log_line", logged.append)
+    for key in (
+        "log.level",
+        "log.file",
+        "log.max_entries",
+        "ui.mouse",
+        "undo.stack_size",
+        "general.startup_query",
+        "doctor.scan_on_startup",
+    ):
+        before = app.cfg.get(key)
+        actions.config_set(app, key, "1")
+        assert app.cfg.get(key) == before
+        assert f"{key} takes effect on restart" in logged.pop()
+
+
 async def test_goto_jumps_to_a_pasted_citekey_and_drops_a_hiding_narrow(app):
     from conftest import press, settle
 

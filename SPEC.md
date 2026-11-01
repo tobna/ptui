@@ -694,7 +694,7 @@ from this. Adding a command must not require touching four places.
 | `lib.empty_trash`               | `days:int?`                   | delete trash older than `undo.trash_retention_days`, after asking; never unasked |
 | `app.log`                       |                               | log pane                                         |
 | `app.config_check`              |                               | report unknown/invalid config keys               |
-| `config.set`                    | `key:str, value:str`          | override one config key for this session only; nothing is written to `config.toml` |
+| `config.set`                    | `key:str, value:str`          | override one config key for this session only; nothing is written to `config.toml`; a key read only at startup (`log.*`, `ui.mouse`, …) is refused |
 | `app.quit`                      |                               |                                                  |
 | `picker.confirm`                | `invert:bool=false`           | modal only                                       |
 | `picker.cancel`                 |                               | modal only                                       |
