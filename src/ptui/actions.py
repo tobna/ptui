@@ -2312,7 +2312,12 @@ def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
 
     Inside and outside are decided on normalised paths: `../../pdfs/x.pdf` is
     written under the folder but lives outside it, and does not go with it.
+    The other users are looked for in the whole library, not the scope: a
+    document the scope hides still loses the file if it is trashed.
     """
+    import papis.database
+
+    everyone = papis.database.get(app.cfg.get("general.library") or None).get_all_documents()
     pdf_root = app.cfg.as_path("files.pdf_root")
     root = place.normal(pdf_root) if pdf_root else None
     doomed = []
@@ -2326,8 +2331,8 @@ def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
             managed = root is not None and root in where.parents
             others = [
                 other.get("ref") or library.doc_id(other)
-                for other in app.docs
-                if other is not doc
+                for other in everyone
+                if library.doc_id(other) != library.doc_id(doc)
                 and any(place.same_file(place.resolve(other, e), path) for e in other.get("files") or [])
             ]
             note = "" if managed else "outside the managed roots"

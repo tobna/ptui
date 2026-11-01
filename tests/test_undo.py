@@ -415,3 +415,25 @@ async def test_an_entry_that_climbs_into_pdf_root_is_managed_and_checked(papis_l
         assert Path(choice.label) == root / "x.pdf"
         assert choice.checked
         await press(pilot, "escape")
+
+
+async def test_a_file_shared_with_a_document_outside_the_scope_is_not_checked(papis_lib):
+    """The other user of a file is looked for in the library, not the scope."""
+    root = papis_lib / "pdfs"
+    root.mkdir()
+    shared = root / "shared.pdf"
+    shared.write_bytes(b"pdf")
+    for doc in ("doc0", "doc2"):
+        info = papis_lib / "lib" / doc / "info.yaml"
+        info.write_text(info.read_text() + f"files:\n- {shared}\n")
+    app = build_app(papis_lib)
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "s", *"year:2017", "enter")  # doc2 (2003) is out of scope
+        await settle(pilot)
+        assert [d["papis_id"] for d in app.docs] == ["id0"]
+        await press(pilot, "d", "d")
+        (choice,) = app.screen.files
+        assert not choice.checked
+        assert "Bengio2003" in choice.note
+        await press(pilot, "escape")

@@ -95,10 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-31b. **The delete dialog looks for a file's other users in the scope only.** A
-    document outside the current scope that shares the file does not count, so
-    the file is ticked and trashed from under it. Ask papis's database for the
-    whole library.
 32. **`f r` leaves dangling entries when one entry raises.** Nothing guards
     `place()` across a document's entries: the earlier ones have moved, and
     `info.yaml` still names their old paths. [test_edge_actions.py]

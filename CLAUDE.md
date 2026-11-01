@@ -246,7 +246,9 @@ nothing and clears the stack, so `u` cannot offer the operation before it.
 Metadata edits push an in-memory step under every strategy, capturing the old
 values before the write, so undoing a `c` verb restores a key's *absence* too.
 
-The delete dialog's "also in" check is `place.same_file`: two entries name one
+The delete dialog's "also in" check runs over the whole library (papis's
+`get_all_documents`), not `app.docs`: a document the scope hides still loses a
+file that is trashed. It is `place.same_file`: two entries name one
 file when their paths match once normalised (`place.normal`, `os.path.normpath`,
 no link followed) or once links are followed. Comparing them as written ticked a
 shared file another document spelled relative, and trashed it. Inside the folder
