@@ -477,7 +477,8 @@ seconds and pull a PDF.
 `papis.commands.add.run([])` accepts that. **`add.run` asks about a duplicate
 itself, in a prompt_toolkit pager** that dies inside Textual ("asyncio.run()
 cannot be called from a running event loop"), so `_add_document` asks first
-(`_duplicate`: papis's `locate_document_in_lib`, then title + year) and sets
+(`_duplicate`: papis's `locate_document_in_lib`, then the title — same year
+first, then any year, the question naming the year the library has) and sets
 papis's `unique-document-keys` to `[]` around the one `add.run` call. `_KEEP_FETCHED` carries the keys the
 form has no box for (abstract, eprint, venue…) into the document.
 

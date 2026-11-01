@@ -44,7 +44,7 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **Add from anywhere papis can reach** — `a` lists the sources: a file, the
   inbox, an arXiv id, a DOI, an ISBN, a `.bib`, a publisher URL, or a PDF to read
   an id out of. arXiv adds fetch the paper too, and a paper the library already
-  has (same DOI, arXiv id or URL, or same title and year) is asked about first.
+  has (same DOI, arXiv id or URL, or the same title) is asked about first.
   The list comes from papis's own importer plugins, so installing one adds a
   row. `f a` attaches a file or URL to the document you are on, exactly as
   `papis addto` would.

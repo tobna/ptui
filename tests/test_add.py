@@ -196,3 +196,19 @@ async def test_adding_what_the_library_already_holds_asks_first(app, papis_lib):
         await settle(pilot)
         assert len(app.docs) == 4
         assert app.current["title"] == "Attention, again"
+
+
+async def test_the_same_title_in_another_year_asks_too_and_says_which_year_is_there(app, papis_lib):
+    """A preprint and its journal version share the title, not the year."""
+    from ptui import actions
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        actions._add_document(app, None, {"title": "Deep Residual Learning", "year": "2015"})
+        assert isinstance(app.screen, ui.SelectList)
+        assert "Same title as He2016 (2016); the library has it from 2016, this one is from 2015" in (
+            app.screen.title_text
+        )
+        await press(pilot, "enter")  # go to it
+        assert app.current["ref"] == "He2016"
+        assert len(app.docs) == 3

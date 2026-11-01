@@ -1367,7 +1367,8 @@ def _duplicate(app: Any, data: dict[str, Any]) -> tuple[Any, str] | None:
 
     papis's own test first — `locate_document_in_lib` over its
     `unique-document-keys` (DOI, ISBN, arXiv `eprint`, URL), the check `papis
-    add` runs — then the same title in the same year, which papis does not try.
+    add` runs — then the same title, which papis does not try: in the same
+    year first, then in any other (a preprint and its journal version).
     """
     import papis.config
     import papis.database
@@ -1384,11 +1385,15 @@ def _duplicate(app: Any, data: dict[str, Any]) -> tuple[Any, str] | None:
         keys = papis.config.getlist("unique-document-keys") or []
         return found, next((key for key in keys if candidate.get(key) and found.get(key)), "a unique key")
     title, year = str(data.get("title") or "").casefold().strip(), str(data.get("year") or "")
-    if title and year:
-        for doc in papis.database.get(name).get_all_documents():
-            if str(doc.get("title") or "").casefold().strip() == title and str(doc.get("year") or "") == year:
-                return doc, "title and year"
-    return None
+    if not title:
+        return None
+    same = [
+        d for d in papis.database.get(name).get_all_documents() if str(d.get("title") or "").casefold().strip() == title
+    ]
+    same_year = [d for d in same if year and str(d.get("year") or "") == year]
+    if same_year:
+        return same_year[0], "title and year"
+    return (same[0], "title") if same else None
 
 
 def _jump(app: Any, doc: Any) -> bool:
@@ -1430,7 +1435,10 @@ def _add_document(
             elif answer == "goto" and not _jump(app, doc):
                 app.log_line(f"[yellow]{what} is outside the scope {app.scope_query or '*'}[/]")
 
-        ui.pick(app, items, title=f"Already in the library? Same {why} as {what}")(chose)
+        title = f"Already in the library? Same {why} as {what}"
+        if why == "title":  # another year: say which one the library has
+            title += f"; the library has it from {doc.get('year', '?')}, this one is from {data.get('year') or '?'}"
+        ui.pick(app, items, title=title)(chose)
         return
     if papis.config.getboolean("time-stamp"):  # what `papis add` itself obeys
         data.setdefault(library.TIME_ADDED, library.stamp())

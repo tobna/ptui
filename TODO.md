@@ -98,10 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-52. **Ask about the same title in a different year on add.** H.15's check
-    knows the same title in the same year; the same title in another year
-    (a preprint and its journal version, a reprint) should ask "is this the
-    same paper?" too, with the same go to / add anyway / cancel choice.
 56. **Show several Crossref hits.** papis's Crossref importer gets every hit and
     keeps the first ("Picking the first one!"). For `c u` and for adding from
     Crossref, call papis's `papis.crossref.get_data(query=…, max_results=…)`
