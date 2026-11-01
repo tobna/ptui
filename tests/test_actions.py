@@ -139,7 +139,7 @@ def test_parse_args_maps_a_typed_line_onto_the_signature():
     assert commands.parse_args("pane.resize", "0.05") == {"delta": 0.05}
     assert commands.parse_args("export.bibtex", '"/tmp/two words.bib"') == {"target": "/tmp/two words.bib"}
     assert commands.parse_args("sort.by", "") == {}  # defaults stand
-    assert commands.signature("sort.by") == "key [reverse]"
+    assert commands.signature("sort.by") == "<key: str> [reverse: bool]"
 
     with pytest.raises(ValueError):
         commands.parse_args("sort.reverse", "year")  # takes none

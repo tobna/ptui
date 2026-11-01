@@ -618,8 +618,9 @@ collides with, a conflict can only come from inside one of the user's own tables
    stop typing it. It lists the registry, not the keymap, so an unbound command
    is still reachable, and unlike layer 3 it runs what is picked. Implemented as
    the shared `SelectList`, followed by an argument prompt for any command that
-   takes parameters — `sort.by` asks for `key [reverse]`, positional and
-   shell-quoted, and an empty line keeps the defaults.
+   takes parameters — `sort.by` asks for `<key: str> [reverse: bool]`, each
+   argument with its type and any default (`[unmark: bool = false]`),
+   positional and shell-quoted, and an empty line keeps the defaults.
 
 ## Command registry (source of truth)
 

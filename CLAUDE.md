@@ -636,7 +636,9 @@ Textual's palette is a system binding and runs above `App.on_key`.
 
 Arguments are the point of it — everything else already has a key — so picking a
 command that has parameters opens the prompt instead of running it, and `enter`
-on an empty line keeps every default. `commands.parse_args` maps the typed line
+on an empty line keeps every default. The prompt's placeholder is
+`commands.signature` — `<required: type>`, `[optional: type = default]`, a
+`None` or `""` default left unsaid. `commands.parse_args` maps the typed line
 onto the signature: positional, `shlex`-quoted, coerced by the annotation, which
 is a **string** (`from __future__ import annotations`) — hence the textual
 `"bool" in annotation` test, `bool` before `int` so `"false"` does not read as

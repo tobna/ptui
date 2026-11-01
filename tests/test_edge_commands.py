@@ -36,6 +36,9 @@ def test_a_bad_line_raises_value_error(name, text, match):
         commands.parse_args(name, text)
 
 
-def test_signature_brackets_only_the_optional_parameters():
-    assert commands.signature("config.set") == "key value"
-    assert commands.signature("files.reorder") == "[index] [to]"
+def test_signature_shows_each_arguments_type_and_default():
+    assert commands.signature("config.set") == "<key: str> <value: str>"
+    assert commands.signature("files.reorder") == "[index: int] [to: int = 1]"
+    assert commands.signature("mark.all_filtered") == "[unmark: bool = false]"
+    assert commands.signature("log.scroll") == "[up: bool = false] [lines: int = 0] [end: bool = false]"
+    assert commands.signature("doctor.run") == "[checks: str] [current: bool = false]"  # "" says nothing

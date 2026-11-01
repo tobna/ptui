@@ -7,6 +7,7 @@ Handlers are plain functions taking the app first; register them with
 from __future__ import annotations
 
 import inspect
+import json
 import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -45,10 +46,22 @@ def params(name: str) -> list[inspect.Parameter]:
     return list(inspect.signature(REGISTRY[name].fn).parameters.values())[1:]
 
 
+def _argument(param: inspect.Parameter) -> str:
+    """`<key: str>`, `[unmark: bool = false]`. A `None` or empty default is left
+    unsaid, as is `| None`: the brackets already say it may be left out."""
+    text = f"{param.name}: {str(param.annotation).removesuffix(' | None')}"
+    if param.default is inspect.Parameter.empty:
+        return f"<{text}>"
+    if param.default not in (None, ""):
+        text += f" = {json.dumps(param.default)}"  # TOML's spelling: `false`, not `False`
+    return f"[{text}]"
+
+
 def signature(name: str) -> str:
-    """`key [reverse]` — the argument line the `:` prompt shows. Optional
-    parameters are bracketed, so what may be left out is visible while typing."""
-    return " ".join(p.name if p.default is inspect.Parameter.empty else f"[{p.name}]" for p in params(name))
+    """`<key: str> [reverse: bool]` — the argument line the `:` prompt shows,
+    each argument with its type and default. Optional parameters are bracketed,
+    so what may be left out is visible while typing."""
+    return " ".join(_argument(p) for p in params(name))
 
 
 TRUTHY = frozenset({"true", "yes", "on", "1"})
