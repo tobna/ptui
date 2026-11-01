@@ -165,6 +165,11 @@ finishes it. The number in brackets is the review question it came from.
 59. **`g r` with several matches, one of them shown.** When several refs in
     the scope match but only one is in the list as narrowed now, go to that
     one instead of listing them. [104]
+60. **`r` reloads from disk.** Today `r` re-asks papis's cache, which never
+    sees a file changed outside papis (vim, a sync, `git pull`); only
+    `:app.reload true` does. Make `r` the rescan (`args = { rescan = true }`
+    in `keys.toml`, desc "reload library from disk"), and update SPEC's
+    command table and KEYS.md. [98.2]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each
