@@ -162,12 +162,10 @@ finishes it. The number in brackets is the review question it came from.
     with no description, and in the files pane at 120 it cuts `x remove from
     the list, keep`. Use the short `desc` from `keys.toml`, and leave out an
     entry that does not fit whole. [98.3]
-59. **`g r` narrows several matches down to one.** Look for near matches in
-    the whole library, then keep the ones in the scope: exactly one, go
-    there and name the others outside the scope in the log. Several in the
-    scope but exactly one shown in the narrowed list: go to that one. Still
-    several: list them, as now. A match only outside the scope is reported,
-    never jumped to — changing the scope is `s`. [104, 59.1]
+59. **`g r` prefers the one match shown.** Near matches stay searched in the
+    scope only, as now. When several refs in the scope match but exactly one
+    is shown in the narrowed list, go to that one; still several, list them
+    as now. Nothing outside the scope is searched or reported. [104, 59.1]
 60. **`r` reloads from disk.** Today `r` re-asks papis's cache, which never
     sees a file changed outside papis (vim, a sync, `git pull`); only
     `:app.reload true` does. Make `r` the rescan (`args = { rescan = true }`
