@@ -103,6 +103,9 @@ def nav_goto(app: Any, ref: str | None = None) -> None:
     """Move the cursor to the document whose `ref` is exactly this — a citekey
     pasted from a `.tex`, `\\cite{...}` and all; a list of keys goes to the first.
 
+    Without an exact match it says so, and still goes where there is only one
+    candidate: the one ref equal but for case, else the one ref containing it.
+
     A narrow that hides it is dropped, since jumping is the point; a document
     outside the scope is only reported, because changing the scope is `s`.
     """
@@ -111,11 +114,20 @@ def nav_goto(app: Any, ref: str | None = None) -> None:
         return
     found = _CITE.search(ref)
     key = (found.group(1) if found else ref).split(",")[0].strip()
-    doc = next((d for d in app.docs if str(d.get("ref", "")) == key), None)
-    doc = doc or next((d for d in app.docs if str(d.get("ref", "")).casefold() == key.casefold()), None)
-    if doc is None:
-        app.log_line(f"[yellow]no document with ref {key} in scope {app.scope_query or '*'}[/]")
+    if not key:
         return
+    doc = next((d for d in app.docs if str(d.get("ref", "")) == key), None)
+    if doc is None:
+        refs = {library.doc_id(d): str(d.get("ref", "")) for d in app.docs}
+        near = [d for d in app.docs if refs[library.doc_id(d)].casefold() == key.casefold()] or [
+            d for d in app.docs if key.casefold() in refs[library.doc_id(d)].casefold()
+        ]
+        if len(near) != 1:
+            some = f": {len(near)} refs contain it, {', '.join(str(d.get('ref')) for d in near[:3])}" if near else ""
+            app.log_line(f"[yellow]no ref {key} in scope {app.scope_query or '*'}{some}[/]")
+            return
+        doc = near[0]
+        app.log_line(f"[yellow]no ref {key}; went to {doc.get('ref')}, the one that matches it[/]")
     if doc not in app.rows:
         app.marked_only = app.doctor_only = False
         app.refilter("")

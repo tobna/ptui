@@ -664,6 +664,23 @@ async def test_goto_jumps_to_a_pasted_citekey_and_drops_a_hiding_narrow(app):
         assert app.current["ref"] == "Bengio2003"  # unknown: stays put, says so
 
 
+async def test_goto_without_an_exact_ref_warns_and_takes_the_one_that_contains_it(app):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = []
+        real = app.log_line
+        app.log_line = lambda message: (logged.append(message), real(message))
+        actions.nav_goto(app, "bengio")  # a substring of exactly one ref
+        assert app.current["ref"] == "Bengio2003"
+        assert "no ref bengio" in logged[-1]
+        actions.nav_goto(app, "20")  # in all three: nowhere to go
+        assert app.current["ref"] == "Bengio2003"
+        assert "3 refs contain it" in logged[-1]
+        actions.nav_goto(app, "vaswani2017")  # equal but for case
+        assert app.current["ref"] == "Vaswani2017"
+        assert "no ref vaswani2017" in logged[-1]
+
+
 async def test_a_saved_search_comes_back_with_its_sort_and_can_be_forgotten(app, papis_lib):
     import json
 

@@ -106,8 +106,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-14. **`g r` without an exact match** logs a warning, and if the key is a
-    substring of exactly one `ref`, jumps to that one. [28.1]
 15. **Deduplication on add** (DOI, arXiv id, title + year). First find what
     `papis add` already does and reuse it (golden rule 3).
 17. **Test `:doc.add <source> <id>` for `doi` as well as `arxiv`**: parametrise
