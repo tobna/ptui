@@ -856,6 +856,26 @@ async def test_normalize_writes_the_canonical_style_and_drops_duplicates(app, pa
         assert app.current["files"] == ["./a.djvu", str(folder / "b.djvu"), "a.djvu"]
 
 
+async def test_normalize_follows_no_symlink_and_writes_the_shortest_entry(app, papis_lib):
+    """A library reached through a symlink got `../../real-lib/doc0/a.djvu`,
+    and a linked file was replaced by its target."""
+    real = papis_lib / "real-lib"
+    (papis_lib / "lib").rename(real)
+    (papis_lib / "lib").symlink_to(real)
+    elsewhere = papis_lib / "elsewhere.djvu"
+    elsewhere.write_bytes(b"x")
+    folder = papis_lib / "lib" / "doc0"
+    (folder / "a.djvu").write_bytes(b"x")
+    (folder / "link.djvu").symlink_to(elsewhere)
+    info = folder / "info.yaml"
+    info.write_text(info.read_text() + "files:\n- ./a.djvu\n- ./link.djvu\n")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "f", "n")
+        assert app.current["files"] == ["a.djvu", "link.djvu"]
+    assert (folder / "link.djvu").is_symlink()
+
+
 async def test_the_next_session_starts_where_this_one_ended(papis_lib):
     """Per library: scope, sort and cursor. An explicit scope wins."""
     import json

@@ -115,15 +115,6 @@ finishes it. The number in brackets is the review question it came from.
 18. **Editing the author line in the form keeps each author's extra keys**
     (affiliation, ORCID, …) when the name still matches; today the whole
     `author_list` is rebuilt from the line. [32.2]
-20. **`f n` never follows symlinks, and a relative entry is always the shortest
-    one.** It resolves the file through symlinks but builds the relative path
-    from the folder as papis names it, so a library reached through a symlink
-    gets entries like `../../../../data/cloud/papers/doc/paper.pdf` — wrong,
-    not merely ugly — and a symlinked PDF is replaced by its target. Build both
-    sides from the same unresolved form (`paper.pdf`). A relative entry never
-    climbs to `/`: when that is the only relative path, write the absolute path
-    and log that it did. Tests with a symlinked library folder and a symlinked
-    PDF. [37.2, 38.0]
 21. **`v`/`V` + `g r`**: pin with a test that the range stretches to the jump
     target (it works). When `g r` has to drop a narrow to reach the target, the
     range ends instead of stretching — that one is a decision for the user, not

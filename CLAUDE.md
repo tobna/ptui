@@ -262,6 +262,12 @@ Metadata edits push an in-memory step under every strategy. A `c` verb's step
 holds the values each write replaced, read from the file it rewrote, so undo
 restores a key's *absence* too, and a tag a script added since loading.
 
+`files` entries are written by `place._entry` from `place.normal` paths on
+both sides — `os.path.normpath`, **never `Path.resolve()`**: resolving turned a
+library reached through a symlink into `../../../../data/…` entries and a linked
+PDF into its target. A `relative-doc` entry that would climb to `/` is written
+absolute instead, with a log line.
+
 The delete dialog's "also in" check runs over the whole library (papis's
 `get_all_documents`), not `app.docs`: a document the scope hides still loses a
 file that is trashed. It is `place.same_file`: two entries name one

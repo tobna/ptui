@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import papis.format
+from loguru import logger
 from papis.document import Document
 from slugify import slugify
 
@@ -136,11 +137,23 @@ def _reserve(src: Path, dest: Path) -> None:
 
 
 def _entry(dest: Path, doc: Document, style: str, previous: str | None) -> str:
+    """What `files` stores for `dest`, in `style`.
+
+    Both sides are `normal`ised and no link is followed, so a library reached
+    through a symlink gets `paper.pdf` rather than a climb out to the link's
+    target, and a linked PDF stays the link. A relative entry never climbs to
+    `/`: when that is its only relative path, the absolute one is written, and
+    the log says so.
+    """
     folder = doc.get_main_folder()
+    dest = normal(dest)
     if style == "keep" and previous is not None:
         style = "absolute" if Path(previous).is_absolute() else "relative-doc"
     if style == "relative-doc" and folder:
-        return os.path.relpath(dest, folder)
+        home = normal(Path(folder))
+        if os.path.commonpath([dest, home]) != dest.anchor:
+            return os.path.relpath(dest, home)
+        logger.info(f"{dest}: written absolute, the only path to it from {home} climbs to {dest.anchor}")
     return str(dest)
 
 

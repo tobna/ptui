@@ -1513,7 +1513,7 @@ def files_repoint(app: Any, index: int | None = None, path: str | None = None) -
         return
     doc, entries, at = found
     if path is not None:
-        target = Path(path).expanduser().resolve()
+        target = place.normal(Path(path).expanduser())  # the path as typed: a link stays a link
         if not target.is_file():
             app.log_line(f"[red]no such file:[/] {target}")
             return
@@ -1609,16 +1609,18 @@ def files_normalize(app: Any) -> None:
     rules = place.Rules.from_config(app.cfg)
     planned = []
     for doc in app.targets:
-        folder = Path(doc.get_main_folder() or ".")
+        folder = place.normal(Path(doc.get_main_folder() or "."))
         entries, seen, new = list(doc.get("files") or []), set(), []
         for entry in entries:
-            path = place.resolve(doc, entry).resolve()
+            # Never through a link: a linked PDF stays the link, and a library
+            # reached through one keeps its own spelling of the folder.
+            path = place.normal(place.resolve(doc, entry))
             if path in seen:
                 continue
             seen.add(path)
             style = rules.first_match(path).path_style
             if style == "keep":
-                style = "relative-doc" if folder.resolve() in path.parents else "absolute"
+                style = "relative-doc" if folder in path.parents else "absolute"
             new.append(place._entry(path, doc, style, None))
         if new != entries:
             planned.append((doc, new))

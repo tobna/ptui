@@ -73,6 +73,12 @@ document folder, relative with traversal (`../../pdfs/x.pdf`), or absolute.
 ptui preserves each entry's existing style unless the user runs an explicit
 command. New entries use the `path_style` of the matching rule.
 
+Paths are compared and written from their text, **never through a symlink**:
+a library reached through a link keeps its own spelling of the folder, and a
+linked PDF stays the link rather than becoming its target. A relative entry is
+the shortest one from the document folder, and never climbs to `/` — when that
+is the only relative path, the absolute path is written and the log says so.
+
 There is **no `kind` field**. Main vs. notes vs. supplement is _inferred_
 from `files.kind_patterns`, never written to disk — a parallel key would
 desync with an external script that appends to `files`.

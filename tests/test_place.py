@@ -126,3 +126,20 @@ def test_same_file_sees_through_spelling_and_links(tmp_path):
     assert place.same_file(tmp_path / "lib" / "doc" / ".." / ".." / "pdfs" / "x.pdf", real)
     assert place.same_file(link, real)
     assert not place.same_file(tmp_path / "pdfs" / "y.pdf", real)
+
+
+def test_a_relative_entry_never_climbs_to_the_root(lib):
+    from pathlib import Path
+
+    from loguru import logger
+
+    doc, _src, _rules, tmp_path = lib
+    logged = []
+    sink = logger.add(logged.append, format="{message}")
+    try:
+        assert place._entry(tmp_path / "pdfs" / "x.pdf", doc, "relative-doc", None) == "../pdfs/x.pdf"
+        assert not logged
+        assert place._entry(Path("/nowhere-ptui/x.pdf"), doc, "relative-doc", None) == "/nowhere-ptui/x.pdf"
+        assert "written absolute" in str(logged[0])
+    finally:
+        logger.remove(sink)
