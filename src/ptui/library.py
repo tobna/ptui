@@ -378,9 +378,6 @@ def display(value: Any) -> str:
     return str(value)
 
 
-_LIST_SPLIT = re.compile(r"[,\s]+")
-
-
 def key_types() -> dict[str, str]:
     """The type papis declares for each key (`document-field-types`:
     `tags:list`, `year:int`, `files:list`, …).
@@ -399,7 +396,8 @@ def typed(key: str, text: str, current: Any = None) -> Any:
     The declared type wins; failing that, the type already stored under the key
     does, so a list stays a list even for a key papis has no opinion about.
     Everything else is text: guessing that `2024` in an undeclared field means a
-    number is how `volume: 04` loses its zero.
+    number is how `volume: 04` loses its zero. A list is split on commas alone,
+    so a multi-word item survives being typed and the edit form's round trip.
     """
     text = text.strip()
     if not text:
@@ -408,7 +406,8 @@ def typed(key: str, text: str, current: Any = None) -> Any:
     if kind is None and current is not None:
         kind = type(current).__name__
     if kind == "list":
-        return [part for part in _LIST_SPLIT.split(text) if part]
+        # commas only: `machine learning` is one tag, and `display` joins with ", "
+        return [part.strip() for part in text.split(",") if part.strip()]
     if kind == "bool":
         return text.casefold() in {"true", "yes", "on", "1"}
     if kind in ("int", "float"):

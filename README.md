@@ -61,7 +61,8 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   journal article, thesis, or an arXiv-only `preprint` worked out from the
   metadata. Nerd-font glyphs by default, ASCII on request.
 - **Edit fields without leaving the list** — `c t` adds tags (keeping the ones
-  already there), `c T` removes them, `c s` sets the reading status, `c r` the
+  already there; comma-separated, so `machine learning` is one tag), `c T`
+  removes them, `c s` sets the reading status, `c r` the
   rating, and `c f` any field at all, with the type papis declares for it
   (`tags` a list, `year` an int). All batch-aware over marks, batches confirm
   first, every write through the safe-write path. `e` opens the whole

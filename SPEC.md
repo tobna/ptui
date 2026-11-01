@@ -445,6 +445,9 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
   what a document already has rather than replacing it, `doc.untag` removes the
   key along with its last tag, and both are batch-aware. `doc.rating` is an int
   0–5 where 0 clears, since papis declares no type for it.
+- A list value is typed comma-separated, each item stripped: `machine learning,
+  cv` is two tags, the first of them two words. Never split on whitespace, or a
+  multi-word tag falls apart when typed and again when the edit form saves it.
 
 ## Long-running operations
 
@@ -677,7 +680,7 @@ them: the value is arbitrary text.
 | `:doctor.fix field-type`             | `! f` is all-or-nothing; one check across the library is the real workflow |
 | `:config.set list.row_height 2`      | try a setting without editing `config.toml` and restarting; session only  |
 | `:mark.query year:>2023 -survey`     | marks by query without disturbing the current narrow, which `m a` destroys |
-| `:doc.tag to-read cvpr`              | a picker over the existing vocabulary cannot add a *new* tag              |
+| `:doc.tag "to-read, cvpr"`           | a picker over the existing vocabulary cannot add a *new* tag              |
 | `:doc.add arxiv 2607.00687`          | skips both the source picker and the URI prompt — the paste-a-number path |
 | `:files.attach ~/Downloads/x.pdf`    | a file that is not in the inbox has no picker to be chosen from           |
 | `:query.save unread-2026`            | a name is text by definition (loading stays a picker)                     |

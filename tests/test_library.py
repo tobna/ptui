@@ -248,7 +248,8 @@ def test_discover_keys():
 def test_typed_follows_the_declared_type_then_the_stored_one():
     import pytest
 
-    assert library.typed("tags", "ml cv") == ["ml", "cv"]  # papis declares tags:list
+    assert library.typed("tags", "ml, cv") == ["ml", "cv"]  # papis declares tags:list
+    assert library.typed("tags", " machine learning ,cv,") == ["machine learning", "cv"]  # commas only
     assert library.typed("year", "2020") == 2020  # ...and year:int
     assert library.typed("title", "2020") == "2020"  # a str key stays text
     # no declared type: the value already there decides, so a list stays a list

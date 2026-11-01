@@ -100,11 +100,6 @@ finishes it. The number in brackets is the review question it came from.
     git work tree; if not, say so and use `trash`, the way config repair
     replaces what cannot work. `_delete_run` also checks before it trashes any
     file. [test_edge_undo.py]
-41. **A multi-word tag is split in two.** `library.typed` splits list values
-    on whitespace as well as commas, so `c t machine learning` adds `machine`
-    and `learning`, and saving the edit form splits the tags already there.
-    Split on commas only, each item stripped; check `c t`, `c T`, `c f`, the
-    edit form and untag.
 43. **`m m` is one undo step.** The folded-in folders go to the trash and `u`
     cannot bring them back. Undo restores them (and papis's index), the
     survivor's previous fields and `files`, and the files `place.adopt` moved;

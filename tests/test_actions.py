@@ -238,7 +238,7 @@ async def test_tag_adds_and_untag_removes_without_touching_the_rest(app, papis_l
         await settle(pilot)
         assert app.current["tags"] == ["test", "ml", "cv"]  # no duplicate
 
-        await press(pilot, "c", "T", *"test cv", "enter")
+        await press(pilot, "c", "T", *"test, cv", "enter")
         await settle(pilot)
         assert app.current["tags"] == ["ml"]
 
@@ -247,6 +247,27 @@ async def test_tag_adds_and_untag_removes_without_touching_the_rest(app, papis_l
         assert "tags" not in app.current
 
     assert "papis_id: id0" in (papis_lib / "lib" / "doc0" / "info.yaml").read_text()
+
+
+async def test_a_multi_word_tag_is_one_tag(app):
+    async with app.run_test(size=(100, 40)) as pilot:
+        await settle(pilot)
+        await press(pilot, "c", "t", *"machine learning, cv", "enter")
+        await settle(pilot)
+        assert app.current["tags"] == ["test", "machine learning", "cv"]
+
+        await press(pilot, "c", "f", *"tags test, machine learning", "enter")
+        await settle(pilot)
+        assert app.current["tags"] == ["test", "machine learning"]
+
+        await press(pilot, "E")  # the form shows the list joined with ", " and splits it back
+        app.screen.query_one("#add-tags").value += ", deep nets"
+        await press(pilot, "enter")
+        assert app.current["tags"] == ["test", "machine learning", "deep nets"]
+
+        await press(pilot, "c", "T", *"machine learning", "enter")
+        await settle(pilot)
+        assert app.current["tags"] == ["test", "deep nets"]
 
 
 async def test_status_and_rating_pick_a_value(app):

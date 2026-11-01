@@ -568,8 +568,10 @@ deprecated `doctor-key-type-keys`) rather than a table here — otherwise settin
 `tags` to a string is exactly what the `field-type` doctor check exists to
 complain about. Undeclared keys keep the type
 already stored under them, and everything else stays text: guessing that `04` in
-an unknown field is a number is how `volume` loses its zero. An empty value
-**removes** the key. Every value is computed before anything is written, so a
+an unknown field is a number is how `volume` loses its zero. A list splits on
+**commas only**, each item stripped — whitespace too split `machine learning`
+in two, and the edit form, which shows a list joined with `, `, split every
+multi-word tag on save. An empty value **removes** the key. Every value is computed before anything is written, so a
 bad number aborts the batch instead of half-applying it, and a batch of more
 than one confirms first (the picker is the dialog; SPEC's preview list is
 ponytail'd down to the count, which is the whole question for a field set).
