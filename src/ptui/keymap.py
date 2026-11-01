@@ -91,13 +91,19 @@ PANES = ("list", "info", "files", "log")
 has the keyboard — a letter bound there would never reach the filter."""
 
 
-def _table(section: str, bindings: dict[str, Any], path: Path, unknown: list[str]) -> dict[Chord, Binding]:
-    """One keys.toml table as chords. Unknown commands are collected, not fatal."""
-    out: dict[Chord, Binding] = {}
+def _table(section: str, bindings: dict[str, Any], path: Path, unknown: list[str]) -> dict[Chord, Binding | None]:
+    """One keys.toml table as chords, `None` for a key set to `false`. Unknown
+    commands are collected, not fatal."""
+    out: dict[Chord, Binding | None] = {}
     for keys, spec in bindings.items():
         chord = tuple(normalize(k) for k in keys.split(" ") if k)
+        if spec is False:
+            out[chord] = None
+            continue
         if not isinstance(spec, dict) or "cmd" not in spec:
-            raise ValueError(f'{path}: [{section}] {keys!r} needs a cmd, like {{ cmd = "nav.down" }}')
+            raise ValueError(
+                f'{path}: [{section}] {keys!r} needs a cmd, like {{ cmd = "nav.down" }}, or false to unbind it'
+            )
         cmd = spec["cmd"]
         registered = commands.REGISTRY.get(cmd)
         if registered is None:
@@ -111,27 +117,63 @@ def _table(section: str, bindings: dict[str, Any], path: Path, unknown: list[str
     return out
 
 
-def load(path: Path | None = None) -> Keymap:
-    """Load shipped defaults, then the user's keys.toml — per table, replacing wholesale.
+def _collide(a: Chord, b: Chord) -> bool:
+    """The same key, or one a prefix of the other: one mode cannot bind both."""
+    n = min(len(a), len(b))
+    return a[:n] == b[:n]
 
-    `[global]` is laid under every pane's own table, which wins on the same keys:
-    one copy of the pane keys rather than one per mode, which is how a mode once
-    ended up with none and trapped the keyboard.
+
+def _over(
+    top: dict[Chord, Binding | None], under: dict[Chord, Binding | None], *, same_command: bool = False
+) -> dict[Chord, Binding | None]:
+    """`top` laid over `under`: an entry of `under` survives only if it collides
+    with nothing in `top` — and, with `same_command`, runs nothing `top` binds."""
+    taken = [(b.cmd, b.args) for b in top.values() if b is not None] if same_command else []
+    kept = {
+        chord: b
+        for chord, b in under.items()
+        if not any(_collide(chord, c) for c in top) and (b is None or (b.cmd, b.args) not in taken)
+    }
+    return {**kept, **top}
+
+
+def _modes(data: dict[str, Any], path: Path, unknown: list[str]) -> dict[str, dict[Chord, Binding | None]]:
+    """One keys.toml as per-mode tables, `[global]` laid under each pane's own,
+    which wins on the same keys."""
+    shared = _table("global", data.get("global", {}), path, unknown)
+    tables = {
+        mode: _table(f"modes.{mode}", bindings, path, unknown) for mode, bindings in data.get("modes", {}).items()
+    }
+    for mode in PANES:
+        tables[mode] = {**shared, **tables.get(mode, {})}
+    return tables
+
+
+def load(path: Path | None = None) -> Keymap:
+    """The shipped keymap with the user's keys.toml laid over it, key by key.
+
+    A user binding drops every shipped binding it would collide with in the
+    modes it reaches: the same key, a chord one is a prefix of, or a key for the
+    same command with the same args — so moving a command moves it, and swapping
+    two keys takes two lines. `"o" = false` drops `o` (and everything under it,
+    for a prefix) without binding anything. The conflict check is left with the
+    collisions inside the user's own tables.
+
+    `[global]` is laid under every pane's own table: one copy of the pane keys
+    rather than one per mode, which is how a mode once ended up with none and
+    trapped the keyboard.
     """
-    data = tomllib.loads((DEFAULTS_DIR / "keys.toml").read_text())
+    shipped_path = DEFAULTS_DIR / "keys.toml"
+    shipped = tomllib.loads(shipped_path.read_text())
     if path is None:
         path = config_dir() / "keys.toml"
-    if path.is_file():
-        user = read_toml(path)
-        data["options"] = {**data.get("options", {}), **user.get("options", {})}
-        # A table the user defines replaces ours: partial merges make it impossible
-        # to remove a shipped binding.
-        data["modes"] = {**data.get("modes", {}), **user.get("modes", {})}
-        data["global"] = user.get("global", data.get("global", {}))
+    user = read_toml(path) if path.is_file() else {}
 
     unknown: list[str] = []
-    shared = _table("global", data.get("global", {}), path, unknown)
-    modes = {mode: _table(f"modes.{mode}", bindings, path, unknown) for mode, bindings in data["modes"].items()}
-    for mode in PANES:
-        modes[mode] = {**shared, **modes.get(mode, {})}
-    return Keymap(modes, data.get("options", {}), tuple(sorted(unknown)))
+    ours, theirs = _modes(shipped, shipped_path, unknown), _modes(user, path, unknown)
+    modes = {}
+    for mode in {**ours, **theirs}:
+        merged = _over(theirs.get(mode, {}), ours.get(mode, {}), same_command=True)
+        modes[mode] = {chord: b for chord, b in merged.items() if b is not None}
+    options = {**shipped.get("options", {}), **user.get("options", {})}
+    return Keymap(modes, options, tuple(sorted(unknown)))

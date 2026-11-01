@@ -652,6 +652,15 @@ has to pass non-URLs through unchanged.
 so a global letter would never reach the filter box. Each mode used to carry its
 own copy, and a missing copy is how the log pane once trapped the keyboard.
 
+The user's `keys.toml` is built into the same per-mode tables and laid over the
+shipped ones by `keymap._over(..., same_command=True)`: a user entry drops every
+shipped one it `_collide`s with (same chord or a prefix either way) and every
+shipped key bound to the same `(cmd, args)`. `"key" = false` is a `None` entry —
+it drops like a binding and is filtered out at the end. The cost of the
+same-command rule is aliases: rebinding `nav.down` drops `down` with `j`, and
+the user binds the arrow again to keep it. `Keymap.conflicts()` therefore only
+ever sees collisions inside one of the user's own tables.
+
 `escape` and the help key are dispatched above the keymap (`app.on_key`):
 outside `[modes.list]` escape drops any pending chord and returns to the list,
 so a mode with few or no bindings can never trap the keyboard; inside the list

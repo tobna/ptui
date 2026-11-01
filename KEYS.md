@@ -2,9 +2,12 @@
 
 Every binding ptui ships with, generated from `src/ptui/defaults/keys.toml`
 and the command registry — run `uv run python scripts/keydoc.py` after changing
-either. Copy the file to `$XDG_CONFIG_HOME/papis/ptui/keys.toml` to override:
-a table you define (`[global]` or a mode) replaces ours wholesale, so a shipped
-binding can be removed.
+either. Your `$XDG_CONFIG_HOME/papis/ptui/keys.toml` holds only your changes,
+laid over these key by key. Each of your bindings drops every shipped one it
+collides with in the modes it reaches — the same key, a chord either is a prefix
+of, or another key for the same command and args — so swapping two keys takes
+two lines. To keep a shipped key as well, bind it again. `"o" = false` unbinds
+a key, and a whole namespace for a prefix.
 
 `escape` always leaves the current mode and `?` always opens the help, in every
 mode, whatever the tables below say — the dispatcher guarantees both so no pane

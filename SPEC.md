@@ -563,11 +563,21 @@ redo, the log, `:`, `q` — are written once, in `[global]`, and every pane has 
 unless its own table binds the same keys. A picker does not: its filter box has
 the keyboard, and a letter there is text.
 
+The user's `keys.toml` holds only their changes, laid over the shipped keymap
+**key by key**, never table by table. In every mode a user binding reaches
+(`[global]` reaches every pane), it drops each shipped binding it collides with:
+the same key, a chord either one is a prefix of (`g` takes the whole `g`
+namespace, `o x` takes `o`), and any shipped key for the same command with the
+same args (moving a command moves it). `"key" = false` drops the same way and
+binds nothing. So swapping two keys is two lines, and a shipped alias
+(`enter` beside `o`) is kept by binding it again.
+
 **Hard invariant**: no single-key binding may be a proper prefix of any chord
 in the same mode. `keymap.check` runs automatically at config load and
 **refuses to start** on a conflict, naming both bindings. Verify at load
 time, not keypress time — a shadowed key is invisible until someone wonders
-why `o` feels slow.
+why `o` feels slow. Since a user binding wins over every shipped one it
+collides with, a conflict can only come from inside one of the user's own tables.
 
 ## Discoverability — four layers, all derived from the command registry
 

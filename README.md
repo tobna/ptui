@@ -126,7 +126,20 @@ Config lives in `~/.config/papis/ptui/`:
 | `keys.toml`     | every binding, plus which-key and hint-bar behaviour |
 
 The shipped defaults in [`src/ptui/defaults/`](src/ptui/defaults) are the
-reference — copy and edit. Values papis already owns (library paths, `editor`,
+reference; your files hold only what you change. In `keys.toml` a binding of
+yours replaces every shipped one it collides with — the same key, a prefix of it
+or one it is a prefix of, or another key for the same command — and `"o" = false`
+unbinds a key:
+
+```toml
+[modes.list]
+"o" = { cmd = "doc.open_folder" }   # swap o and O
+"O" = { cmd = "doc.open" }
+"enter" = { cmd = "doc.open" }      # O took doc.open from enter as well: keep it
+"b" = false                         # unbind
+```
+
+Values papis already owns (library paths, `editor`,
 `opentool`) come from papis config unless you override them.
 
 ## Keys

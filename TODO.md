@@ -140,11 +140,6 @@ finishes it. The number in brackets is the review question it came from.
 18. **Editing the author line in the form keeps each author's extra keys**
     (affiliation, ORCID, …) when the name still matches; today the whole
     `author_list` is rebuilt from the line. [32.2]
-19. **`keys.toml` merges per key over the shipped keymap.** Today a mode the user
-    defines replaces the whole shipped mode, so swapping two keys means copying
-    every binding. Also: a way to unset a shipped binding, and a user binding
-    that takes a shipped key (or a prefix of a shipped chord), or rebinds a
-    shipped command, unsets the shipped binding.
 19a. **A pane's own key beats `[global]` on a shared prefix too.** A pane
     binding `g` next to the global `g o` is a conflict today and ptui refuses to
     start; the pane's key should win and the shadowed global chord be dropped

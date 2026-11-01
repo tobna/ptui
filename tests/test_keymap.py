@@ -10,20 +10,66 @@ def test_shipped_keymap_has_no_prefix_conflicts():
 def test_prefix_conflict_is_reported(tmp_path):
     (tmp_path / "keys.toml").write_text('[modes.list]\n"g" = { cmd = "app.quit" }\n"g g" = { cmd = "nav.top" }\n')
     conflicts = keymap.load(tmp_path / "keys.toml").conflicts()
-    # `g o` comes from [global]: it shadows that too, in the mode it lands in
-    assert len(conflicts) == 2
-    assert "[modes.list] 'g' shadows 'g g'" in conflicts[0]
-    assert "[modes.list] 'g' shadows 'g o'" in conflicts[1]
+    # the shipped `g n`, `g s`, … and the global `g o` give way; the user's own two cannot
+    assert conflicts == ["[modes.list] 'g' shadows 'g g' (app.quit vs nav.top)"]
 
 
-def test_user_mode_replaces_shipped_mode(tmp_path):
-    (tmp_path / "keys.toml").write_text('[modes.list]\n"x" = { cmd = "app.quit" }\n')
-    km = keymap.load(tmp_path / "keys.toml")
-    shared = set(keymap.load(tmp_path / "nope.toml").modes["log"]) - {("j",), ("k",), ("G",)}
-    assert set(km.modes["list"]) - shared == {("x",)}
-    assert km.lookup("list", ("o",)) is None  # the shipped list table is gone
-    assert km.modes["files"]  # untouched modes survive
+def _user(tmp_path, text):
+    (tmp_path / "keys.toml").write_text(text)
+    return keymap.load(tmp_path / "keys.toml")
+
+
+def test_user_bindings_merge_per_key_over_the_shipped_ones(tmp_path):
+    """A user table used to replace the shipped one, so swapping two keys meant
+    copying every binding. Each user key now drops only what it collides with."""
+    km = _user(tmp_path, '[modes.list]\n"o" = { cmd = "doc.open_folder" }\n"O" = { cmd = "doc.open" }\n')
+    assert km.lookup("list", ("o",)).cmd == "doc.open_folder"
+    assert km.lookup("list", ("O",)).cmd == "doc.open"
+    assert km.lookup("list", ("j",)).cmd == "nav.down"  # everything else is still shipped
+    assert km.lookup("list", ("enter",)) is None  # it ran doc.open, which moved to `O`
+    assert km.lookup("files", ("o",)).cmd == "doc.open"  # other modes are untouched
     assert km.option("which_key") is True
+    assert km.conflicts() == []
+
+
+def test_a_user_key_takes_a_shipped_prefix_and_its_namespace_with_it(tmp_path):
+    km = _user(tmp_path, '[modes.list]\n"y" = { cmd = "export.bibtex" }\n"r x" = { cmd = "app.reload" }\n')
+    assert km.lookup("list", ("y",)).cmd == "export.bibtex"
+    assert km.under_prefix("list", ("y",)) == []
+    assert km.lookup("list", ("r",)) is None  # `r x` makes `r` a prefix
+    assert km.lookup("list", ("r", "x")).cmd == "app.reload"
+    assert km.lookup("list", ("f", "r")).cmd == "files.relocate"  # other namespaces stay
+    assert km.conflicts() == []
+
+
+def test_a_user_pane_key_beats_a_shipped_global_chord_in_that_pane_only(tmp_path):
+    km = _user(tmp_path, '[modes.info]\n"g" = { cmd = "nav.top" }\n')
+    assert km.lookup("info", ("g", "o")) is None
+    assert km.lookup("files", ("g", "o")).cmd == "app.log"
+    assert km.conflicts() == []
+
+
+def test_rebinding_a_shipped_command_drops_its_shipped_keys(tmp_path):
+    km = _user(
+        tmp_path,
+        '[global]\n"Q" = { cmd = "app.quit" }\n[modes.list]\n"x" = { cmd = "pane.focus", args = { pane = "log" } }\n',
+    )
+    for mode in keymap.PANES:
+        assert km.lookup(mode, ("Q",)).cmd == "app.quit"
+        assert km.lookup(mode, ("q",)) is None
+    assert km.lookup("list", ("4",)) is None  # the same command with the same args
+    assert km.lookup("list", ("3",)).args == {"pane": "files"}  # different args: another binding
+    assert km.lookup("info", ("4",)).cmd == "pane.focus"  # x is the list's only
+
+
+def test_false_unbinds_a_shipped_key(tmp_path):
+    km = _user(tmp_path, '[global]\n"u" = false\n[modes.list]\n"b" = false\n"g" = false\n')
+    assert km.lookup("list", ("b",)) is None
+    assert km.under_prefix("list", ("g",)) == []  # a prefix takes its namespace, `g o` included
+    assert km.lookup("info", ("g", "o")).cmd == "app.log"
+    for mode in keymap.PANES:
+        assert km.lookup(mode, ("u",)) is None
+    assert km.conflicts() == []
 
 
 def test_global_keys_reach_every_pane_but_not_the_picker(tmp_path):
