@@ -254,8 +254,9 @@ its place, with a sentence, from `cli.main` (into `Config.invalid`), from
 `config.set` and from `lib.switch` — the CLI rather than `on_mount`, so
 `build_app` tests can still drive the git path on a plain folder, where
 `_delete_run` refuses before it trashes a single file.
-Metadata edits push an in-memory step under every strategy, capturing the old
-values before the write, so undoing a `c` verb restores a key's *absence* too.
+Metadata edits push an in-memory step under every strategy. A `c` verb's step
+holds the values each write replaced, read from the file it rewrote, so undo
+restores a key's *absence* too, and a tag a script added since loading.
 
 The delete dialog's "also in" check runs over the whole library (papis's
 `get_all_documents`), not `app.docs`: a document the scope hides still loses a
@@ -577,7 +578,14 @@ Three things about the chrome that cost time to find:
 
 Every `c` verb is `actions._set_field(app, key, value_of, what)` — plan one
 value per target, confirm when there is more than one, write through
-`safewrite`. They differ only in `value_of`: `doc.set` runs the typed text,
+`safewrite`. `value_of` maps the *stored* value to the new one and runs twice:
+on the loaded document to validate, then inside the `safewrite.edit` mutation
+on what the file holds by then — computing it from the in-memory document
+dropped a tag a script had added since loading. The old value it is handed
+there goes through `safewrite.plain` (ruamel's comment slots stripped, or undo
+would carry them into the next write); `library.typed` therefore tests the
+stored type with `isinstance`, since ruamel reads a float as `ScalarFloat`.
+They differ only in `value_of`: `doc.set` runs the typed text,
 `doc.tag` unions with what the document already has (**adding, not replacing**
 — tagging twenty marked documents must not wipe what each had), `doc.untag`
 subtracts and returns `None` when the last tag goes, so the key goes with it.

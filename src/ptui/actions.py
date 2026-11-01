@@ -974,23 +974,29 @@ def doc_set(app: Any, key: str | None = None, value: str | None = None) -> None:
         app.open_prompt("set", "key value  (no value clears the field)")
         return
     what = f"{key} = {value}" if value else f"remove {key}"
-    _set_field(app, key, lambda doc: library.typed(key, value or "", doc.get(key)), what)
+    _set_field(app, key, lambda old: library.typed(key, value or "", old), what)
 
 
 def _set_field(app: Any, key: str, value_of: Callable[[Any], Any], what: str) -> None:
     """Plan one value per target, confirm a batch, then write. The single path
     every `c` verb takes — they differ only in how the value is worked out.
 
-    `value_of` returning `None` removes the key.
+    `value_of` maps the value stored under `key` to the new one; `None` removes
+    the key. It runs on what was loaded first, so a bad number aborts the batch
+    before anything is written, and then inside each write on what the file
+    holds by then: a tag a script added since ptui loaded the document is kept,
+    not overwritten with the list ptui remembered.
     """
     targets = app.targets
     if not targets:
         return
     try:  # every value first, so a bad number aborts before anything is written
-        planned = [(doc, value_of(doc)) for doc in targets]
+        for doc in targets:
+            value_of(doc.get(key))
     except ValueError as exc:
         app.log_line(f"[red]{exc}[/]")
         return
+    planned = [(doc, value_of) for doc in targets]
     if len(targets) == 1:
         _set_apply(app, planned, key)
         return
@@ -1006,16 +1012,23 @@ def _set_field(app: Any, key: str, value_of: Callable[[Any], Any], what: str) ->
     )
 
 
-def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> int:
-    """Write one key across documents. Returns how many landed."""
-    done = 0
+def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> list[tuple[Any, Any, Any]]:
+    """Write one key across documents: each planned value, or what a planned
+    function makes of the value in the file as it is read for the write.
+    Returns `(doc, old, new)` for every write that landed, `old` as the file had it.
+    """
+    landed = []
     for doc, new in planned:
+        seen: list[Any] = []
 
-        def write(data: Any, new: Any = new) -> None:
-            if new is None:
+        def write(data: Any, new: Any = new, seen: list[Any] = seen) -> None:
+            old = safewrite.plain(data.get(key))
+            value = new(old) if callable(new) else new
+            seen.extend((old, value))
+            if value is None:
                 safewrite.drop(data, key)
             else:
-                safewrite.put(data, key, new)
+                safewrite.put(data, key, value)
 
         try:
             safewrite.edit(doc, write)
@@ -1024,8 +1037,8 @@ def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> int:
         except Exception as exc:
             app.log_line(f"[red]{key} on {doc.get('ref', '')} failed:[/] {exc}")
         else:
-            done += 1
-    return done
+            landed.append((doc, *seen))
+    return landed
 
 
 def _resort(app: Any) -> None:
@@ -1041,31 +1054,31 @@ def _set_apply(app: Any, planned: list[tuple[Any, Any]], key: str) -> None:
 
     SPEC: metadata edits get a session-local in-memory undo stack *regardless
     of strategy* — this is the half of undo that has nothing to do with the
-    trash or with git. The previous values are read before the write, so an
-    undo restores exactly what was there, including the key's absence.
+    trash or with git. The previous values are the ones each write replaced, read
+    from the file it rewrote, so an undo restores exactly what was there — a tag
+    a script added, or the key's absence — and redo writes what the edit wrote.
     """
-    before = [(doc, doc.get(key)) for doc, _ in planned]
-    done = _write_field(app, planned, key)
+    landed = _write_field(app, planned, key)
 
     def restore() -> None:
-        _write_field(app, before, key)
+        _write_field(app, [(doc, old) for doc, old, _ in landed], key)
         _resort(app)
 
     def again() -> None:
-        _write_field(app, planned, key)
+        _write_field(app, [(doc, new) for doc, _, new in landed], key)
         _resort(app)
 
-    if done:
-        app.history.push(undo.Step(f"set {key} on {done} document(s)", restore, again))
+    if landed:
+        app.history.push(undo.Step(f"set {key} on {len(landed)} document(s)", restore, again))
     _resort(app)
-    app.log_line(f"set {key} on {done}/{len(planned)} document(s)")
+    app.log_line(f"set {key} on {len(landed)}/{len(planned)} document(s)")
 
 
-def tags_of(doc: Any) -> list[str]:
-    """A document's tags as a list, whatever papis found in the file — the key
-    is declared `tags:list` but a hand-written `tags: ml, cv` is legal YAML and
+def tags_of(value: Any) -> list[str]:
+    """A stored `tags` value as a list, whatever is in the file — the key is
+    declared `tags:list` but a hand-written `tags: ml, cv` is legal YAML and
     happens."""
-    value = doc.get("tags") or []
+    value = value or []
     return list(value) if isinstance(value, list) else library.typed("tags", str(value)) or []
 
 
@@ -1084,8 +1097,8 @@ def doc_tag(app: Any, tags: str | None = None) -> None:
     if not wanted:
         return
 
-    def add(doc: Any) -> list[str]:
-        current = tags_of(doc)
+    def add(old: Any) -> list[str]:
+        current = tags_of(old)
         return [*current, *(tag for tag in wanted if tag not in current)]
 
     _set_field(app, "tags", add, f"+{', '.join(wanted)}")
@@ -1096,15 +1109,15 @@ def doc_untag(app: Any, tags: str | None = None) -> None:
     """Remove tags. A document left with none loses the key rather than keeping
     an empty list, which is what `library.typed` does for every other field."""
     if tags is None:
-        here = ", ".join(tags_of(app.current)) if app.current else ""
+        here = ", ".join(tags_of(app.current.get("tags"))) if app.current else ""
         app.open_prompt("untag", f"tags to remove{f' — has: {here}' if here else ''}")
         return
     wanted = library.typed("tags", tags) or []
     if not wanted:
         return
 
-    def drop(doc: Any) -> list[str] | None:
-        return [tag for tag in tags_of(doc) if tag not in wanted] or None
+    def drop(old: Any) -> list[str] | None:
+        return [tag for tag in tags_of(old) if tag not in wanted] or None
 
     _set_field(app, "tags", drop, f"-{', '.join(wanted)}")
 
@@ -1122,7 +1135,7 @@ def doc_status(app: Any, value: str | None = None) -> None:
         current = app.current.get("reading_status") if app.current else None
         ui.pick(app, items, title="Reading status", current=current)(lambda status, _invert: doc_status(app, status))
         return
-    _set_field(app, "reading_status", lambda _doc: value or None, f"reading_status = {value or '-'}")
+    _set_field(app, "reading_status", lambda _old: value or None, f"reading_status = {value or '-'}")
 
 
 @command("doc.rating", "rating")
@@ -1135,7 +1148,7 @@ def doc_rating(app: Any, value: int | None = None) -> None:
         ui.pick(app, items, title="Rating", current=current)(lambda stars, _invert: doc_rating(app, stars))
         return
     stars = max(0, min(5, value))
-    _set_field(app, "rating", lambda _doc: stars or None, f"rating = {stars or '-'}")
+    _set_field(app, "rating", lambda _old: stars or None, f"rating = {stars or '-'}")
 
 
 # ── add ─────────────────────────────────────────────────────────────────────

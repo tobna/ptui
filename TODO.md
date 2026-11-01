@@ -182,11 +182,6 @@ finishes it. The number in brackets is the review question it came from.
     closes ptui. Example: `query.saved_file = ""`, then `\ s` and a name.
     Guard it the way `run_command` is guarded. (Pinned in
     `tests/test_cover_actions_queries.py`.)
-45. **`c t` drops a tag added on disk since ptui loaded the document.** The
-    new tag list is computed from the in-memory document and written whole,
-    so a tag papis, a script or a sync added to `info.yaml` meanwhile is lost
-    without a word. Compute it from the file at write time. (Pinned in
-    `tests/test_cover_actions_fields.py`.)
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each

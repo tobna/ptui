@@ -459,7 +459,10 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
 - `doc.edit_raw` (`:` line) always forces the `$EDITOR` path.
 - Field verbs write through the safe write, never the editor: `doc.tag` adds to
   what a document already has rather than replacing it, `doc.untag` removes the
-  key along with its last tag, and both are batch-aware. `doc.rating` is an int
+  key along with its last tag, and both are batch-aware. "What it already has"
+  is read from `info.yaml` as it is rewritten, not from the copy ptui loaded, so
+  a tag a script or `papis` added since survives, and undo restores exactly the
+  value the write replaced. `doc.rating` is an int
   0–5 where 0 clears, since papis declares no type for it.
 - A list value is typed comma-separated, each item stripped: `machine learning,
   cv` is two tags, the first of them two words. Never split on whitespace, or a

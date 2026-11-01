@@ -270,6 +270,31 @@ async def test_a_multi_word_tag_is_one_tag(app):
         assert app.current["tags"] == ["test", "deep nets"]
 
 
+async def test_untag_and_its_undo_keep_a_tag_a_script_added_since_loading(app, papis_lib):
+    """The new list is worked out from the file at write time, and undo puts back
+    what the write replaced — not the list ptui loaded before the script ran."""
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        info.write_text(info.read_text().replace("tags: [test]", "tags: [test, from-script]"))
+        await press(pilot, "c", "T", *"test", "enter")
+        await settle(pilot)
+        assert app.current["tags"] == ["from-script"]
+        await press(pilot, "u")
+        assert app.current["tags"] == ["test", "from-script"]
+        await press(pilot, "ctrl+r")
+        assert app.current["tags"] == ["from-script"]
+
+
+async def test_set_keeps_an_undeclared_float_a_float(app, papis_lib):
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    info.write_text(info.read_text() + "ratio: 1.5\n")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        actions.doc_set(app, "ratio", "2.5")
+    assert "ratio: 2.5\n" in info.read_text()
+
+
 async def test_status_and_rating_pick_a_value(app):
     from ptui import ui
 

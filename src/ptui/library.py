@@ -404,7 +404,8 @@ def typed(key: str, text: str, current: Any = None) -> Any:
         return None
     kind = key_types().get(key)
     if kind is None and current is not None:
-        kind = type(current).__name__
+        # isinstance, not the type's name: read through ruamel, a float is a `ScalarFloat`
+        kind = next((cls.__name__ for cls in (bool, int, float, list) if isinstance(current, cls)), None)
     if kind == "list":
         # commas only: `machine learning` is one tag, and `display` joins with ", "
         return [part.strip() for part in text.split(",") if part.strip()]

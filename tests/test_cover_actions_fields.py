@@ -204,12 +204,6 @@ async def test_a_stale_file_aborts_the_write_and_says_to_reload(app, papis_lib, 
         assert "note" not in app.current
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: tags are computed from the in-memory document and written whole; a tag a "
-    "script added to info.yaml since ptui loaded it is silently dropped (SPEC: safe write, "
-    "never merge silently)",
-)
 async def test_tagging_after_a_script_tagged_the_file_keeps_the_scripts_tag(app, papis_lib):
     path = info(papis_lib)
     async with app.run_test() as pilot:

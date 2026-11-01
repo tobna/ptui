@@ -135,6 +135,18 @@ def put(data: Any, key: str, value: Any) -> None:
         _hang(data, key, text)
 
 
+def plain(node: Any) -> Any:
+    """A value read from `info.yaml`, its maps and lists rebuilt without ruamel's
+    comment slots. Kept for undo, the node itself would carry them into the next
+    file, and `put` hangs the comment that follows onto it again on every write.
+    """
+    if isinstance(node, dict):
+        return {key: plain(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [plain(item) for item in node]
+    return node
+
+
 def drop(data: Any, key: str) -> None:
     """`data.pop(key)`, moving the comment lines that followed it onto the key
     before — they introduce whatever comes next, not the key being removed."""
