@@ -486,6 +486,27 @@ async def test_visual_marks_the_range_as_the_cursor_moves_and_shift_unmarks(app)
         assert app.marks == set()
 
 
+async def test_a_jump_with_g_r_stretches_a_visual_range_to_its_target(app):
+    """Pinned as it works today: `g r` is a move like `j`, so `v` then `g r`
+    marks everything from the anchor to the document it lands on, both ways.
+    (When `g r` has to drop a narrow to get there, the range ends instead —
+    whether it should stretch then is still open.)"""
+    from ptui import library
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        ids = [library.doc_id(d) for d in app.rows]
+        await press(pilot, "v", "g", "r", *"Bengio2003", "enter")
+        assert app.visual is not None
+        assert app.current["ref"] == "Bengio2003"
+        assert app.marks == set(ids)
+        await press(pilot, "g", "r", *"He2016", "enter")  # back towards the anchor: the range shrinks
+        assert app.marks == set(ids[:2])
+        await press(pilot, "V")  # ends it
+        await press(pilot, "V", "g", "r", *"Bengio2003", "enter")
+        assert app.marks == {ids[0]}  # the unmarking half stretches the same way
+
+
 async def test_query_prompts_share_a_history_that_up_and_down_walk(app, papis_lib):
     from textual.widgets import Input
 
