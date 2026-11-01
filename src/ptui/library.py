@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from doi import find_doi_in_text
 from rich.cells import cell_len, set_cell_size
 
 # Papis forks a process pool to build its cache. Inside a TUI that copies the
@@ -477,6 +478,10 @@ def kind(doc: Document) -> str:
     other prefix means a publisher minted it. Only a document with **no** DOI
     falls through to `on_arxiv`, which is what rescues the 19 arXiv imports that
     never recorded one — measured, they are all `eprinttype: arxiv`.
+
+    A DOI stored as a `https://doi.org/…` or `dx.doi.org` URL is read as the
+    bare DOI first, by `python-doi` (papis's own dependency, the extraction its
+    downloaders use); otherwise arXiv's prefix hides behind the host name.
     """
     stored = str(doc.get("type") or "").strip().casefold()
     # papis's own alias table, the one its `biblatex-type-alias` check reads: a
@@ -486,8 +491,9 @@ def kind(doc: Document) -> str:
         return stored
     if venue(doc):
         return "article"
-    doi = str(doc.get("doi") or "").casefold()
+    doi = str(doc.get("doi") or "")
     if doi:
+        doi = (find_doi_in_text(doi) or doi).casefold()
         return "preprint" if doi.startswith(ARXIV_DOI) else "article"
     return "preprint" if on_arxiv(doc) else "article"
 

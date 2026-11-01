@@ -271,5 +271,18 @@ def test_kind_reads_a_bibtex_alias_as_the_type_it_stands_for(stored, kind):
     assert library.kind(docs({"type": stored})[0]) == kind
 
 
+@pytest.mark.parametrize(
+    ("doi", "kind"),
+    [
+        ("https://doi.org/10.48550/arXiv.1706.03762", "preprint"),
+        ("http://dx.doi.org/10.48550/ARXIV.1706.03762", "preprint"),
+        ("doi:10.48550/arXiv.1706.03762", "preprint"),
+        ("https://doi.org/10.1145/3065386", "article"),  # a publisher's, whatever the arXiv trace
+    ],
+)
+def test_kind_reads_a_doi_url_as_the_bare_doi(doi, kind):
+    assert library.kind(docs({"type": "article", "doi": doi, "eprinttype": "arxiv"})[0]) == kind
+
+
 def test_kind_ignores_the_case_of_the_type():
     assert library.kind(docs({"type": "Article", "doi": "10.48550/arXiv.1"})[0]) == "preprint"

@@ -500,7 +500,8 @@ toast that vanishes.
 - The list carries a one-cell **document kind** column, from `library.kind()`:
   the `type` field (case-folded, BibTeX aliases such as `phdthesis` read through
   papis's `bibtex_type_aliases`), except that an article whose only DOI is arXiv's and which
-  names no journal, booktitle or venue reads as `preprint`. Local data only: an
+  names no journal, booktitle or venue reads as `preprint`. A DOI stored as a
+  `doi.org` or `dx.doi.org` URL counts as the bare DOI. Local data only: an
   entry imported from arXiv and never refreshed is indistinguishable from a real
   preprint, and ptui prefers a wrong glyph to a network call while scrolling.
 - `ui.layout` is `auto` | `vertical` (panes side by side) | `horizontal` (info
