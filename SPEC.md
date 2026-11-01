@@ -392,17 +392,18 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
 
 ## Editing
 
-- `edit.mode = "structured"` (default): a form over `edit.structured_fields` —
+- `edit.mode` decides what `e` opens; `E` opens the other one.
+- `edit.mode = "structured"`: a form over `edit.structured_fields` —
   the add form's layout, one line per field, `author_list` edited as papis's
   `author` string. Every value goes through papis's declared field types and the
   safe write, so it cannot emit invalid YAML; emptying a field removes the key;
   the whole edit is one undo step.
-- `edit.mode = "editor"`: `App.suspend()` → `$EDITOR` on `info.yaml`,
+- `edit.mode = "editor"` (default): `App.suspend()` → `$EDITOR` on `info.yaml`,
   full-screen. Do **not** embed a pty in the pane. On return the file is
   re-parsed: invalid YAML is reported and **nothing is reloaded**, because papis
   cannot load the document either and a silent reload would show it as having
   lost every field.
-- `E` (`doc.edit_raw`) always forces the `$EDITOR` path.
+- `doc.edit_raw` (`:` line) always forces the `$EDITOR` path.
 - Field verbs write through the safe write, never the editor: `doc.tag` adds to
   what a document already has rather than replacing it, `doc.untag` removes the
   key along with its last tag, and both are batch-aware. `doc.rating` is an int
@@ -570,7 +571,7 @@ from this. Adding a command must not require touching four places.
 | `doc.open_folder`               |                               | file browser at doc folder                       |
 | `doc.browse`                    |                               | `papis browse` — URL/DOI                         |
 | `doc.notes`                     |                               | open/create notes                                |
-| `doc.edit`                      |                               | per `edit.mode`                                  |
+| `doc.edit`                      | `other:bool=false`            | per `edit.mode`; `other` opens the other editor  |
 | `doc.edit_raw`                  |                               | force `$EDITOR`                                  |
 | `doc.delete`                    | `force:bool=false`            | delete dialog; `force` skips it                  |
 | `doc.add`                       | `source:str?, uri:str?`       | add flow; `source="inbox"` picks from inbox dir; `uri` skips both modals (`:doc.add arxiv 2607.00687`) |

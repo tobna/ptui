@@ -49,8 +49,8 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `ctrl+u` | `nav.page_up` | page up |
 | `d d` | `doc.delete` | delete document |
 | `down` | `nav.down` | move down |
-| `E` | `doc.edit_raw` | edit info.yaml in $EDITOR |
-| `e` | `doc.edit` | edit (structured) |
+| `E` | `doc.edit` other=True | edit, the other way |
+| `e` | `doc.edit` | edit (per edit.mode) |
 | `enter` | `doc.open` | open file |
 | `escape` | `app.escape` | cancel |
 | `f R` | `files.relocate` force=True | relocate (force) |

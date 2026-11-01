@@ -654,9 +654,10 @@ def _resync(app: Any, doc: Any) -> None:
 
 
 @command("doc.edit", "edit")
-def doc_edit(app: Any) -> None:
-    """`edit.mode` decides: `structured` is a form over `edit.structured_fields`,
-    `editor` is `$EDITOR` on the whole `info.yaml` — what `E` always is.
+def doc_edit(app: Any, other: bool = False) -> None:
+    """`edit.mode` decides what `e` opens — `editor` is `$EDITOR` on the whole
+    `info.yaml`, `structured` a form over `edit.structured_fields` — and `other`
+    (`E`) opens the one `e` does not.
 
     The form cannot emit invalid YAML: every value goes through `library.typed`
     (papis's declared field types) and the safe write. Emptying a field removes
@@ -667,7 +668,7 @@ def doc_edit(app: Any) -> None:
     doc = app.current
     if doc is None:
         return
-    if app.cfg.get("edit.mode", "structured") != "structured":
+    if (app.cfg.get("edit.mode", "editor") == "structured") == other:
         doc_edit_raw(app)
         return
     fields = tuple(app.cfg.get("edit.structured_fields") or ui.ADD_FIELDS)
@@ -700,9 +701,7 @@ def doc_edit(app: Any) -> None:
             _fields_apply(app, doc, changes)
 
     ref = doc.get("ref") or doc.get("title", "")
-    app.push_screen(
-        ui.EditForm(f"Edit {ref}  (enter saves, escape cancels, E for the whole file)", fields, initial), confirm
-    )
+    app.push_screen(ui.EditForm(f"Edit {ref}  (enter saves, escape cancels)", fields, initial), confirm)
 
 
 def _fields_apply(app: Any, doc: Any, changes: dict[str, Any]) -> None:

@@ -43,8 +43,8 @@ escape_chain = ["modal", "visual", "narrow"]
 "o"        = { cmd = "doc.open",        desc = "open file" }
 "O"        = { cmd = "doc.open_folder", desc = "open folder" }
 "b"        = { cmd = "doc.browse",      desc = "open URL/DOI" }
-"e"        = { cmd = "doc.edit",        desc = "edit (structured)" }
-"E"        = { cmd = "doc.edit_raw",    desc = "edit info.yaml in $EDITOR" }
+"e"        = { cmd = "doc.edit",        desc = "edit (per edit.mode)" }
+"E"        = { cmd = "doc.edit", args = { other = true }, desc = "edit, the other way" }
 "a"        = { cmd = "doc.add",         desc = "add document" }
 "i"        = { cmd = "doc.add", args = { source = "inbox" }, desc = "add from inbox" }
 

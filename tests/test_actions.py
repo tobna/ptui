@@ -276,7 +276,7 @@ async def test_edit_reports_yaml_it_can_no_longer_parse(app, papis_lib, monkeypa
         monkeypatch.setattr(app, "log_line", logged.append)
         # $EDITOR takes the terminal for real, which a headless pilot has not got
         monkeypatch.setattr(app, "suspend", contextlib.nullcontext)
-        await press(pilot, "E")  # $EDITOR on the whole file, whatever edit.mode says
+        await press(pilot, "e")  # $EDITOR on the whole file: what e opens by default
         await settle(pilot)
         assert any("invalid YAML" in message for message in logged)
         assert app.current["title"] == "Attention Is All You Need"  # not reloaded
@@ -473,7 +473,7 @@ async def test_the_structured_editor_writes_typed_values_and_undoes_in_one_step(
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     async with app.run_test(size=(100, 40)) as pilot:
         await settle(pilot)
-        await press(pilot, "e")
+        await press(pilot, "E")  # the form: the other editor by default
         assert isinstance(app.screen, ui.EditForm)
         form = app.screen
         assert form.query_one("#add-author_list").value == "Vaswani, X"
@@ -501,7 +501,24 @@ async def test_the_structured_editor_refuses_a_value_of_the_wrong_type(app, papi
     before = (papis_lib / "lib" / "doc0" / "info.yaml").read_text()
     async with app.run_test(size=(100, 40)) as pilot:
         await settle(pilot)
-        await press(pilot, "e")
+        await press(pilot, "E")  # the form: the other editor by default
         app.screen.query_one("#add-year").value = "soon"
         await press(pilot, "enter")
         assert (papis_lib / "lib" / "doc0" / "info.yaml").read_text() == before
+
+
+async def test_edit_mode_structured_swaps_e_and_shift_e(papis_lib, monkeypatch):
+    from conftest import build_app, press, settle
+
+    from ptui import actions, ui
+
+    raw = []
+    monkeypatch.setattr(actions, "doc_edit_raw", lambda app: raw.append(True))
+    app = build_app(papis_lib, '[edit]\nmode = "structured"\n')
+    async with app.run_test(size=(100, 40)) as pilot:
+        await settle(pilot)
+        await press(pilot, "e")
+        assert isinstance(app.screen, ui.EditForm)
+        await press(pilot, "escape")
+        await press(pilot, "E")
+        assert raw == [True]
