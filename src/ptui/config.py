@@ -116,6 +116,9 @@ def repair(data: dict[str, Any]) -> list[str]:
     for dotted, allowed in CHOICES.items():
         if str(value := view.get(dotted)).casefold() not in allowed:
             replace(dotted, value, f"is not one of {', '.join(allowed)}")
+        else:  # the code compares exactly: `"Horizontal"` would pass here and read as side by side
+            section, _, key = dotted.rpartition(".")
+            view.get(section)[key] = value.casefold()
     ratio = view.get("ui.split_ratio")
     if isinstance(ratio, bool) or not isinstance(ratio, int | float) or not 0.1 <= ratio <= 0.9:
         replace("ui.split_ratio", ratio, "is not between 0.1 and 0.9")

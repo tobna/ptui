@@ -99,10 +99,6 @@ finishes it. The number in brackets is the review question it came from.
    stale entry is re-scanned inside the redraw (~2 ms each), so a mass change
    on disk (a sync, a `git pull`) freezes the next redraw. While the thread
    runs, a stale document keeps showing its old findings. [13.1, 13.2]
-5. **A config value in the wrong case is repaired, not silently misread.**
-   `config.repair` checks `CHOICES` case-insensitively but the code compares
-   exactly, so `layout = "Horizontal"` passes the check and then reads as side
-   by side. Write the case-folded value back. [21.1]
 8. **A doctor scan with named checks keeps the other findings.** `:doctor.run X`
    and `:doctor.fix X` replace a document's whole cache entry with X's
    findings, so every other finding's marker vanishes until `! d`. Replace only

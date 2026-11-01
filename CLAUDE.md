@@ -119,7 +119,8 @@ than crashing, which is how the shipped keymap can bind post-v0 commands.
 
 User config lives in `$XDG_CONFIG_HOME/papis/ptui/` and mirrors
 `src/ptui/defaults/`. `config.load` repairs what cannot work — a value outside
-`config.CHOICES`, a split ratio off the screen, a column with no `format` or
+`config.CHOICES` (one inside it in the wrong case is folded: the code compares
+exactly), a split ratio off the screen, a column with no `format` or
 `width` — back to the shipped default and records a sentence in `Config.invalid`,
 logged at startup and by `\ c`. A TOML syntax error, or a binding with no `cmd`,
 is the one thing it refuses: the command line prints the file and exits 1. Anything papis already owns (library paths, `editor`,

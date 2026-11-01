@@ -22,6 +22,14 @@ def test_lists_are_replaced_not_merged(tmp_path):
     assert [c["title"] for c in cfg.get("list.columns")] == ["Only"]
 
 
+def test_a_choice_in_the_wrong_case_is_folded_not_misread(tmp_path):
+    (tmp_path / "config.toml").write_text('[ui]\nlayout = "Horizontal"\n[undo]\nstrategy = "GIT"\n')
+    cfg = config.load(tmp_path / "config.toml")
+    assert cfg.get("ui.layout") == "horizontal"
+    assert cfg.get("undo.strategy") == "git"
+    assert cfg.invalid == ()
+
+
 def test_as_path_expands(tmp_path):
     (tmp_path / "config.toml").write_text('[files]\npdf_root = "~/x"\n')
     cfg = config.load(tmp_path / "config.toml")
