@@ -390,13 +390,13 @@ def mark_all_filtered(app: Any, unmark: bool = False) -> None:
 
 @command("mark.query", "mark by query")
 def mark_query(app: Any, q: str | None = None, unmark: bool = False) -> None:
-    """Mark every document in scope that matches a narrow query, without
-    touching the view: `m a` needs the narrow typed first, and then it has to
-    be dropped again."""
+    """Mark every row on screen that matches a narrow query, without touching
+    the view: inside a narrow it refines it, so nothing hidden gets marked, and
+    `m a` would need the query typed into the narrow and dropped again."""
     if q is None:
         app.open_prompt("unmark" if unmark else "mark", f"narrow query — {'unmark' if unmark else 'mark'} what matches")
         return
-    found = app.matching(app.docs, q)
+    found = app.matching(app.rows, q)
     _mark(app, found, unmark)
     app.log_line(f"{'unmarked' if unmark else 'marked'} {len(found)} document(s) matching {q}")
 

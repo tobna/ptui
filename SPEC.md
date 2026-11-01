@@ -546,7 +546,7 @@ from this. Adding a command must not require touching four places.
 | `sort.cycle`                    |                               | cycle presets — _registered, unbound by default_ |
 | `mark.toggle`                   |                               | advances per `marks.advance`                     |
 | `mark.all_filtered`             | `unmark:bool=false`           | all currently narrowed docs                      |
-| `mark.query`                    | `q:str, unmark:bool=false`    | every document matching a narrow query, without changing the view |
+| `mark.query`                    | `q:str, unmark:bool=false`    | every shown document matching a narrow query, without changing the view |
 | `mark.invert`                   |                               | within current filter                            |
 | `mark.clear`                    |                               | unmark everything — the twin of `mark.all_filtered` |
 | `mark.show_only`                |                               | toggle marked-only view                          |

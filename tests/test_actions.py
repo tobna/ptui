@@ -367,6 +367,19 @@ async def test_mark_query_marks_without_changing_the_view_and_shift_unmarks(app)
         assert app.marks == {"id0"}
 
 
+async def test_mark_query_inside_a_narrow_marks_only_what_is_shown(app):
+    """A document the narrow hides must not be marked: a verb on the marks would
+    then act on something the user cannot see."""
+    from conftest import press, settle
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "/", *"year:2000..2016", "enter")  # id1 (2016), id2 (2003)
+        await press(pilot, "m", "q", *"year:>2010", "enter")  # id0 (2017) matches too, but is hidden
+        assert app.marks == {"id1"}
+        assert app.narrow_query == "year:2000..2016"  # the view is untouched
+
+
 async def test_unmark_all_filtered_takes_back_only_what_is_shown(app):
     from conftest import press, settle
 
