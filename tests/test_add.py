@@ -1,3 +1,4 @@
+import pytest
 from conftest import press, settle
 from textual.widgets import Input, Static
 
@@ -142,23 +143,25 @@ async def test_moving_documents_to_another_library_skips_a_clash_and_moves_the_r
         assert app.marks == {"id0"}  # the one that stayed is still marked
 
 
-async def test_doc_add_with_a_uri_skips_both_prompts(app, monkeypatch):
-    """`:doc.add arxiv 2607.00687` goes straight to the form, prefilled."""
+@pytest.mark.parametrize(("source", "uri"), [("arxiv", "2607.00687"), ("doi", "10.1109/CVPR52688.2022.01167")])
+async def test_doc_add_with_a_uri_skips_both_prompts(app, monkeypatch, source, uri):
+    """`:doc.add arxiv 2607.00687` goes straight to the form, prefilled — and a
+    DOI, slash and all, the same way."""
     from ptui import actions, fetch, ui
 
     asked = []
 
     def fake(name, uri):
         asked.append((name, uri))
-        return {"title": "Fetched Title", "year": 2026, "eprint": "2607.00687"}, []
+        return {"title": "Fetched Title", "year": 2026}, []
 
     monkeypatch.setattr(fetch, "fetch", fake)
     async with app.run_test() as pilot:
         await pilot.pause(0.2)
-        actions.cmdline_run(app, "doc.add", "arxiv 2607.00687")
+        actions.cmdline_run(app, "doc.add", f"{source} {uri}")
         await app.workers.wait_for_complete()
         await pilot.pause(0.2)
-        assert asked == [("arxiv", "2607.00687")]
+        assert asked == [(source, uri)]
         assert isinstance(app.screen, ui.AddForm)
         assert app.screen.query_one("#add-title").value == "Fetched Title"
 
