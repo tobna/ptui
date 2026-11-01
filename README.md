@@ -83,7 +83,9 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   when the file lives somewhere ptui manages. `u` puts it all back: folders
   return from the trash, or, with `undo.strategy = "git"`, ptui's own commit is
   reverted. Files always route through the trash whatever the strategy, because
-  your PDF root is usually outside the repo.
+  your PDF root is usually outside the repo. What has sat in the trash longer
+  than `undo.trash_retention_days` (30) is deleted at startup, with a line in
+  the log; `undo.auto_empty_trash = false` keeps it.
 - **Every command by name** — `:` (or `ctrl+p`) fuzzy-completes over the whole
   command registry with each command's key binding beside it, so the keymap
   teaches itself while you use it.

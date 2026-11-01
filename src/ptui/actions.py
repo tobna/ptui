@@ -2529,38 +2529,69 @@ def trash_dir(app: Any) -> Path:
     return app.cfg.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
 
 
-@command("lib.empty_trash", "empty the trash")
-def lib_empty_trash(app: Any, days: int | None = None) -> None:
-    """Delete what has been in the trash longer than `days`
-    (`undo.trash_retention_days`), after saying how much that is. For good —
-    and an undo step that pointed into it has nothing left to restore.
-
-    Never runs unasked: deleting is the one thing ptui does not do behind your back.
-    """
-    import shutil
+def _old_trash(app: Any, days: int) -> tuple[Path, list[Path], int]:
+    """The trash, what has been in it longer than `days` (by its own index, not
+    the mtime a moved folder keeps), and how many bytes that is."""
     import time
 
     where = trash_dir(app)
     if not where.is_dir():
-        app.log_line("the trash is empty")
-        return
-    days = app.cfg.get("undo.trash_retention_days", 30) if days is None else days
+        return where, [], 0
     cutoff = time.time() - days * 86400
     old = [where / name for name, at in place.trashed_at(where).items() if at < cutoff]
+    return where, old, sum(f.stat().st_size for path in old for f in [path, *path.rglob("*")] if f.is_file())
+
+
+def _purge(where: Path, old: list[Path]) -> None:
+    import shutil
+
+    for path in old:
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink(missing_ok=True)
+    place.trashed_at(where)  # drop them from the index
+
+
+def auto_empty_trash(app: Any) -> None:
+    """At startup, with `undo.auto_empty_trash`: what has been in the trash
+    longer than `undo.trash_retention_days` goes, with one line saying how much.
+    The trash outlives the session that filled it, but `u` does not, so past the
+    retention it is only a safety net."""
+    if not app.cfg.get("undo.auto_empty_trash", True):
+        return
+    days = app.cfg.get("undo.trash_retention_days", 30)
+    try:
+        where, old, size = _old_trash(app, days)
+        if old:
+            _purge(where, old)
+    except OSError as exc:  # a trash that cannot be read must not stop the start
+        app.log_line(f"[yellow]trash not emptied: {exc}[/]")
+        return
+    if old:
+        app.log_line(f"trash: deleted {len(old)} item(s) older than {days} day(s) ({size / 1e6:.1f} MB)")
+
+
+@command("lib.empty_trash", "empty the trash")
+def lib_empty_trash(app: Any, days: int | None = None) -> None:
+    """Delete what has been in the trash longer than `days`
+    (`undo.trash_retention_days`), after saying how much that is. For good —
+    and an undo step that pointed into it has nothing left to restore. Startup
+    does the same unasked while `undo.auto_empty_trash` is on.
+    """
+    days = app.cfg.get("undo.trash_retention_days", 30) if days is None else days
+    where, old, size = _old_trash(app, days)
+    if not where.is_dir():
+        app.log_line("the trash is empty")
+        return
     if not old:
         app.log_line(f"nothing in {where} is older than {days} day(s)")
         return
-    size = sum(f.stat().st_size for path in old for f in [path, *path.rglob("*")] if f.is_file())
 
     def purge(ok: bool, _invert: bool) -> None:
         if not ok:
             return
-        for path in old:
-            if path.is_dir():
-                shutil.rmtree(path)
-            else:
-                path.unlink(missing_ok=True)
-        place.trashed_at(where)  # drop them from the index
+        _purge(where, old)
         app.log_line(f"deleted {len(old)} trashed item(s) for good ({size / 1e6:.1f} MB)")
 
     items = [

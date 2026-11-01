@@ -424,7 +424,9 @@ folders back from the trash, then the moved files, then `reload(rescan=True)`;
 redo re-runs it with the same plan and answers, like `_delete_apply`'s redo.
 It also stamps the move in the trash's `.ptui-trashed.json` (`place.trashed_at`):
 a moved folder keeps its old mtime, and `lib.empty_trash` must delete by when
-something was trashed, not by when it was last edited.
+something was trashed, not by when it was last edited. `actions.auto_empty_trash`
+(from `on_mount`, while `undo.auto_empty_trash`) deletes the same set unasked,
+with one log line; both share `_old_trash` and `_purge`.
 
 `tests/conftest.py` builds apps through `build_app(papis_lib, extra)`, which is
 how the undo strategies get one app each against one library each, and the
@@ -442,7 +444,10 @@ quietly filled the developer's real `~/.local/share/ptui/trash`; any new command
 that writes outside the library needs the same treatment. It also sets
 `doctor.scan_on_startup = false`: no test asserts on the startup scan, and the
 thread competed with `settle`'s 0.2 s for the GIL — under load the first press
-landed before the list had rows and the command found no target.
+landed before the list had rows and the command found no target. And
+`undo.auto_empty_trash = false`, or a test that sets up an old trash for
+`lib.empty_trash` finds it emptied by the startup; the one test of the
+startup emptying flips it back through `app.cfg.data`.
 
 `papis_lib` sets **`PAPIS_CACHE_DIR`** into `tmp_path` for the same reason:
 papis pickles its database index into the user's real cache dir under a hash of

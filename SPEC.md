@@ -484,7 +484,10 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
 - The trash keeps its own index of *when* each entry went in
   (`.ptui-trashed.json`): a moved folder keeps the mtime of its last edit, so the
   mtime would make something trashed today look months old. `lib.empty_trash`
-  deletes by that index, and only when asked.
+  deletes by that index, after asking; and at startup ptui deletes what is past
+  `undo.trash_retention_days` by itself, with one log line, unless
+  `undo.auto_empty_trash = false`. `u` does not outlive the session that
+  trashed something, so past the retention the trash is only a safety net.
 
 ## Editing
 
@@ -742,7 +745,7 @@ from this. Adding a command must not require touching four places.
 | `app.escape`                    |                               | resolve per `escape_chain`                       |
 | `app.reload`                    | `rescan:bool=false`           | clear papis cache + reload; `rescan` drops the on-disk cache too, so an `info.yaml` changed outside papis shows (`r` rescans) |
 | `app.undo` / `app.redo`         |                               | per undo strategy                                |
-| `lib.empty_trash`               | `days:int?`                   | delete trash older than `undo.trash_retention_days`, after asking; never unasked |
+| `lib.empty_trash`               | `days:int?`                   | delete trash older than `undo.trash_retention_days`, after asking; startup does the same unasked while `undo.auto_empty_trash` |
 | `app.log`                       |                               | log pane                                         |
 | `app.config_check`              |                               | report unknown/invalid config keys               |
 | `config.set`                    | `key:str, value:str`          | override one config key for this session only; nothing is written to `config.toml`; a key read only at startup (`log.*`, `ui.mouse`, …) is refused |

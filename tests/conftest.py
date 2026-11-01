@@ -113,7 +113,9 @@ def build_app(papis_lib, extra: str = ""):
         f'[query]\nsaved_file = "{papis_lib / "saved.json"}"\n'
         f'history_file = "{papis_lib / "history"}"\n'
         # last, and unterminated: `extra` may continue it with bare keys
-        f'[undo]\ntrash_dir = "{papis_lib / "trash"}"\n' + extra
+        # Startup does not empty the trash: the tests of `lib.empty_trash` set up
+        # an old trash and then start the app, which would have emptied it.
+        f'[undo]\ntrash_dir = "{papis_lib / "trash"}"\nauto_empty_trash = false\n' + extra
     )
     return PtuiApp(config.load(ptui_config), keymap.load(papis_lib / "no-keys.toml"))
 

@@ -522,3 +522,29 @@ async def test_a_merge_is_one_undo_step_and_redo_repeats_it(request, papis_lib, 
 
         await press(pilot, "ctrl+r")
         assert merged()
+
+
+@pytest.mark.parametrize("auto", [True, False])
+async def test_startup_empties_what_has_been_in_the_trash_past_its_retention(papis_lib, auto):
+    """`u` does not outlive the session, so the trash past the retention is only
+    a safety net: startup empties it, says so in one line, and can be told not to."""
+    import time
+
+    from textual.widgets import RichLog
+
+    from ptui import place
+
+    trash = papis_lib / "trash"
+    for name in ("old-doc", "new-doc"):
+        (trash / name).mkdir(parents=True)
+        (trash / name / "info.yaml").write_text("title: x\n")
+    place.trashed_at(trash, {"old-doc": time.time() - 40 * 86400, "new-doc": time.time()})
+    app = build_app(papis_lib)
+    app.cfg.data["undo"]["auto_empty_trash"] = auto  # the fixture turns it off for every other test
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "4")
+        lines = [line.text for line in app.query_one(RichLog).lines]
+    assert (trash / "old-doc").exists() is not auto
+    assert (trash / "new-doc").exists()
+    assert any("trash: deleted 1 item(s) older than 30 day(s)" in line for line in lines) is auto

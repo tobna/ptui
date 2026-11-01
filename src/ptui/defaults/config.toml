@@ -158,6 +158,7 @@ scan_on_startup = true        # fill the findings cache in the background (~2ms/
 strategy = "trash"            # trash | git | none  (files ALWAYS use trash)
 trash_dir = "~/.local/share/ptui/trash"
 trash_retention_days = 30
+auto_empty_trash = true       # at startup, delete what has been in the trash longer than that
 stack_size = 50               # in-memory metadata undo, any strategy
 git_warn_untracked = true
 

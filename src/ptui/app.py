@@ -344,6 +344,7 @@ class PtuiApp(App[None]):
         self.relayout()
         self.focus_pane("list")
         actions.warn_untracked(self)  # once per session, and only under git
+        actions.auto_empty_trash(self)
         if self.cfg.get("doctor.scan_on_startup", True):
             self.scan_library()
 
