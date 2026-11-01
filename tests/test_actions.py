@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from conftest import press, settle
 
 from ptui import actions, clip, fetch
@@ -584,6 +585,27 @@ async def test_export_as_offers_every_papis_exporter_and_yanks_the_targets(app, 
         await press(pilot, *"json", "enter")
         await settle(pilot)
     assert '"title": "Attention Is All You Need"' in yanked[0]
+
+
+@pytest.mark.parametrize("to_file", [True, False])
+async def test_an_export_papis_failed_writes_and_copies_nothing(app, tmp_path, monkeypatch, to_file):
+    """papis's export returns "" on failure (`csl` without citeproc-py), and that
+    "" was written over the target, or copied with a success message."""
+    import papis.commands.export
+
+    target = tmp_path / "refs.txt"
+    target.write_text("what was there\n")
+    yanked = []
+    monkeypatch.setattr(clip, "copy", lambda _app, text: yanked.append(text) or "test")
+    monkeypatch.setattr(papis.commands.export, "run", lambda _docs, _fmt: "")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = []
+        monkeypatch.setattr(app, "log_line", logged.append)
+        actions.export_as(app, "csl", str(target) if to_file else None)
+    assert target.read_text() == "what was there\n"
+    assert yanked == []
+    assert any("export as csl failed" in line for line in logged)
 
 
 async def test_config_set_applies_for_the_session_and_checks_the_value(app):

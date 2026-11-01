@@ -122,10 +122,6 @@ finishes it. The number in brackets is the review question it came from.
 24. **`c u` from Crossref asks first.** A title search can match the wrong
     paper and fill gaps from it; show what was found (title, year, first
     author) and ask "is this the paper?" before planning anything. [42.1]
-25. **Data loss: an empty export overwrites its target.** papis's export returns
-    empty text on failure (`csl` without `citeproc-py`), and `export.as` then
-    writes it over the target file, or copies it and reports success. Write
-    nothing, copy nothing, log the failure. [43.1]
 35. **`doctor.fix` misses fixes made in place.** It diffs against a shallow
     `dict(doc)`, so papis's `files` fix writes nothing, and string-cleaner's
     initials fix writes `author` but not `author_list`. [test_edge_doctor.py]

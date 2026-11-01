@@ -1405,6 +1405,13 @@ def export_as(app: Any, fmt: str = "", target: str | None = None) -> None:
         return
     docs = app.targets
     text = papis.commands.export.run(docs, fmt)  # logs its own failure and returns ""
+    if docs and not text.strip():
+        # Empty is papis's failure value (`csl` without citeproc-py): writing it
+        # would empty the target file, and copying it would report success.
+        where = target or "the clipboard"
+        app.log_line(f"[red]export as {fmt} failed:[/] papis returned nothing; {where} left as it was")
+        app.query_one("#log-pane").display = True
+        return
     if target:
         Path(target).expanduser().write_text(text)
         app.log_line(f"wrote {len(docs)} document(s) as {fmt} to {target}")

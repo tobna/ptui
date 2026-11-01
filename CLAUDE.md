@@ -180,7 +180,10 @@ Built:
   `field:value`, `year:>2023` ranges, matches highlighted; one matcher shared
   with every picker filter box
 - verbs: `doc.open`, `doc.open_folder`, `doc.browse`, `doc.edit_raw`,
-  `export.{citekey,path,url,bibtex,as}` (`as`: any papis exporter), `files.relocate`
+  `export.{citekey,path,url,bibtex,as}` (`as`: any papis exporter;
+  `papis.commands.export.run` returns `""` on failure — `csl` without
+  citeproc-py — so empty text is a failure that writes and copies nothing),
+  `files.relocate`
 - `SelectList` modal + `sort.picker`, `files.open_pick`, `lib.switch`
 - the add flow: inbox picker, metadata form, live destination preview, `place()`
 - **layout**: `ui.layout = "auto"` picks side-by-side vs stacked from the column
