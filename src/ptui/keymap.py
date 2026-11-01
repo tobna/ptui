@@ -123,21 +123,10 @@ def _collide(a: Chord, b: Chord) -> bool:
     return a[:n] == b[:n]
 
 
-def _over(
-    top: dict[Chord, Binding | None], under: dict[Chord, Binding | None], *, same_command: bool = False
-) -> dict[Chord, Binding | None]:
+def _over(top: dict[Chord, Binding | None], under: dict[Chord, Binding | None]) -> dict[Chord, Binding | None]:
     """`top` laid over `under`: an entry of `under` survives only if it collides
-    with nothing in `top` — and, with `same_command`, if it is not the one key
-    `under` has for a command `top` binds with the same args."""
-    taken = [(b.cmd, b.args) for b in top.values() if b is not None] if same_command else []
-
-    def moved(b: Binding | None) -> bool:
-        # A command with several keys keeps them all: those are aliases, not a home to move.
-        if b is None or (b.cmd, b.args) not in taken:
-            return False
-        return sum((o.cmd, o.args) == (b.cmd, b.args) for o in under.values() if o is not None) == 1
-
-    kept = {chord: b for chord, b in under.items() if not any(_collide(chord, c) for c in top) and not moved(b)}
+    with nothing in `top`."""
+    kept = {chord: b for chord, b in under.items() if not any(_collide(chord, c) for c in top)}
     return {**kept, **top}
 
 
@@ -157,13 +146,13 @@ def _modes(data: dict[str, Any], path: Path, unknown: list[str]) -> dict[str, di
 def load(path: Path | None = None) -> Keymap:
     """The shipped keymap with the user's keys.toml laid over it, key by key.
 
-    A user binding drops every shipped binding it would collide with in the
-    modes it reaches: the same key, a chord one is a prefix of, or the only key
-    the mode has for the same command with the same args — so moving a command
-    moves it, swapping two keys takes two lines, and aliases (`enter` beside
-    `o`) stay unless unbound. `"o" = false` drops `o` (and everything under it,
-    for a prefix) without binding anything. The conflict check is left with the
-    collisions inside the user's own tables.
+    A user binding always adds: it drops only the shipped bindings it would
+    collide with in the modes it reaches — the same key, or a chord one is a
+    prefix of — so swapping two keys takes two lines, and a command bound to a
+    new key keeps its shipped ones. `"o" = false` drops `o` (and everything under
+    it, for a prefix) without binding anything; it is the one way to remove a
+    shipped key. The conflict check is left with the collisions inside the
+    user's own tables.
 
     `[global]` is laid under every pane's own table: one copy of the pane keys
     rather than one per mode, which is how a mode once ended up with none and
@@ -179,7 +168,7 @@ def load(path: Path | None = None) -> Keymap:
     ours, theirs = _modes(shipped, shipped_path, unknown), _modes(user, path, unknown)
     modes = {}
     for mode in {**ours, **theirs}:
-        merged = _over(theirs.get(mode, {}), ours.get(mode, {}), same_command=True)
+        merged = _over(theirs.get(mode, {}), ours.get(mode, {}))
         modes[mode] = {chord: b for chord, b in merged.items() if b is not None}
     options = {**shipped.get("options", {}), **user.get("options", {})}
     return Keymap(modes, options, tuple(sorted(unknown)))

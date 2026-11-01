@@ -26,7 +26,7 @@ def test_user_bindings_merge_per_key_over_the_shipped_ones(tmp_path):
     assert km.lookup("list", ("o",)).cmd == "doc.open_folder"
     assert km.lookup("list", ("O",)).cmd == "doc.open"
     assert km.lookup("list", ("j",)).cmd == "nav.down"  # everything else is still shipped
-    assert km.lookup("list", ("enter",)).cmd == "doc.open"  # an alias of `o`: it stays
+    assert km.lookup("list", ("enter",)).cmd == "doc.open"  # a command bound anew keeps its keys
     assert km.lookup("files", ("o",)).cmd == "doc.open"  # other modes are untouched
     assert km.option("which_key") is True
     assert km.conflicts() == []
@@ -66,29 +66,22 @@ def test_a_pane_key_beats_a_global_chord_it_shadows_in_that_pane_only(tmp_path):
     assert km.conflicts() == []
 
 
-def test_rebinding_a_command_moves_its_only_shipped_key(tmp_path):
+def test_binding_a_command_to_a_new_key_keeps_its_shipped_keys(tmp_path):
+    """A user binding always adds: `q` (the only quit key), `j` and `down`, `:`
+    and `ctrl+p` all stay. Removing one is `"key" = false`."""
     km = _user(
         tmp_path,
-        '[global]\n"Q" = { cmd = "app.quit" }\n[modes.list]\n"x" = { cmd = "pane.focus", args = { pane = "log" } }\n',
+        '[global]\n"Q" = { cmd = "app.quit" }\n"w" = { cmd = "cmdline.open" }\n'
+        '[modes.list]\n"n" = { cmd = "nav.down" }\n"t" = { cmd = "pane.focus", args = { pane = "log" } }\n',
     )
     for mode in keymap.PANES:
         assert km.lookup(mode, ("Q",)).cmd == "app.quit"
-        assert km.lookup(mode, ("q",)) is None
-    assert km.lookup("list", ("4",)) is None  # the same command with the same args
-    assert km.lookup("list", ("3",)).args == {"pane": "files"}  # different args: another binding
-    assert km.lookup("info", ("4",)).cmd == "pane.focus"  # x is the list's only
-
-
-def test_rebinding_a_command_with_several_shipped_keys_keeps_them_all(tmp_path):
-    """`j` and `down`, `:` and `ctrl+p` are aliases: rebinding the command adds a key."""
-    km = _user(tmp_path, '[global]\n"x" = { cmd = "cmdline.open" }\n[modes.list]\n"n" = { cmd = "nav.down" }\n')
-    assert km.lookup("list", ("n",)).cmd == "nav.down"
-    assert km.lookup("list", ("j",)).cmd == "nav.down"
-    assert km.lookup("list", ("down",)).cmd == "nav.down"
-    for mode in keymap.PANES:
-        assert km.lookup(mode, ("x",)).cmd == "cmdline.open"
+        assert km.lookup(mode, ("q",)).cmd == "app.quit"
+        assert km.lookup(mode, ("w",)).cmd == "cmdline.open"
         assert km.lookup(mode, (":",)).cmd == "cmdline.open"
         assert km.lookup(mode, ("ctrl+p",)).cmd == "cmdline.open"
+    assert [km.lookup("list", (key,)).cmd for key in ("n", "j", "down")] == ["nav.down"] * 3
+    assert km.lookup("list", ("4",)).args == {"pane": "log"}
 
 
 def test_false_unbinds_a_shipped_key(tmp_path):

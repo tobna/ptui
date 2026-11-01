@@ -585,14 +585,12 @@ its filter box has the keyboard, and a letter there is text.
 
 The user's `keys.toml` holds only their changes, laid over the shipped keymap
 **key by key**, never table by table. In every mode a user binding reaches
-(`[global]` reaches every pane), it drops each shipped binding it collides with:
-the same key, a chord either one is a prefix of (`g` takes the whole `g`
-namespace, `o x` takes `o`), and the shipped key for the same command with the
-same args *when it is that mode's only one* (moving a command moves it). A
-command with several shipped keys in the mode — `enter` and `o`, `j` and `down`,
-`:` and `ctrl+p` — keeps them all: those are aliases, and the user's key is
-added beside them. `"key" = false` drops the same way as a binding and binds
-nothing; it is how an alias goes. So swapping two keys is two lines.
+(`[global]` reaches every pane), it drops only the shipped bindings it collides
+with: the same key, or a chord either one is a prefix of (`g` takes the whole
+`g` namespace, `o x` takes `o`). A user binding always **adds**: a command bound
+to a new key keeps every shipped key it had. `"key" = false` drops the same way
+as a binding and binds nothing; it is the one way to remove a shipped key. So
+swapping two keys is two lines.
 
 **Hard invariant**: no single-key binding may be a proper prefix of any chord
 in the same mode. `keymap.check` runs automatically at config load and

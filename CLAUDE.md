@@ -679,14 +679,13 @@ so a global letter would never reach the filter box. Each mode used to carry its
 own copy, and a missing copy is how the log pane once trapped the keyboard.
 
 The user's `keys.toml` is built into the same per-mode tables and laid over the
-shipped ones by `keymap._over(..., same_command=True)`: a user entry drops every
-shipped one it `_collide`s with (same chord or a prefix either way) and the
-shipped key bound to the same `(cmd, args)` — only when it is the mode's *one*
-key for it. Several are aliases (`j`/`down`, `o`/`enter`) and all stay: an
-earlier version dropped them, and rebinding `nav.down` took the arrow key with
-it. `"key" = false` is a `None` entry — it drops like a binding and is filtered
-out at the end. `Keymap.conflicts()` therefore only ever sees collisions inside
-one of the user's own tables.
+shipped ones by `keymap._over`: a user entry drops every shipped one it
+`_collide`s with (same chord or a prefix either way) and nothing else, so a
+user binding always adds. Decided, do not bring back: dropping the shipped key
+of a command the user rebinds took `down` with `j` and `enter` with `o`.
+`"key" = false` is a `None` entry — it drops like a binding, is filtered out at
+the end, and is the one way to remove a shipped key. `Keymap.conflicts()`
+therefore only ever sees collisions inside one of the user's own tables.
 
 `escape` and the help key are dispatched above the keymap (`app.on_key`):
 outside `[modes.list]` escape drops any pending chord and returns to the list,
