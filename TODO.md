@@ -158,9 +158,6 @@ finishes it. The number in brackets is the review question it came from.
 39. **A `KeyError` inside a command reads as "not implemented yet"**, and its
     traceback is dropped: `run_command` takes every `KeyError` for an unknown
     name. [test_edge_app.py]
-40. **`ui = "dark"` in config.toml crashes ptui with a traceback**: `repair()`
-    raises `TypeError` on a section set to a scalar, and the CLI catches only
-    `ValueError`. [test_edge_config.py]
 42. **Low priority: a DOI stored as a doi.org URL hides a preprint.**
     `kind()` reads `https://doi.org/10.48550/arXiv....` as a publisher DOI;
     normalise a doi.org / dx.doi.org URL to the bare DOI before the check.

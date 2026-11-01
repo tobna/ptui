@@ -106,6 +106,19 @@ def repair(data: dict[str, Any]) -> list[str]:
     defaults = tomllib.loads((DEFAULTS_DIR / "config.toml").read_text())  # fresh: `data` may share its tables
     problems = []
 
+    def tables(base: dict[str, Any], over: dict[str, Any], prefix: str = "") -> None:
+        # `ui = "dark"`: every lookup below would index into a string and raise TypeError
+        for key, default in base.items():
+            if not isinstance(default, dict):
+                continue
+            if isinstance(over.get(key), dict):
+                tables(default, over[key], f"{prefix}{key}.")
+            else:
+                problems.append(f"{prefix}{key} = {over.get(key)!r} is not a table; using the shipped one")
+                over[key] = default
+
+    tables(defaults, data)
+
     def replace(dotted: str, value: Any, why: str) -> None:
         section, _, key = dotted.rpartition(".")
         default = Config(defaults, (), None).get(dotted)

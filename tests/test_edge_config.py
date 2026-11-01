@@ -57,11 +57,6 @@ def test_unknown_keys_are_reported_dotted_but_not_inside_lists(tmp_path):
     assert cfg.unknown == ("ui.layuot",)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason='BUG: a section set to a scalar (`ui = "dark"`) makes repair() assign into a str and '
-    "raise TypeError; the CLI only turns ValueError into a message, so ptui dies with a traceback",
-)
 def test_a_section_given_as_a_scalar_is_repaired_or_refused_by_name(tmp_path):
     try:
         cfg = _load(tmp_path, 'ui = "dark"\n')
