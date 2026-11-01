@@ -69,6 +69,7 @@ def papis_lib(tmp_path, monkeypatch):
     from ptui import doctor
 
     doctor.CACHE.clear()  # module state, keyed by papis_id — and every fixture reuses id0..id2
+    doctor.STALE.clear()
     yield tmp_path
     papis.database.clear_cached()
     papis.config.CURRENT_CONFIGURATION, papis.config.CURRENT_LIBRARY = previous

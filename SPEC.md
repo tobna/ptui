@@ -303,9 +303,11 @@ at it. Findings come from each check's own `operate`.
   cannot say anything about a single document under the cursor.
 - **Findings are cached by `papis_id`, stamped with `info.yaml`'s mtime.** A
   background pass at startup fills it (`[doctor] scan_on_startup`) and repaints
-  the list's markers. A document written since its scan is re-checked on the
-  next look, with the checks it was scanned with — one document is ~2 ms, and an
-  edit should show its effect at once rather than findings from before the write.
+  the list's markers. A document written since its scan is re-checked with the
+  checks it was scanned with, in a background thread the redraw starts: one
+  document is ~2 ms, so a mass change on disk (a sync, a `git pull`) would
+  freeze a redraw that re-checked them itself. Until the thread has looked, a
+  stale document keeps showing its old findings; then the rows repaint.
   A document never scanned reads *not checked*, never clean.
 - **Per-document and library-wide checks are different sets.**
   `duplicated-keys` accumulates the values it has seen in papis's module state,

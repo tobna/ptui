@@ -35,6 +35,9 @@ goes through `safewrite` or `place`, and both of them touch the file, so a
 at a new call site.
 """
 
+STALE: dict[str, Document] = {}
+"""`papis_id` -> a document `peek` found written since its scan, for `recheck`."""
+
 
 def check_names(configured: list[str] | None = None, *, library_wide: bool = False) -> list[str]:
     """The checks to run: whatever is configured, else every registered one.
@@ -84,6 +87,37 @@ def cached(doc: Document) -> list[Finding] | None:
     if hit is None:
         return None
     return hit[1] if hit[0] == library.mtime(doc) else scan(doc, hit[2])
+
+
+def peek(doc: Document) -> list[Finding] | None:
+    """`cached` for a redraw, which never runs a check: a document written since
+    its scan keeps showing what that scan found and is queued for `recheck`.
+
+    At ~2 ms a document, re-checking inside the redraw froze the first one after
+    a mass change on disk — a sync or a `git pull` — for as long as it took.
+    """
+    key = library.doc_id(doc)
+    hit = CACHE.get(key)
+    if hit is None:
+        return None
+    if hit[0] != library.mtime(doc):
+        STALE[key] = doc
+    return hit[1]
+
+
+def recheck() -> int:
+    """Re-check every document `peek` queued, each with the checks it was
+    scanned with. Meant for a thread; returns how many, so the caller knows
+    whether there is anything to repaint."""
+    done = 0
+    while STALE:
+        try:
+            _, doc = STALE.popitem()
+        except KeyError:  # another recheck took the last one between the test and the pop
+            break
+        cached(doc)
+        done += 1
+    return done
 
 
 def scan_library(docs: list[Document], checks: list[str] | None = None) -> list[tuple[Document, Finding]]:

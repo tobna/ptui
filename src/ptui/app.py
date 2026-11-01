@@ -791,7 +791,7 @@ class PtuiApp(App[None]):
         """One document's row, painted with what the last `refresh_rows` decided."""
         lit, height, mark_style, warn_style = self._paint
         marked = library.doc_id(doc) in self.marks
-        marker = ui.glyph("warning") if doctor.cached(doc) else " "
+        marker = ui.glyph("warning") if doctor.peek(doc) else " "
         title = self.title_column
         cells = []
         for index, (column, width) in enumerate(self._fit):
@@ -841,7 +841,7 @@ class PtuiApp(App[None]):
         if self.marked_only:
             docs = [d for d in docs if library.doc_id(d) in self.marks]
         if self.doctor_only:
-            docs = [d for d in docs if doctor.cached(d)]
+            docs = [d for d in docs if doctor.peek(d)]
         self.rows = self.matching(docs, query)
         self.refresh_rows(keep)
 
@@ -892,6 +892,8 @@ class PtuiApp(App[None]):
                 mark = " " if ok else f"[$error]{ui.glyph('warning')}[/]"
                 lines.append((f"  {mark} ", ui.literal(str(entry))))
         lines += self.doctor_lines(self.current)
+        if doctor.STALE:  # queued by this redraw's `peek`s: the rows' and this pane's
+            self.recheck()
         # Last, so a long one never pushes the files or the findings out of view.
         if doc.get("abstract"):
             text = " ".join(str(doc["abstract"]).split())  # fetched ones keep the source's hard wraps
@@ -971,10 +973,10 @@ class PtuiApp(App[None]):
 
         A clean document says nothing — the section is an exception marker, and
         a permanent "no findings" would cost a line on every row to say so. An
-        edited document is re-checked by `doctor.cached`; one the scan never
-        reached reads "not checked", never clean.
+        edited document shows its old findings until `recheck` has looked again;
+        one the scan never reached reads "not checked", never clean.
         """
-        found = doctor.cached(doc)
+        found = doctor.peek(doc)
         if found == []:
             return []
         if found is None:
@@ -1005,6 +1007,14 @@ class PtuiApp(App[None]):
         for doc in list(self.docs):
             doctor.scan(doc, checks)
         self.call_from_thread(self.refresh_rows)  # the markers live in the rows
+
+    @work(thread=True, group="recheck")
+    def recheck(self) -> None:
+        """Re-check the documents written since their scan, off the redraw that
+        found them, then repaint. Not exclusive: two at once take different
+        documents from `doctor.STALE`, and each repaints only if it took any."""
+        if doctor.recheck():
+            self.call_from_thread(self.refresh_rows)
 
     def blocks(self, segments: list[tuple[str, str, str]], *, rightwards: bool) -> tuple[str, int]:
         """Coloured blocks joined by powerline separators, plus their cell width.

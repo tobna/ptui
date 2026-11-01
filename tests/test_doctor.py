@@ -1,3 +1,5 @@
+import os
+
 import papis.document
 import pytest
 
@@ -51,6 +53,48 @@ def test_a_written_document_is_rechecked_on_the_next_look(tmp_path, papis_lib):
     doctor.fix(doc, found[0])
     assert doctor.cached(doc) == []  # re-checked against the written file
     assert doctor.CACHE[doc["papis_id"]][2] == ["refs"]  # with the same checks
+
+
+def test_peek_keeps_the_old_findings_and_queues_the_document(tmp_path, papis_lib):
+    doc, info = broken_doc(tmp_path)
+    found = doctor.scan(doc, ["refs"])
+    info.write_text(info.read_text().replace("ref: bad ref!", "ref: fine"))
+    stat = info.stat()  # a distinct mtime, whatever the clock granularity
+    os.utime(info, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+    doc.load()
+    assert doctor.peek(doc) == found  # still what the scan said: nothing ran
+    assert list(doctor.STALE) == [doc["papis_id"]]
+    assert doctor.recheck() == 1
+    assert doctor.peek(doc) == []
+    assert not doctor.STALE
+
+
+async def test_a_redraw_rechecks_a_stale_document_off_the_main_thread(app, papis_lib, monkeypatch):
+    """A `git pull` that touches every document must not freeze the next redraw."""
+    import threading
+
+    from ptui import actions
+
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
+        only_refs(app)
+        actions.doctor_run(app, current=True)  # doc0 is clean
+        assert doctor.peek(app.current) == []
+        info.write_text(info.read_text().replace("ref: Vaswani2017", "ref: bad ref!"))
+        stat = info.stat()
+        os.utime(info, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+        app.current.load()
+
+        scanned_on = []  # `cached` is the blocking read: whichever thread calls it runs the checks
+        real = doctor.cached
+        monkeypatch.setattr(doctor, "cached", lambda doc: scanned_on.append(threading.get_ident()) or real(doc))
+        app.refresh_rows()
+        assert "refs" not in str(app.query_one("#info").render())  # the old findings, for now
+        await app.workers.wait_for_complete()
+        await pilot.pause(0.2)
+        assert scanned_on and threading.get_ident() not in scanned_on
+        assert "refs" in str(app.query_one("#info").render())
 
 
 def test_findings_are_read_only(tmp_path):

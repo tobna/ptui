@@ -486,11 +486,16 @@ filled by `PtuiApp.scan_library` (a thread worker at startup, ~1.7 s for 754
 documents, off with `[doctor] scan_on_startup`), which repaints the rows when it
 is done. Staleness is the mtime, not a notification: every write goes through
 `safewrite` or `place`, both touch the file, and a `stat` cannot be forgotten at
-a new call site the way an invalidation call can. A stale entry is re-scanned
-inside `cached()` with the checks it was scanned with, so an edit's effect on
-the findings shows at once. `None` means *never scanned*, which the info pane
+a new call site the way an invalidation call can. The redraw reads the cache
+through `doctor.peek`, which never runs a check: a stale entry keeps its old
+findings and the document goes into `doctor.STALE`, and `refresh_info` (the end
+of every redraw) starts `PtuiApp.recheck`, a thread worker that drains it
+through `cached()` — the blocking read, which re-scans with the checks the entry
+was scanned with — and repaints the rows. Re-checking inside the redraw froze
+it after a mass change on disk. `None` means *never scanned*, which the info pane
 renders as "not checked" — never as clean. The cache is module state keyed by
-`papis_id`, so the `papis_lib` fixture clears it: every fixture reuses `id0`.
+`papis_id`, so the `papis_lib` fixture clears it and `STALE`: every fixture
+reuses `id0`.
 
 `library.venue()` is the conference or journal **name**: first non-empty of
 `booktitle`, `journal`, `journaltitle`. It deliberately ignores the `venue` key —

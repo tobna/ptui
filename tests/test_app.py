@@ -308,10 +308,10 @@ async def test_a_document_with_doctor_findings_is_marked_in_the_list(app, monkey
         payload="",
         doc=None,
     )
-    # `cached` returns None for *not checked*, [] for clean, findings for broken —
-    # and only the last of those may draw the glyph.
+    # `peek` (what a redraw reads) returns None for *not checked*, [] for clean,
+    # findings for broken — and only the last of those may draw the glyph.
     seen = {"id0": [broken], "id1": [], "id2": None}
-    monkeypatch.setattr(doctor, "cached", lambda doc: seen[doc["papis_id"]])
+    monkeypatch.setattr(doctor, "peek", lambda doc, *_: seen[doc["papis_id"]])
 
     async with app.run_test() as pilot:
         await settle(pilot)
