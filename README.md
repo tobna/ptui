@@ -156,6 +156,10 @@ uv run pytest
 uv run ruff check --fix && uv run ruff format
 ```
 
+CI ([`.github/workflows/test.yml`](.github/workflows/test.yml)) runs the same
+`uv sync` and `uv run pytest` on every push and pull request, on Python 3.13
+and 3.14.
+
 Design contract: [`SPEC.md`](SPEC.md). Agent notes: [`CLAUDE.md`](CLAUDE.md).
 
 ## License

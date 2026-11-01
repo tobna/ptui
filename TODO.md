@@ -117,7 +117,6 @@ finishes it. The number in brackets is the review question it came from.
    `config.repair` checks `CHOICES` case-insensitively but the code compares
    exactly, so `layout = "Horizontal"` passes the check and then reads as side
    by side. Write the case-folded value back. [21.1]
-6. **CI:** a GitHub Actions workflow that runs `uv run pytest` on every push.
 7. **The log pane wraps short of its scrollbar.** Wrapped lines currently run
    under the vertical scrollbar. (Found in use.)
 8. **A doctor scan with named checks keeps the other findings.** `:doctor.run X`
