@@ -65,10 +65,6 @@ def test_an_apostrophe_is_part_of_the_term(query, want):
     assert _titles(APOSTROPHES, query) == want
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: expand_aliases only expands after start/space/`(`, so `-a:x` keeps the field `a` and excludes nothing",
-)
 def test_a_negated_alias_excludes():
     data = [{"title": "mine", "author": "Nauen"}, {"title": "theirs", "author": "Vaswani"}]
     assert _titles(data, "a:nauen", aliases=ALIASES) == ["mine"]

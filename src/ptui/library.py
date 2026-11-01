@@ -44,12 +44,13 @@ def doc_id(doc: Document) -> str:
     return str(doc.get(ID_KEY, doc.get_main_folder() or id(doc)))
 
 
-_ALIAS = re.compile(r"(^|[\s(])([^\s:()]+):")
+_ALIAS = re.compile(r"(^-?|[\s(]-?)([^\s:()]+):")
 
 
 def expand_aliases(query: str, aliases: dict[str, str]) -> str:
     """`a:Nauen` -> `author:Nauen`, per `[query.aliases]` — also right after a
-    `(`, since papis's own query grammar groups with parentheses."""
+    `(`, since papis's own query grammar groups with parentheses, and after the
+    `-` that negates a narrow term, so `-a:nauen` excludes."""
     return _ALIAS.sub(lambda m: m[1] + aliases[m[2]] if m[2] in aliases else m[0], query)
 
 

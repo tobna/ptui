@@ -356,7 +356,7 @@ them) or a numeric range (`year:>2023`, `year:2020..2024`). Aliases come from
 `parse_query` — do not expand them again at the call site. The scope prompt
 itself has no grammar of its own: the expanded string goes to papis's
 `db.query`, so `OR`, `NOT` and parentheses (papis 0.16) work there, and
-`expand_aliases` also expands right after a `(`. `shlex` does the
+`expand_aliases` also expands right after a `(` and after a negating `-`. `shlex` does the
 quoting, with `"` as the only quote — an apostrophe opened one, so `don't` and
 `o'brien` matched nothing — and raises on the half-typed quote you always have,
 so an unterminated query is retried closed. `match_text` is the same matcher over one blob, which is
