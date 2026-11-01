@@ -92,7 +92,15 @@ def scope(query: str, library: str | None = None) -> list[Document]:
 
 
 def haystack(doc: Document, fields: list[str]) -> str:
-    return " ".join(display(doc.get(f, "")) for f in fields).casefold()
+    return shown_too(" ".join(display(doc.get(f, "")) for f in fields)).casefold()
+
+
+def shown_too(text: str) -> str:
+    """`text`, with what the list shows of it on a line of its own when that
+    differs: `/bert` finds the `{B}ERT` drawn as `BERT`, and `{b}` still finds
+    what is stored."""
+    shown = strip_latex(text)
+    return text if shown == text else f"{text}\n{shown}"
 
 
 def is_subsequence(needle: str, hay: str) -> bool:
@@ -209,7 +217,7 @@ def match_doc(doc: Document, terms: tuple[Term, ...], fields: list[str], mode: s
         else:
             value = display(resolve(doc, term.field) or "")
             ranged = _in_range(value, term.text)
-            found = ranged if ranged is not None else hit(term.text, value.casefold())
+            found = ranged if ranged is not None else hit(term.text, shown_too(value).casefold())
         if found == term.negate:
             return False
     return True
@@ -230,7 +238,7 @@ def narrow(
         return docs
     if mode == "regex":
         try:
-            pattern = re.compile(query, re.IGNORECASE)
+            pattern = re.compile(query, re.IGNORECASE | re.MULTILINE)  # `^` starts the shown line too
         except re.error:
             return []
         return [d for d in docs if pattern.search(haystack(d, fields))]

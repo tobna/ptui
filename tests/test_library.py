@@ -284,5 +284,22 @@ def test_kind_reads_a_doi_url_as_the_bare_doi(doi, kind):
     assert library.kind(docs({"type": "article", "doi": doi, "eprinttype": "arxiv"})[0]) == kind
 
 
+@pytest.mark.parametrize(
+    ("query", "mode"),
+    [
+        ("bert", "substring"),
+        ("title:bert", "substring"),
+        ("{b}ert", "substring"),
+        ("bert", "fuzzy"),
+        ("^bert", "regex"),
+    ],
+)
+def test_the_narrow_finds_a_title_as_shown_and_as_stored(query, mode):
+    shown = docs({"title": "{B}ERT: Pre-training"})
+    assert library.narrow(shown, query, ["title"], mode) == shown
+    if mode != "regex":  # a regex has no negation
+        assert library.narrow(shown, f"-{query}", ["title"], mode) == []
+
+
 def test_kind_ignores_the_case_of_the_type():
     assert library.kind(docs({"type": "Article", "doi": "10.48550/arXiv.1"})[0]) == "preprint"

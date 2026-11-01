@@ -391,6 +391,10 @@ quoting, with `"` as the only quote — an apostrophe opened one, so `don't` and
 `o'brien` matched nothing — and raises on the half-typed quote you always have,
 so an unterminated query is retried closed. `match_text` is the same matcher over one blob, which is
 what `ui.Item.matches` uses: **one matcher for `/` and every picker filter**.
+A document's text is matched as stored *and* as the list shows it
+(`library.shown_too`: the `strip_latex` form on a line of its own, when it
+differs; regex mode is `MULTILINE`, so `^` starts either), or `/bert` missed
+the `{B}ERT` drawn as `BERT`. Pickers match their labels as they are.
 Fuzzy is opt-in and requires the matched run to fit `FUZZY_SPAN` times the
 needle; plain subsequence matching was the A1/A2 bug and must not come back.
 Narrowing filters and never reorders — the sort is the user's.

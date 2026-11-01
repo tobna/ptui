@@ -114,9 +114,6 @@ finishes it. The number in brackets is the review question it came from.
     knows the same title in the same year; the same title in another year
     (a preprint and its journal version, a reprint) should ask "is this the
     same paper?" too, with the same go to / add anyway / cancel choice.
-53. **Low priority: `/bert` should find `{B}ERT`.** The list shows the title
-    without LaTeX braces, but `/` searches the stored text, so what you see
-    is not what you can find.
 55. **The file verbs and the edit form overwrite an outside change.** H.45
     fixed the `c` verbs; `x`, `J`/`K`, `p`, `r`, `f n` and the `E` form still
     build what they write from the copy ptui loaded, so a change made to the

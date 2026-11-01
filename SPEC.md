@@ -597,7 +597,8 @@ toast that vanishes.
   This applies wherever a stored value is rendered: list columns and info pane.
 - Titles may contain LaTeX (`{B}ERT`, `$\ell_2$`). Store verbatim; render
   de-braced per `list.strip_latex`. Citekey yank and bib export always use
-  the verbatim stored value.
+  the verbatim stored value. The narrow matches both, so `/bert` finds the
+  `BERT` on screen and `{b}ert` what is stored.
 
 ---
 
