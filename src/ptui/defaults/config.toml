@@ -119,6 +119,7 @@ advance = true                # move cursor down after marking
 # to live outside the library.
 # ---------------------------------------------------------------
 [files]
+pdf_root = ""                 # a central PDF store outside the library, for {pdf_root} in a rule; empty = none
 collision = "skip"            # skip | suffix | ask
 hash_check = true             # detect byte-identical duplicates
 inbox = "~/Downloads"         # source dir for files.attach and doc.add --inbox

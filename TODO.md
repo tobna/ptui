@@ -98,9 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-48. **`\ c` calls `files.pdf_root` an unknown key**, though the shipped
-    `config.toml` tells you to set it (it is only in a comment there). (Pinned
-    in `tests/test_cover_actions_cmdline.py`.)
 49. **Empty the trash by itself.** At startup, delete what has been in the
     trash longer than `undo.trash_retention_days`, with one log line saying how
     much went. A new `undo.auto_empty_trash`, shipped `true`, turns it off.

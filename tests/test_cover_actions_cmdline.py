@@ -108,11 +108,6 @@ async def test_the_config_check_names_an_unknown_key_and_shows_the_log(papis_lib
         assert app.query_one("#log-pane").display
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: \\ c calls files.pdf_root an unknown config key, though the shipped "
-    "config.toml tells the user to set it and SPEC names it a managed root",
-)
 async def test_the_config_check_knows_pdf_root(app, monkeypatch):
     async with app.run_test() as pilot:
         await settle(pilot)
