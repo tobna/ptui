@@ -130,8 +130,9 @@ reference — copy and edit. Values papis already owns (library paths, `editor`,
 
 ## Keys
 
-`j`/`k` move · `o` open · `/` filter · `s` search · `space` mark · `S` sort ·
-`a` add · `i` add from inbox · `e` edit `info.yaml` · `\ t` theme · `q` quit.
+`j`/`k` move · `h`/`l` previous/next pane · `o` open · `/` filter · `s` search ·
+`space` mark · `S` sort · `a` add · `i` add from inbox · `e` edit `info.yaml` ·
+`\ t` theme · `q` quit.
 
 Prefixes are namespaces, and hold one to see its menu: `g` go · `f` files ·
 `y` yank · `c` change · `m` marks · `z` layout · `d` delete · `\` admin.

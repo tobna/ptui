@@ -590,7 +590,7 @@ from this. Adding a command must not require touching four places.
 | `nav.page_down` / `nav.page_up` |                               |                                                  |
 | `nav.goto`                      | `ref:str`                     | move the cursor to a document by `ref`, exact — for a citekey pasted from a `.tex` |
 | `pane.focus`                    | `pane:list\|info\|files\|log` | direct focus                                     |
-| `pane.cycle`                    | `back:bool=false`             | tab / shift-tab                                  |
+| `pane.cycle`                    | `back:bool=false`             | tab / shift-tab, and `l` / `h` in every pane     |
 | `pane.toggle`                   | `pane:str`                    | show/hide info or files pane; the list never hides |
 | `pane.toggle_layout`            |                               | horizontal ↔ vertical split                      |
 | `pane.resize`                   | `delta:float`                 | adjust split ratio                               |

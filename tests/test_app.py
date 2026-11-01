@@ -543,6 +543,20 @@ async def test_the_pane_keys_work_from_every_pane(app):
         assert app.mode == "list"
 
 
+async def test_h_and_l_walk_the_panes_from_every_pane(app):
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        seen = []
+        for _ in range(4):
+            await press(pilot, "l")
+            seen.append(app.mode)
+        assert seen == ["info", "files", "log", "list"]
+        for _ in range(4):
+            await press(pilot, "h")
+            seen.append(app.mode)
+        assert seen[4:] == ["log", "files", "info", "list"]
+
+
 async def test_a_failing_command_is_reported_once(app, monkeypatch):
     from textual.widgets import RichLog
 

@@ -469,7 +469,7 @@ pane cannot be hidden and takes the whole window when it is alone.
 `PtuiApp.focus_pane()` owns the **log** and **files** panes' visibility: they
 are the transient panes (the files pane is the right column's second half,
 `#side`, under the info pane; `j`/`k` there move `app.file_index`); each opens when focused and closes when focus leaves. Every
-path routes through there — `1`-`4`, `tab`, escape and `g o` (`app.log` is now
+path routes through there — `1`-`4`, `tab`/`l`, escape and `g o` (`app.log` is now
 just "focus it, or focus the list if it is already up") — which is what fixed
 both halves of the old bug: escape left the pane on screen looking dead, and
 `4` focused a pane that was never shown, putting the keyboard somewhere

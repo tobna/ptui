@@ -67,11 +67,13 @@ The document list — the mode ptui starts in, and the one every other mode fall
 | `g o` | `app.log` | operation log |
 | `g r` | `nav.goto` | go to a citekey |
 | `g s` | `query.load` | saved searches |
+| `h` | `pane.cycle` back=True | previous pane |
 | `i` | `doc.add` source=inbox | add from inbox |
 | `J` | `info.scroll` | scroll info down |
 | `j` | `nav.down` | move down |
 | `K` | `info.scroll` up=True | scroll info up |
 | `k` | `nav.up` | move up |
+| `l` | `pane.cycle` | next pane |
 | `m A` | `mark.all_filtered` unmark=True | unmark all filtered |
 | `m Q` | `mark.query` unmark=True | unmark by query |
 | `m a` | `mark.all_filtered` | mark all filtered |
@@ -117,10 +119,12 @@ The files pane. Not built yet, so these bindings only log.
 | `down` | `nav.down` | move down |
 | `enter` | `doc.open` | open this file |
 | `g o` | `app.log` | operation log |
+| `h` | `pane.cycle` back=True | previous pane |
 | `J` | `files.reorder` to=1 | move a file up or down |
 | `j` | `nav.down` | move down |
 | `K` | `files.reorder` to=-1 | move a file up or down |
 | `k` | `nav.up` | move up |
+| `l` | `pane.cycle` | next pane |
 | `m` | `files.relocate` | apply placement rules |
 | `o` | `doc.open` | open this file |
 | `p` | `files.repoint` | fix broken path |
@@ -147,10 +151,12 @@ The info pane, focused with `2` or `tab`.
 | `ctrl+u` | `info.scroll` up=True | scroll the info pane |
 | `e` | `doc.edit` | edit |
 | `g o` | `app.log` | operation log |
+| `h` | `pane.cycle` back=True | previous pane |
 | `J` | `info.scroll` | scroll the info pane |
 | `j` | `nav.down` | move down |
 | `K` | `info.scroll` up=True | scroll the info pane |
 | `k` | `nav.up` | move up |
+| `l` | `pane.cycle` | next pane |
 | `shift+tab` | `pane.cycle` back=True | next pane |
 | `tab` | `pane.cycle` | next pane |
 | `u` | `app.undo` | undo |
@@ -166,8 +172,10 @@ The info pane, focused with `2` or `tab`.
 | `ctrl+d` | `log.scroll` | scroll the log |
 | `ctrl+u` | `log.scroll` up=True | scroll the log |
 | `g o` | `app.log` | close the log |
+| `h` | `pane.cycle` back=True | previous pane |
 | `j` | `log.scroll` lines=1 | scroll down a line |
 | `k` | `log.scroll` up=True lines=1 | scroll up a line |
+| `l` | `pane.cycle` | next pane |
 | `shift+tab` | `pane.cycle` back=True | next pane |
 | `tab` | `pane.cycle` | next pane |
 

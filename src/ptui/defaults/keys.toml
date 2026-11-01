@@ -39,6 +39,8 @@ escape_chain = ["modal", "visual", "narrow"]
 "4"        = { cmd = "pane.focus", args = { pane = "log" } }
 "tab"      = { cmd = "pane.cycle" }
 "shift+tab"= { cmd = "pane.cycle", args = { back = true } }
+"l"        = { cmd = "pane.cycle", desc = "next pane" }
+"h"        = { cmd = "pane.cycle", args = { back = true }, desc = "previous pane" }
 
 # — verbs on the current document ——————————————————
 "enter"    = { cmd = "doc.open",        desc = "open file" }
@@ -155,6 +157,8 @@ escape_chain = ["modal", "visual", "narrow"]
 "4"        = { cmd = "pane.focus", args = { pane = "log" } }
 "tab"      = { cmd = "pane.cycle" }
 "shift+tab"= { cmd = "pane.cycle", args = { back = true } }
+"l"        = { cmd = "pane.cycle", desc = "next pane" }
+"h"        = { cmd = "pane.cycle", args = { back = true }, desc = "previous pane" }
 "z f"      = { cmd = "pane.toggle", args = { pane = "files" }, desc = "close the files pane" }
 "g o"      = { cmd = "app.log", desc = "operation log" }
 "r"        = { cmd = "files.rename",   desc = "rename to scheme" }
@@ -183,6 +187,8 @@ escape_chain = ["modal", "visual", "narrow"]
 "4"        = { cmd = "pane.focus", args = { pane = "log" } }
 "tab"      = { cmd = "pane.cycle" }
 "shift+tab"= { cmd = "pane.cycle", args = { back = true } }
+"l"        = { cmd = "pane.cycle", desc = "next pane" }
+"h"        = { cmd = "pane.cycle", args = { back = true }, desc = "previous pane" }
 "g o"      = { cmd = "app.log", desc = "operation log" }
 
 [modes.log]
@@ -196,6 +202,8 @@ escape_chain = ["modal", "visual", "narrow"]
 "4"        = { cmd = "pane.focus", args = { pane = "log" } }
 "tab"      = { cmd = "pane.cycle" }
 "shift+tab"= { cmd = "pane.cycle", args = { back = true } }
+"l"        = { cmd = "pane.cycle", desc = "next pane" }
+"h"        = { cmd = "pane.cycle", args = { back = true }, desc = "previous pane" }
 "g o"      = { cmd = "app.log", desc = "close the log" }
 
 # The filter box has focus so that typing filters, so motions cannot be letters.
