@@ -254,11 +254,6 @@ async def test_an_attach_that_adds_nothing_points_at_the_papis_log(app, papis_li
         assert any("nothing attached" in line for line in logged)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a ~user path no account matches makes Path.expanduser raise RuntimeError "
-    "in files_attach, outside any guard; from the attach prompt that ends the session",
-)
 async def test_a_mistyped_home_path_at_the_attach_prompt_is_reported_not_fatal(app, monkeypatch):
     async with app.run_test() as pilot:
         await settle(pilot)

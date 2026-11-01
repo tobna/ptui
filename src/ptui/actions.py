@@ -294,6 +294,9 @@ def query_save(app: Any, name: str | None = None) -> None:
     if name is None:
         app.open_prompt("save", "name for this search (scope + sort)")
         return
+    if app.cfg.as_path("query.saved_file") is None:
+        app.log_line("[red]nowhere to save:[/] query.saved_file is not set in config.toml")
+        return
     saved = _saved_file(app)
     replaced = name in saved_searches(app)
     saved[name] = {"scope": app.scope_query, "sort": app.sort_key, "reverse": app.sort_reverse}
@@ -1759,7 +1762,12 @@ def files_attach(app: Any, path: str | None = None) -> None:
         app.log_line(f"[dim]downloading {path}…[/]")
         app.run_worker(lambda: _download(app, doc, path), thread=True, group="attach")
     else:
-        _attach(app, doc, Path(path).expanduser())
+        try:
+            src = Path(path).expanduser()
+        except RuntimeError as exc:  # `~nosuchuser/…`: there is no home to expand
+            app.log_line(f"[red]cannot attach[/] {path}: {exc}")
+            return
+        _attach(app, doc, src)
 
 
 def _download(app: Any, doc: Any, url: str) -> None:

@@ -98,12 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-44. **An error after a prompt ends the session.** What runs after a prompt is
-    submitted (`s`, `/`, `\ s`, `g r`, `m q`, the `:` line's arguments, …) has
-    no guard, unlike a command started from a key, so any exception there
-    closes ptui. Example: `query.saved_file = ""`, then `\ s` and a name.
-    Guard it the way `run_command` is guarded. (Pinned in
-    `tests/test_cover_actions_queries.py`.)
 46. **Low priority: a `files:` string is split into letters.** A hand-written
     `files: paper.pdf` (one string, not a list) is iterated letter by letter,
     so `x` and `J` write `[p, a, p, e, r, …]` over it. Read a string as a

@@ -2,7 +2,7 @@
 
 import pytest
 
-from ptui import actions, commands  # noqa: F401 — actions fills the registry
+from ptui import actions, commands
 
 
 @pytest.mark.parametrize(
@@ -49,3 +49,17 @@ def test_an_unregistered_command_still_logs_not_implemented(app, monkeypatch):
     monkeypatch.setattr(app, "log_line", logged.append)
     app.run_command("no.such")
     assert logged == ["[yellow]no.such is not implemented yet[/]"]
+
+
+async def test_a_command_that_fails_from_a_prompt_does_not_end_the_session(app, monkeypatch):
+    """Keys go through run_command, which guards; a submitted prompt did not."""
+    from conftest import press, settle
+
+    def broken(_app, kind, value):
+        raise ValueError(f"{kind}: {value}")
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        monkeypatch.setattr(actions, "prompt_result", broken)
+        await press(pilot, "g", "r", *"nobody", "enter")
+        assert app.is_running

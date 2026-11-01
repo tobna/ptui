@@ -1153,14 +1153,17 @@ class PtuiApp(App[None]):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         kind, value = self.prompt_kind, event.value
         self.close_prompt()
-        if kind in actions.HISTORY_KINDS:
-            actions.remember(self, value)
-        if kind == "narrow":
-            self.apply_narrow(value)
-        elif kind == "scope":
-            actions.scope(self, value)
-        elif kind:
-            actions.prompt_result(self, kind, value)
+        try:
+            if kind in actions.HISTORY_KINDS:
+                actions.remember(self, value)
+            if kind == "narrow":
+                self.apply_narrow(value)
+            elif kind == "scope":
+                actions.scope(self, value)
+            elif kind:
+                actions.prompt_result(self, kind, value)
+        except Exception as exc:  # as in run_command: a broken prompt must not end the session
+            logger.exception(f"{kind} prompt failed: {exc}")
 
     def on_data_table_row_highlighted(self, _: Any) -> None:
         # A highlight queued before teardown still gets delivered after the

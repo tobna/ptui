@@ -194,11 +194,6 @@ async def test_a_saved_search_with_unicode_round_trips(app, papis_lib):
         assert app.scope_query == "title:Résumé"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: query.save with query.saved_file unset raises ValueError out of the prompt "
-    "handler, which no run_command guards, and the exception ends the whole session",
-)
 async def test_saving_with_no_saved_file_is_reported_not_fatal(papis_lib, monkeypatch):
     app = build_app(papis_lib)
     app.cfg.data["query"]["saved_file"] = ""
