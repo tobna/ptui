@@ -95,6 +95,23 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
+30. **`m m` trashes a loser's file under an in-place rule.** Every shipped rule
+    is in-place, so `place()` leaves the file in the loser's folder, it never
+    reaches the survivor's `files`, and it goes to the trash with that folder.
+    [test_edge_merge.py]
+31. **The delete dialog ticks a shared file spelled differently.** The
+    shared-file check compares unresolved paths, so a file another document
+    names relative where this one names it absolute is checked by default and
+    trashed. Compare normalised paths, without following symlinks (the H.20
+    rule). [test_edge_undo.py]
+32. **`f r` leaves dangling entries when one entry raises.** Nothing guards
+    `place()` across a document's entries: the earlier ones have moved, and
+    `info.yaml` still names their old paths. [test_edge_actions.py]
+33. **`undo.strategy = "git"` without a repository half-deletes.** Decided:
+    check at startup, and on `:config.set undo.strategy`, that the library is a
+    git work tree; if not, say so and use `trash`, the way config repair
+    replaces what cannot work. `_delete_run` also checks before it trashes any
+    file. [test_edge_undo.py]
 4. **The doctor re-checks stale documents in a background thread.** Today a
    stale entry is re-scanned inside the redraw (~2 ms each), so a mass change
    on disk (a sync, a `git pull`) freezes the next redraw. While the thread
@@ -168,6 +185,24 @@ finishes it. The number in brackets is the review question it came from.
     `place()` returning a `conflict` or `error` status. Pinned by the xfail
     `test_a_dangling_symlink_at_the_destination_is_a_conflict_not_a_crash` in
     `tests/test_edge_place.py`. Worked after 25, before the README.
+34. **A merge overwrites a survivor's `author` without asking** when the
+    survivor has `author` but no `author_list`: the loser's list is a silent
+    gap, and `resolve()` rewrites `author` from it. [test_edge_merge.py]
+35. **`doctor.fix` misses fixes made in place.** It diffs against a shallow
+    `dict(doc)`, so papis's `files` fix writes nothing, and string-cleaner's
+    initials fix writes `author` but not `author_list`. [test_edge_doctor.py]
+36. **An apostrophe breaks the narrow.** shlex reads it as a quote, so `don't`
+    and `o'brien` match nothing, in `/` and every picker. [test_edge_library.py]
+37. **`-a:nauen` excludes nothing**: aliases are not expanded after `-`.
+    [test_edge_library.py]
+38. **Regex narrow casefolds the pattern**, turning `\D` `\W` `\S` into `\d`
+    `\w` `\s`. Match case-insensitively instead. [test_edge_library.py]
+39. **A `KeyError` inside a command reads as "not implemented yet"**, and its
+    traceback is dropped: `run_command` takes every `KeyError` for an unknown
+    name. [test_edge_app.py]
+40. **`ui = "dark"` in config.toml crashes ptui with a traceback**: `repair()`
+    raises `TypeError` on a section set to a scalar, and the CLI catches only
+    `ValueError`. [test_edge_config.py]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each
