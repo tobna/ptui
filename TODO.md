@@ -114,6 +114,13 @@ finishes it. The number in brackets is the review question it came from.
     since then is lost, and `u` restores the stale copy. Compute each write
     from the file as `safewrite.edit` reads it, the way H.45 did for the `c`
     verbs, and drop each xfail as its verb is fixed. [119.1]
+62. **Guard the background threads and the picker preview.** After H.44 and
+    H.44b, an exception in a thread worker (the doctor's startup scan and
+    `recheck`, metadata fetches, downloads) or in a picker's `preview`
+    callback (the live theme preview) still ends the session. Guard them
+    the way `run_command` is: logged once, traceback to `log.file`, the
+    session stays up. With tests: one per kind, each making that callback
+    raise and checking ptui is still running and the log says why. [121.1]
 56. **Show several Crossref hits.** papis's Crossref importer gets every hit and
     keeps the first ("Picking the first one!"). For `c u` and for adding from
     Crossref, call papis's `papis.crossref.get_data(query=…, max_results=…)`
