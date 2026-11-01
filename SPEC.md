@@ -183,8 +183,9 @@ forbidden. Narrowing **filters and never reorders** — sorting stays the user's
 The same matcher serves every picker's filter box. One implementation, or they
 drift and only one of them gets fixed.
 
-With `general.persist_state`, a session starts where the last one in the same
-library ended: its scope, its sort, the document under its cursor
+With `general.persist_state` — off by default, so a plain start opens the
+library as it did before restore existed — a session starts where the last one
+in the same library ended: its scope, its sort, the document under its cursor
 (`general.state_file`, JSON keyed by library name). The narrow is not restored —
 it is the per-keystroke layer, and a stale one hides documents without saying
 why. An explicit scope, `startup_query` or one on the command line, wins over

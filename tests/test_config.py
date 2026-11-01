@@ -8,6 +8,11 @@ def test_defaults_load():
     assert cfg.unknown == ()
 
 
+def test_session_restore_is_opt_in():
+    """A plain start opens the library as it did before restore existed."""
+    assert config.load(config.DEFAULTS_DIR / "nonexistent.toml").get("general.persist_state") is False
+
+
 def test_user_overrides_merge_per_key(tmp_path):
     (tmp_path / "config.toml").write_text('[ui]\ntheme = "mine"\n\n[nope]\nx = 1\n\n[ui.also]\ny = 2\n')
     cfg = config.load(tmp_path / "config.toml")

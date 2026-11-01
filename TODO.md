@@ -134,8 +134,6 @@ finishes it. The number in brackets is the review question it came from.
     to be guessed.
 22. **Prefix search in the query prompts**: after typing, `up`/`down` walk only
     the history entries that start with what was typed. [40.1]
-23. **Session restore is opt-in**: ship `general.persist_state = false`, so a
-    plain start opens the library as it did before restore existed. [41.1]
 24. **`c u` from Crossref asks first.** A title search can match the wrong
     paper and fill gaps from it; show what was found (title, year, first
     author) and ask "is this the paper?" before planning anything. [42.1]

@@ -26,8 +26,9 @@ half: open the library, find the paper in three keystrokes, hit `o`.
 - **Vim keys, discoverable** — which-key popups after a prefix, a context hint
   bar, and a `?` overlay listing the *effective* keymap of whichever mode you are
   in, generated from `keys.toml` so it can never drift.
-- **Picks up where you left off** — the scope, sort and cursor of your last
-  session in each library (`general.persist_state`).
+- **Picks up where you left off**, if you ask it to — with
+  `general.persist_state = true`, the scope, sort and cursor of your last
+  session in each library come back.
 - **Update without losing your edits** — `c u` refetches a document from its
   DOI, arXiv id or title and merges: missing fields are filled, and every real
   disagreement is a question. `papis update --auto` just overwrites.

@@ -6,7 +6,7 @@
 [general]
 library = ""                  # empty = papis default library
 startup_query = ""            # scope query applied at launch
-persist_state = true          # restore last position, scope, sort — per library
+persist_state = false         # restore last position, scope, sort — per library
 state_file = "~/.local/state/ptui/state.json"
 track_opens = false           # write `opened_at` on doc.open
 

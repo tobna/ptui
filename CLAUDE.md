@@ -216,7 +216,8 @@ Built:
 - **query history**: `actions.history` / `remember` over `query.history_file`
   (plain lines, newest last); `app.recall` walks it on `up`/`down` in the
   prompts named by `actions.HISTORY_KINDS`
-- **session state**: `actions.restore_state` before the first `reload`,
+- **session state** (opt-in, `general.persist_state = false` shipped):
+  `actions.restore_state` before the first `reload`,
   `save_state` from `PtuiApp.on_unmount` — which runs after the widgets are
   gone, so the cursor comes from `app._info_of`, not `app.current`. The test
   fixture turns `persist_state` off, or two sessions in one test leak into

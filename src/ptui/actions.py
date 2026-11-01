@@ -243,7 +243,7 @@ def _write_json(path: Path, data: Any) -> None:
 
 
 def _state(app: Any) -> tuple[Path | None, dict[str, Any]]:
-    path = app.cfg.as_path("general.state_file") if app.cfg.get("general.persist_state", True) else None
+    path = app.cfg.as_path("general.state_file") if app.cfg.get("general.persist_state", False) else None
     try:
         return path, json.loads(path.read_text()) if path else {}
     except (OSError, ValueError):
