@@ -4,6 +4,7 @@ Every test here runs against the throwaway library in `tmp_path` — documents,
 `pdf_root`, trash and git repo included. Nothing reaches a real library.
 """
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -471,3 +472,53 @@ async def test_config_set_to_git_outside_git_keeps_the_trash(app):
         actions.config_set(app, "undo.strategy", "git")
         assert app.cfg.get("undo.strategy") == "trash"
         assert any("not in a git work tree" in line for line in logged)
+
+
+@pytest.mark.parametrize("strategy", ["trash", "git"])
+async def test_a_merge_is_one_undo_step_and_redo_repeats_it(request, papis_lib, strategy):
+    """`u` after `m m` brings the folded-in folder back from the trash (and into
+    papis's index), the survivor's old fields and files, and the file the merge
+    moved into the survivor's folder; `ctrl+r` merges again."""
+    from ptui import actions, merge
+
+    if strategy == "git":
+        request.getfixturevalue("git_lib")
+    lib = papis_lib / "lib"
+    (lib / "doc1" / "supp.djvu").write_bytes(b"djvu")
+    info = lib / "doc1" / "info.yaml"
+    info.write_text(info.read_text() + "files:\n- supp.djvu\n")
+    if strategy == "git":
+        subprocess.run(["git", "add", "-A"], cwd=lib, check=True)
+        subprocess.run(["git", "commit", "-qm", "attach"], cwd=lib, check=True)
+    survivor_text = (lib / "doc0" / "info.yaml").read_text()
+
+    app = build_app(papis_lib, extra=f'strategy = "{strategy}"\n')
+    async with app.run_test() as pilot:
+        actions.reload(app, rescan=True)
+        await settle(pilot)
+
+        def merged() -> bool:
+            kept = next(d for d in app.docs if d["papis_id"] == "id0")
+            return (
+                not (lib / "doc1").exists()
+                and kept.get("files") == ["supp.djvu"]
+                and (lib / "doc0" / "supp.djvu").read_bytes() == b"djvu"
+                and {d["papis_id"] for d in app.docs} == {"id0", "id2"}
+            )
+
+        survivor, loser = (next(d for d in app.docs if d["papis_id"] == i) for i in ("id0", "id1"))
+        actions._merge_apply(app, merge.plan(survivor, [loser]), {})
+        await settle(pilot)
+        assert merged()
+
+        await press(pilot, "u")
+        assert (lib / "doc1" / "supp.djvu").read_bytes() == b"djvu"
+        assert not (lib / "doc0" / "supp.djvu").exists()
+        assert (lib / "doc0" / "info.yaml").read_text() == survivor_text
+        assert {d["papis_id"] for d in app.docs} == {"id0", "id1", "id2"}
+        if strategy == "git":
+            status = subprocess.run(["git", "status", "--porcelain"], cwd=lib, capture_output=True, text=True)
+            assert status.stdout == ""  # the work tree is as it was before the merge
+
+        await press(pilot, "ctrl+r")
+        assert merged()

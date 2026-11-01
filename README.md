@@ -46,7 +46,8 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   to the document you are on, exactly as `papis addto` would.
 - **Merge duplicates** — mark the copies, `m m`, and keep the citekey you want.
   Fields only one record had are filled in, real disagreements ask, attachments
-  are unioned, and the folded-in folders go to the trash rather than the void.
+  are unioned, and the folded-in folders go to the trash rather than the void;
+  `u` undoes the whole merge.
 - **Doctor without the surgery** — findings show up in the info pane for the
   document you are on, `! !` narrows the list to every document that has any,
   and nothing is written until you ask (`! f`, or `! o` to pick one finding).

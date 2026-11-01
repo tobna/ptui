@@ -914,19 +914,21 @@ def doc_edit(app: Any, other: bool = False) -> None:
     app.push_screen(ui.EditForm(f"Edit {ref}  (enter saves, escape cancels)", fields, initial), confirm)
 
 
+def _put_all(data: Any, values: dict[str, Any]) -> None:
+    """Inside a `safewrite.edit`: every key of `values`, `None` removing it."""
+    for key, value in values.items():
+        if value is None:
+            safewrite.drop(data, key)
+        else:
+            safewrite.put(data, key, value)
+
+
 def _fields_apply(app: Any, doc: Any, changes: dict[str, Any]) -> None:
     """Several keys of one document, one write and one undo step. `None` removes."""
     before = {key: doc.get(key) for key in changes}
 
     def write(values: dict[str, Any]) -> None:
-        def mutate(data: Any) -> None:
-            for key, value in values.items():
-                if value is None:
-                    safewrite.drop(data, key)
-                else:
-                    safewrite.put(data, key, value)
-
-        safewrite.edit(doc, mutate)
+        safewrite.edit(doc, lambda data: _put_all(data, values))
         _resort(app)
 
     try:
@@ -2021,6 +2023,30 @@ def _refresh_merge(app: Any, doc: Any, source: str, data: dict[str, Any]) -> Non
 
 
 def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
+    """Merge, then push one undo step for all of it — the folded-in folders, the
+    survivor's fields and every file that moved. Redo repeats this merge, with
+    the same answers, rather than asking again. `undo.strategy = "none"`
+    records nothing and clears the stack, as a delete does."""
+    back = _merge_run(app, plan, resolved)
+    if back is None:
+        return
+    if app.cfg.get("undo.strategy", "trash") == "none":
+        app.history.clear()
+        return
+    undos = [back]
+
+    def redo() -> None:
+        again = _merge_run(app, plan, resolved)
+        if again is None:
+            raise RuntimeError("the merge could not be repeated; see the log")
+        undos[0] = again  # the new run is what the next undo reverses
+
+    label = f"merge {len(plan.others) + 1} documents into {plan.survivor.get('ref', '')}"
+    app.history.push(undo.Step(label, lambda: undos[0](), redo))
+
+
+def _merge_run(app: Any, plan: Any, resolved: dict[str, Any]) -> Callable[[], None] | None:
+    """Do the merge. Returns its undo, or None when nothing was changed."""
     data = merge.resolve(plan, resolved)
     rules = place.Rules.from_config(app.cfg)
     trash_dir = app.cfg.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
@@ -2061,25 +2087,24 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
                 entries.append(new)
     if entries != list(plan.survivor.get("files") or []):
         data["files"] = entries
+    before = {key: plan.survivor.get(key) for key in data}
 
-    def write(info: Any) -> None:
-        for key, value in data.items():
-            safewrite.put(info, key, value)
-
-    try:
-        safewrite.edit(plan.survivor, write)
-    except Exception as exc:
-        # File first, info.yaml second: a write that did not land takes the files back.
+    def files_back() -> None:
         for result in placed:
             place.rollback(result)
         for source, dest in adopted:
             place._reserve(dest, source)
             dest.unlink()
+
+    try:
+        safewrite.edit(plan.survivor, lambda info: _put_all(info, data))
+    except Exception as exc:
+        files_back()  # file first, info.yaml second: a write that did not land takes the files back
         stale = isinstance(exc, safewrite.StaleError)
         app.log_line(
             "[yellow]info.yaml changed on disk; press r to reload[/]" if stale else f"[red]merge failed:[/] {exc}"
         )
-        return
+        return None
 
     # Moving the folder is not enough: papis keeps its own index, and a document
     # whose folder has gone still comes back from the cache. `papis rm` pairs the
@@ -2087,13 +2112,13 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
     import papis.database
 
     database = papis.database.get(app.cfg.get("general.library") or None)
-    trashed = []
+    trashed: list[tuple[Path, Path]] = []
     for doc in plan.others:
         folder = doc.get_main_folder()
         if not folder:
             continue
         try:
-            trashed.append(place.trash(Path(folder), trash_dir))
+            trashed.append((Path(folder), place.trash(Path(folder), trash_dir)))
         except Exception as exc:
             app.log_line(f"[red]could not trash {folder}:[/] {exc}")
             continue
@@ -2108,9 +2133,19 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
         f"merged {len(plan.others) + 1} -> {plan.survivor.get('ref', '')}: "
         f"{len(data)} field(s), {len(entries)} file(s), {len(trashed)} folder(s) trashed"
     )
-    for folder in trashed:
+    for _, folder in trashed:
         app.log_line(f"[dim]trashed {folder}[/]")
     app.query_one("#log-pane").display = True
+
+    def back() -> None:
+        # The survivor first: a write refused as stale must leave everything else alone.
+        safewrite.edit(plan.survivor, lambda info: _put_all(info, before))
+        restored = undo.restore(trashed)  # the folders, so the files have somewhere to go
+        files_back()
+        reload(app, rescan=True)  # papis forgot the folded-in documents; walk the library again
+        app.log_line(f"unmerged {plan.survivor.get('ref', '')}: {len(restored)} folder(s) back from the trash")
+
+    return back
 
 
 # ── doctor ──────────────────────────────────────────────────────────────────

@@ -242,6 +242,12 @@ genuinely disagree.
   `papis.database.delete` is called for each — moving a folder is not enough,
   papis keeps its own index and a document whose folder has gone still comes back
   from the cache. `papis rm` pairs the two and so does ptui.
+- **A merge is one undo step.** `u` puts back the survivor's previous fields and
+  `files`, brings the folded-in folders back from the trash (and into papis's
+  index), and moves every file the merge moved back where it was; redo repeats
+  the same merge with the same answers. The folders go through the trash under
+  every strategy, git included, and `undo.strategy = "none"` records nothing,
+  as for a delete.
 - Finding duplicates is a **separate job** from merging them; ptui merges what
   you marked and does not go looking.
 - `author` is never asked about next to `author_list`: it is derived from

@@ -369,7 +369,11 @@ shipped rule) is `place.adopt`ed into the survivor's folder when it sits in the
 loser's, which is about to go to the trash; and trashing a folder is not enough — `papis.database.delete`
 must be called too, or papis's index hands the document straight back on reload.
 `place.trash()` moves the folder to `undo.trash_dir` (SPEC: files always route
-through trash) rather than deleting it.
+through trash) rather than deleting it. `_merge_apply` pushes one undo step
+around `_merge_run`, which returns the undo for exactly that run — the
+survivor's old fields first (a stale write must leave the rest alone), then the
+folders back from the trash, then the moved files, then `reload(rescan=True)`;
+redo re-runs it with the same plan and answers, like `_delete_apply`'s redo.
 It also stamps the move in the trash's `.ptui-trashed.json` (`place.trashed_at`):
 a moved folder keeps its old mtime, and `lib.empty_trash` must delete by when
 something was trashed, not by when it was last edited.

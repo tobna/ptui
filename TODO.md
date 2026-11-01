@@ -95,10 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-43. **`m m` is one undo step.** The folded-in folders go to the trash and `u`
-    cannot bring them back. Undo restores them (and papis's index), the
-    survivor's previous fields and `files`, and the files `place.adopt` moved;
-    redo repeats the merge. Tested under the trash and git strategies.
 4. **The doctor re-checks stale documents in a background thread.** Today a
    stale entry is re-scanned inside the redraw (~2 ms each), so a mass change
    on disk (a sync, a `git pull`) freezes the next redraw. While the thread
