@@ -137,9 +137,6 @@ finishes it. The number in brackets is the review question it came from.
     as now. Nothing outside the scope is searched or reported. [104, 59.1]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
-27. **More and better tests**: more cases where they find bugs — the edges each
-    entry above turned up, the paths only one test walks today — rather than a
-    count.
 
 ## Not yet exercised
 
