@@ -143,3 +143,18 @@ def test_a_relative_entry_never_climbs_to_the_root(lib):
         assert "written absolute" in str(logged[0])
     finally:
         logger.remove(sink)
+
+
+def test_a_broken_link_is_a_clash_for_suffixing_and_for_adopt(lib):
+    doc, src, rules, tmp_path = lib
+    dead = tmp_path / "pdfs" / "2017_Vaswani_Attention_Is_All_You_Need.pdf"
+    dead.symlink_to(tmp_path / "gone.pdf")
+    result = place.place(doc, src, dataclasses.replace(rules, collision="suffix"))
+    assert result.status == "ok"
+    assert result.dest.name == "2017_Vaswani_Attention_Is_All_You_Need_b.pdf"
+    assert dead.is_symlink()  # the link is left as it was
+
+    loose = tmp_path / "loose.djvu"
+    loose.write_bytes(b"djvu")
+    (tmp_path / "doc" / "loose.djvu").symlink_to(tmp_path / "gone.djvu")
+    assert place.adopt(loose, tmp_path / "doc").name == "loose_b.djvu"

@@ -127,7 +127,7 @@ place(doc, src_path, rules, *, force=False, dry_run=False) -> PlaceResult
 | `ok`        | placed                                  | update `files`             |
 | `already`   | dest exists, same file (realpath/inode) | no-op                      |
 | `unmanaged` | matched an `op = "in-place"` rule       | skip                       |
-| `conflict`  | dest exists, different file             | skip + report              |
+| `conflict`  | dest exists, different file (or a broken link) | skip + report       |
 | `duplicate` | dest exists, byte-identical (hash)      | offer repoint + delete src |
 | `error`     | IO failure                              | report                     |
 

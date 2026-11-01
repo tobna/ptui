@@ -145,11 +145,6 @@ def test_cross_device_goes_through_a_tmp_name_and_leaves_no_tmp(doc, tmp_path, m
     assert [p.name for p in (tmp_path / "pdfs").iterdir()] == ["2017_Vaswani.pdf"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a dangling symlink at the destination makes place() raise FileNotFoundError "
-    "(os.path.samefile on the dead link) instead of returning a status",
-)
 def test_a_dangling_symlink_at_the_destination_is_a_conflict_not_a_crash(doc, tmp_path):
     (tmp_path / "pdfs" / "2017_Vaswani.pdf").symlink_to(tmp_path / "moved-away.pdf")
     result = place.place(doc, _src(doc), _rules(tmp_path))

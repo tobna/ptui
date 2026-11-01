@@ -227,10 +227,13 @@ def place(
 
     clash = _existing(dest)
     if clash is not None:
-        if src.resolve() == clash.resolve() or os.path.samefile(src, clash):
+        # A link to nothing holds the name but has no file to compare with: it
+        # is a clash like any other, never something to stat or hash.
+        broken = not clash.exists()
+        if not broken and (src.resolve() == clash.resolve() or os.path.samefile(src, clash)):
             entry = _entry(clash, doc, rule.path_style, previous)
             return PlaceResult("already", src, rule.name, dest=clash, entry=entry)
-        if rules.hash_check and _digest(src) == _digest(clash):
+        if not broken and rules.hash_check and _digest(src) == _digest(clash):
             return PlaceResult("duplicate", src, rule.name, dest=clash, message="destination is byte-identical")
         if rules.collision == "suffix" or force:
             suffixed = _suffixed(dest)
@@ -238,7 +241,8 @@ def place(
                 return PlaceResult("conflict", src, rule.name, dest=dest, message="no free suffix")
             dest = suffixed
         else:
-            return PlaceResult("conflict", src, rule.name, dest=dest, message="destination exists, differs")
+            why = "destination is a broken link" if broken else "destination exists, differs"
+            return PlaceResult("conflict", src, rule.name, dest=dest, message=why)
 
     entry = _entry(dest, doc, rule.path_style, previous)
     if dry_run:
@@ -267,9 +271,9 @@ def adopt(src: Path, folder: Path) -> Path:
     merge's loser). Never clobbers; a byte-identical file already there is the
     file, and `src` is left alone."""
     dest = folder / src.name
-    if _existing(dest) is not None:
-        if _digest(dest) == _digest(src):
-            return dest
+    if (clash := _existing(dest)) is not None:
+        if clash.exists() and _digest(clash) == _digest(src):
+            return clash
         suffixed = _suffixed(dest)
         if suffixed is None:
             raise FileExistsError(f"no free name for {src.name} in {folder}")

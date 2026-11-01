@@ -126,11 +126,6 @@ finishes it. The number in brackets is the review question it came from.
     empty text on failure (`csl` without `citeproc-py`), and `export.as` then
     writes it over the target file, or copies it and reports success. Write
     nothing, copy nothing, log the failure. [43.1]
-29. **A dangling symlink at the destination crashes `place()`.**
-    `os.path.samefile` on the dead link raises `FileNotFoundError` instead of
-    `place()` returning a `conflict` or `error` status. Pinned by the xfail
-    `test_a_dangling_symlink_at_the_destination_is_a_conflict_not_a_crash` in
-    `tests/test_edge_place.py`. Worked after 25, before the README.
 35. **`doctor.fix` misses fixes made in place.** It diffs against a shallow
     `dict(doc)`, so papis's `files` fix writes nothing, and string-cleaner's
     initials fix writes `author` but not `author_list`. [test_edge_doctor.py]
