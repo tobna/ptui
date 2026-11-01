@@ -39,6 +39,9 @@ async def shoot(
     rows: int | None = None,
 ) -> str | None:
     cfg = config.load()
+    # A screenshot neither starts from nor saves over the real session, nor its query history.
+    cfg.data["general"]["persist_state"] = False
+    cfg.data["query"]["history_file"] = ""
     if icons:
         cfg.data["ui"]["icons"] = True
     if rows:

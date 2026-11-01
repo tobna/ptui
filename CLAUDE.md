@@ -70,7 +70,9 @@ real keys, so this exercises the actual app; several layout problems in
 taken with `c r … enter` wrote a rating into a live document — found, reverted
 through `safewrite`, and the file restored from the library's own git. Only
 read-only keys belong in a screenshot: navigation, `/`, a picker you escape out
-of. Anything that writes goes in a test, against the fixture.
+of. Anything that writes goes in a test, against the fixture. It does turn
+session state and the query history off, so a screenshot neither starts from
+nor overwrites where your last real session ended.
 
 **The PNG lies about spacing.** SVG export writes each styled run as its own
 positioned text element, so bold text looks like it has lost the space beside it
