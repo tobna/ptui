@@ -222,6 +222,12 @@ Rules learned by measuring the papis API, all load-bearing:
   worse than typing it in.
 - A document with no file is legitimate — `papis.commands.add.run([])` accepts it.
   A `.bib` import attaches nothing; an arXiv import attaches the PDF it fetched.
+- **A document the library already holds is asked about first**: papis's own
+  test (`locate_document_in_lib` over `unique-document-keys` — DOI, ISBN, arXiv
+  `eprint`, URL), then the same title in the same year, which papis does not
+  try. Go to it, add it anyway, or cancel. papis add's own question is a
+  prompt_toolkit pager that cannot run inside the TUI — the add just failed —
+  so ptui turns papis's check off for the one call it makes.
 
 ## Merging duplicates
 

@@ -161,3 +161,35 @@ async def test_doc_add_with_a_uri_skips_both_prompts(app, monkeypatch):
         assert asked == [("arxiv", "2607.00687")]
         assert isinstance(app.screen, ui.AddForm)
         assert app.screen.query_one("#add-title").value == "Fetched Title"
+
+
+async def test_adding_what_the_library_already_holds_asks_first(app, papis_lib):
+    """papis add asks about a duplicate in a prompt_toolkit pager, which cannot
+    run inside the TUI: the add simply failed. ptui asks instead — papis's own
+    unique keys first (here the DOI), then the same title in the same year."""
+    from ptui import actions
+
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    info.write_text(info.read_text() + "doi: 10.1/attention\n")
+    async with app.run_test() as pilot:
+        actions.reload(app, rescan=True)
+        await settle(pilot)
+        await press(pilot, "j", "j")
+
+        actions._add_document(app, None, {"title": "Attention, again", "doi": "10.1/attention"})
+        assert isinstance(app.screen, ui.SelectList)
+        assert "Same doi as Vaswani2017" in app.screen.title_text
+        await press(pilot, "enter")  # go to it
+        assert app.current["ref"] == "Vaswani2017"
+        assert len(app.docs) == 3
+
+        actions._add_document(app, None, {"title": "deep residual learning ", "year": "2016"})
+        assert "Same title and year as He2016" in app.screen.title_text
+        await press(pilot, "down", "down", "enter")  # cancel
+        assert len(app.docs) == 3
+
+        actions._add_document(app, None, {"title": "Attention, again", "doi": "10.1/attention"})
+        await press(pilot, "down", "enter")  # add it anyway
+        await settle(pilot)
+        assert len(app.docs) == 4
+        assert app.current["title"] == "Attention, again"

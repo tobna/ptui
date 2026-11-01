@@ -128,10 +128,7 @@ def nav_goto(app: Any, ref: str | None = None) -> None:
             return
         doc = near[0]
         app.log_line(f"[yellow]no ref {key}; went to {doc.get('ref')}, the one that matches it[/]")
-    if doc not in app.rows:
-        app.marked_only = app.doctor_only = False
-        app.refilter("")
-    app.refresh_rows(keep=library.doc_id(doc))
+    _jump(app, doc)
     if app.visual is not None:  # a jump stretches the range like any move
         _visual_extend(app)
 
@@ -1321,14 +1318,83 @@ def add_form(app: Any, path: Path | None, fetched: dict[str, Any] | None = None)
     app.push_screen(ui.AddForm(path, initial, preview), confirm)
 
 
-def _add_document(app: Any, path: Path | None, data: dict[str, str], extra: dict[str, Any] | None = None) -> None:
+def _duplicate(app: Any, data: dict[str, Any]) -> tuple[Any, str] | None:
+    """The document already in the library that `data` describes, and why.
+
+    papis's own test first — `locate_document_in_lib` over its
+    `unique-document-keys` (DOI, ISBN, arXiv `eprint`, URL), the check `papis
+    add` runs — then the same title in the same year, which papis does not try.
+    """
+    import papis.config
+    import papis.database
+    import papis.document
+    import papis.utils
+
+    name = app.cfg.get("general.library") or None
+    candidate = papis.document.from_data(data)
+    try:
+        found = papis.utils.locate_document_in_lib(candidate, name)
+    except IndexError:
+        pass
+    else:
+        keys = papis.config.getlist("unique-document-keys") or []
+        return found, next((key for key in keys if candidate.get(key) and found.get(key)), "a unique key")
+    title, year = str(data.get("title") or "").casefold().strip(), str(data.get("year") or "")
+    if title and year:
+        for doc in papis.database.get(name).get_all_documents():
+            if str(doc.get("title") or "").casefold().strip() == title and str(doc.get("year") or "") == year:
+                return doc, "title and year"
+    return None
+
+
+def _jump(app: Any, doc: Any) -> bool:
+    """Put the cursor on `doc`, dropping a narrow that hides it. False when the
+    scope does not hold it: changing the scope is `s`, not a side effect."""
+    key = library.doc_id(doc)
+    if key not in {library.doc_id(d) for d in app.docs}:
+        return False
+    if key not in {library.doc_id(d) for d in app.rows}:
+        app.marked_only = app.doctor_only = False
+        app.refilter("")
+    app.refresh_rows(keep=key)
+    return True
+
+
+def _add_document(
+    app: Any, path: Path | None, data: dict[str, str], extra: dict[str, Any] | None = None, *, again: bool = False
+) -> None:
+    """Add it — unless the library already holds it, which is asked first;
+    `again` is the answer "add it anyway"."""
     import papis.commands.add
     import papis.config
 
+    form = data
     # The form wins over the fetched record: the user just looked at both.
     data = {**(extra or {}), **_expand(data)}
+    if not again and (dup := _duplicate(app, data)) is not None:
+        doc, why = dup
+        what = f"{doc.get('ref') or library.display(doc.get('title', '?'))} ({doc.get('year', '?')})"
+        items = [
+            ui.Item(label=f"go to {what}", value="goto", hint=f"same {why}"),
+            ui.Item(label="add it anyway", value="add"),
+            ui.Item(label="cancel", value=""),
+        ]
+
+        def chose(answer: str, _invert: bool) -> None:
+            if answer == "add":
+                _add_document(app, path, form, extra, again=True)
+            elif answer == "goto" and not _jump(app, doc):
+                app.log_line(f"[yellow]{what} is outside the scope {app.scope_query or '*'}[/]")
+
+        ui.pick(app, items, title=f"Already in the library? Same {why} as {what}")(chose)
+        return
     if papis.config.getboolean("time-stamp"):  # what `papis add` itself obeys
         data.setdefault(library.TIME_ADDED, library.stamp())
+    # papis add asks about a duplicate itself, in a prompt_toolkit pager that
+    # cannot run inside the TUI (asyncio.run under a running loop): the add
+    # failed. The question is ptui's now, so papis's check is off for the call.
+    unique = papis.config.get("unique-document-keys")
+    papis.config.set("unique-document-keys", "[]")
     try:
         # ponytail: papis copies the source in; the original stays in the inbox
         # rather than being deleted behind the user's back. An empty path list is
@@ -1342,6 +1408,8 @@ def _add_document(app: Any, path: Path | None, data: dict[str, str], extra: dict
     except Exception as exc:
         app.log_line(f"[red]add failed:[/] {exc}")
         return
+    finally:
+        papis.config.set("unique-document-keys", str(unique))
 
     reload(app)
     added = next((d for d in app.docs if d.get("title") == data.get("title")), None)

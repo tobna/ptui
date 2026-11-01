@@ -445,7 +445,11 @@ downloader here. The fetch runs in a **thread worker** — some of them take
 seconds and pull a PDF.
 
 `add_form(app, path, fetched)` takes `path=None` for a metadata-only document;
-`papis.commands.add.run([])` accepts that. `_KEEP_FETCHED` carries the keys the
+`papis.commands.add.run([])` accepts that. **`add.run` asks about a duplicate
+itself, in a prompt_toolkit pager** that dies inside Textual ("asyncio.run()
+cannot be called from a running event loop"), so `_add_document` asks first
+(`_duplicate`: papis's `locate_document_in_lib`, then title + year) and sets
+papis's `unique-document-keys` to `[]` around the one `add.run` call. `_KEEP_FETCHED` carries the keys the
 form has no box for (abstract, eprint, venue…) into the document.
 
 `doctor.py` never calls `papis.commands.doctor.run()` — that takes `fix=True`

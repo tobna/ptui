@@ -106,8 +106,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-15. **Deduplication on add** (DOI, arXiv id, title + year). First find what
-    `papis add` already does and reuse it (golden rule 3).
 17. **Test `:doc.add <source> <id>` for `doi` as well as `arxiv`**: parametrise
     `test_doc_add_with_a_uri_skips_both_prompts`. [30.2]
 18. **Editing the author line in the form keeps each author's extra keys**
