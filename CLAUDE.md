@@ -357,8 +357,9 @@ them) or a numeric range (`year:>2023`, `year:2020..2024`). Aliases come from
 itself has no grammar of its own: the expanded string goes to papis's
 `db.query`, so `OR`, `NOT` and parentheses (papis 0.16) work there, and
 `expand_aliases` also expands right after a `(`. `shlex` does the
-quoting and raises on the half-typed quote you always have, so an unterminated
-query is retried closed. `match_text` is the same matcher over one blob, which is
+quoting, with `"` as the only quote — an apostrophe opened one, so `don't` and
+`o'brien` matched nothing — and raises on the half-typed quote you always have,
+so an unterminated query is retried closed. `match_text` is the same matcher over one blob, which is
 what `ui.Item.matches` uses: **one matcher for `/` and every picker filter**.
 Fuzzy is opt-in and requires the matched run to fit `FUZZY_SPAN` times the
 needle; plain subsequence matching was the A1/A2 bug and must not come back.

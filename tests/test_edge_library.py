@@ -60,10 +60,6 @@ def test_parse_query_edges(query, terms):
 APOSTROPHES = [{"title": "Don't Stop Pretraining", "author": "Gururangan"}, {"title": "Other", "author": "O'Brien"}]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: shlex treats an apostrophe as an opening quote, so `don't` is retried as `dont` and matches nothing",
-)
 @pytest.mark.parametrize(("query", "want"), [("don't", ["Don't Stop Pretraining"]), ("o'brien", ["Other"])])
 def test_an_apostrophe_is_part_of_the_term(query, want):
     assert _titles(APOSTROPHES, query) == want

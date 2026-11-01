@@ -146,12 +146,15 @@ def parse_query(query: str, aliases: dict[str, str] | None = None) -> tuple[Term
 
     Quotes come from `shlex`, which raises on the unbalanced quote you always
     have halfway through typing one — so an unterminated query is retried closed.
+    Only `"` quotes: an apostrophe is a letter in `don't` and `o'brien`.
     """
     query = expand_aliases(query, aliases or {})
     tokens: list[str] = query.split()
-    for candidate in (query, f'{query}"', f"{query}'"):
+    for candidate in (query, f'{query}"'):
         try:
-            tokens = shlex.split(candidate)
+            lexer = shlex.shlex(candidate, posix=True)
+            lexer.whitespace_split, lexer.quotes, lexer.commenters = True, '"', ""
+            tokens = list(lexer)
             break
         except ValueError:
             continue
