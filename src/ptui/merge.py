@@ -17,6 +17,8 @@ from typing import Any
 import papis.document
 from papis.document import Document
 
+from ptui import place
+
 SKIPPED = frozenset({"papis_id", "files", "time-added", "ref", "_papis_local_folder"})
 """Keys the merge never asks about as an ordinary clash.
 
@@ -140,4 +142,4 @@ def file_entries(docs: list[Document]) -> list[tuple[Document, str]]:
     The document matters: an entry may be relative to *its own* folder, and that
     folder is about to be trashed, so the caller has to resolve it before then.
     """
-    return [(doc, entry) for doc in docs for entry in (doc.get("files") or [])]
+    return [(doc, entry) for doc in docs for entry in place.entries(doc)]

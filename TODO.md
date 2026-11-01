@@ -98,10 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-46. **Low priority: a `files:` string is split into letters.** A hand-written
-    `files: paper.pdf` (one string, not a list) is iterated letter by letter,
-    so `x` and `J` write `[p, a, p, e, r, …]` over it. Read a string as a
-    one-entry list. (Pinned in `tests/test_cover_actions_files.py`.)
 47. **`y y` on a document with no `ref` yanks `\cite{}`.** The empty-key
     filter runs after `citekey_format` has wrapped the ref, so it never sees
     an empty key. Skip the document and say so. (Pinned in

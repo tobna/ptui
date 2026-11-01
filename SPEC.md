@@ -68,8 +68,9 @@ of. Test this explicitly.
 
 ### File semantics
 
-`files` is a flat list of path strings. Entries may be relative to the
-document folder, relative with traversal (`../../pdfs/x.pdf`), or absolute.
+`files` is a flat list of path strings — a lone string (`files: paper.pdf`,
+legal YAML) is read as a one-entry list, as papis reads it. Entries may be
+relative to the document folder, relative with traversal (`../../pdfs/x.pdf`), or absolute.
 ptui preserves each entry's existing style unless the user runs an explicit
 command. New entries use the `path_style` of the matching rule.
 

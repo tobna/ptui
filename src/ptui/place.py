@@ -169,6 +169,16 @@ def same_file(a: Path, b: Path) -> bool:
     return normal(a) == normal(b) or a.resolve() == b.resolve()
 
 
+def entries(doc: Document) -> list[str]:
+    """`files`, entry by entry as written. A hand-written `files: paper.pdf` is
+    legal YAML and papis reads it as one entry (`Document.get_files`); iterating
+    the string would give its letters."""
+    value = doc.get("files")
+    if value in (None, ""):
+        return []
+    return list(value) if isinstance(value, list) else [value]
+
+
 def resolve(doc: Document, entry: str) -> Path:
     """A `files` entry as an absolute path (entries may be relative to the doc folder)."""
     path = Path(entry).expanduser()
@@ -286,7 +296,7 @@ def adopt(src: Path, folder: Path) -> Path:
 def holding(doc: Document, src: Path) -> Path | None:
     """The file of `doc` with the same bytes as `src`, if it already has one."""
     digest = _digest(src)
-    held = (resolve(doc, entry) for entry in doc.get("files") or [])
+    held = (resolve(doc, entry) for entry in entries(doc))
     return next((path for path in held if path.is_file() and _digest(path) == digest), None)
 
 

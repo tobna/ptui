@@ -280,11 +280,6 @@ async def test_a_stale_file_aborts_a_detach_and_records_no_step(app, papis_lib, 
     assert _files(papis_lib) == ["a.pdf"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a hand-written `files: paper.pdf` (a string, legal YAML) is iterated "
-    "character by character, so x and J write a list of single letters back over it",
-)
 @pytest.mark.parametrize("command", [actions.files_detach, actions.files_reorder])
 async def test_a_files_key_written_as_one_string_is_not_split_into_letters(app, papis_lib, command):
     (papis_lib / "lib" / "doc0" / "paper.pdf").write_bytes(b"pdf")

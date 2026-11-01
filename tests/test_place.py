@@ -158,3 +158,11 @@ def test_a_broken_link_is_a_clash_for_suffixing_and_for_adopt(lib):
     loose.write_bytes(b"djvu")
     (tmp_path / "doc" / "loose.djvu").symlink_to(tmp_path / "gone.djvu")
     assert place.adopt(loose, tmp_path / "doc").name == "loose_b.djvu"
+
+
+@pytest.mark.parametrize(
+    ("value", "want"), [(None, []), ("", []), ("paper.pdf", ["paper.pdf"]), (["a.pdf", "b.pdf"], ["a.pdf", "b.pdf"])]
+)
+def test_entries_reads_a_lone_string_as_one_entry_as_papis_does(value, want):
+    doc = papis.document.from_data({} if value is None else {"files": value})
+    assert place.entries(doc) == want

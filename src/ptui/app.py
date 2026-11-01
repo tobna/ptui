@@ -881,7 +881,7 @@ class PtuiApp(App[None]):
             if doc.get(key):
                 value = self.info_value(key, doc[key], show)
                 lines.append((f"[dim]{ui.glyph(f'field.{key}')} {key:>8}[/]  ", value))
-        files = doc.get("files", [])
+        files = place.entries(self.current)
         if files:
             # The icon belongs to the section, not to every row: repeating it once
             # per entry says nothing, while a missing file is worth shouting about.
@@ -919,7 +919,7 @@ class PtuiApp(App[None]):
         if doc is None or library.doc_id(doc) != self._files_of:
             self.file_index = 0  # another document: start at its first file
         self._files_of = library.doc_id(doc) if doc else None
-        entries = list(doc.get("files") or []) if doc else []
+        entries = place.entries(doc) if doc else []
         self.file_index = max(0, min(self.file_index, len(entries) - 1))
         patterns = self.cfg.get("files.kind_patterns", {})
         pane.clear_options()

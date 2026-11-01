@@ -166,6 +166,10 @@ per key.
   later write raise "I/O operation on closed file". `safewrite.write` dumps
   through a fresh `_dumper()`, configured like the module's `_yaml` (which
   still loads: a failed load cleans up after itself).
+- **Read `files` through `place.entries(doc)`, never `doc.get("files")`.** A
+  hand-written `files: paper.pdf` is a string; papis reads it as one entry
+  (`Document.get_files`), and iterating it gave its letters — `x` and `J` then
+  wrote `[p, a, p, e, r, …]` back.
 - `papis.format.format` **returns the unformatted pattern** (or raises deep in
   `string.Formatter`) when a key is missing; `default=""` does not save nested
   lookups like `{doc[author_list][0][family]}`. Check for a leftover `{`.

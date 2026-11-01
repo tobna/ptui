@@ -876,6 +876,19 @@ async def test_normalize_follows_no_symlink_and_writes_the_shortest_entry(app, p
     assert (folder / "link.djvu").is_symlink()
 
 
+async def test_a_files_key_written_as_one_string_lists_one_file(app, papis_lib):
+    from textual.widgets import Static
+
+    folder = papis_lib / "lib" / "doc0"
+    (folder / "paper.pdf").write_bytes(b"pdf")
+    (folder / "info.yaml").write_text((folder / "info.yaml").read_text() + "files: paper.pdf\n")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        assert "files (1)" in app.query_one("#info", Static).content.plain
+        await press(pilot, "3")
+        assert app.query_one("#files-pane").option_count == 1
+
+
 async def test_the_next_session_starts_where_this_one_ended(papis_lib):
     """Per library: scope, sort and cursor. An explicit scope wins."""
     import json

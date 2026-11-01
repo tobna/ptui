@@ -774,7 +774,7 @@ def files_of(app: Any, doc: Any) -> list[Path]:
     parallel `kind` key would desync with a script that appends to `files`.
     """
     patterns = [p for group in app.cfg.get("files.kind_patterns", {}).values() for p in group]
-    paths = [place.resolve(doc, entry) for entry in doc.get("files", [])]
+    paths = [place.resolve(doc, entry) for entry in place.entries(doc)]
     main = [p for p in paths if not any(fnmatch(p.name, pat) for pat in patterns)]
     return main + [p for p in paths if p not in main]
 
@@ -792,7 +792,7 @@ def doc_open(app: Any, which: int | None = None) -> None:
         return
     path = paths[which] if which is not None and which < len(paths) else paths[0]
     if which is None and app.mode == "files":  # the entry under the files pane's cursor
-        path = place.resolve(doc, list(doc.get("files") or [])[app.file_index])
+        path = place.resolve(doc, place.entries(doc)[app.file_index])
     if not path.exists():
         app.log_line(f"[red]missing file:[/] {path}")
         return
@@ -1523,7 +1523,7 @@ def files_relocate(app: Any, force: bool = False) -> None:
     rules = place.Rules.from_config(app.cfg)
     tally: dict[str, int] = {}
     for doc in app.targets:
-        entries = list(doc.get("files", []))
+        entries = place.entries(doc)
         results = []
         for entry in entries:
             # One entry's surprise must not strand the ones already moved: they
@@ -1562,7 +1562,7 @@ def _file_entry(app: Any, index: int | None) -> tuple[Any, list[str], int] | Non
     """The current document, a copy of its `files`, and which entry: `index`, or
     the files pane's cursor."""
     doc = app.current
-    entries = list(doc.get("files") or []) if doc is not None else []
+    entries = place.entries(doc) if doc is not None else []
     if not entries:
         app.log_line("[yellow]no files attached[/]")
         return None
@@ -1681,7 +1681,7 @@ def files_rename(app: Any, index: int | None = None) -> None:
     def move(a: Path, b: Path, before: str, after: str) -> None:
         place._reserve(a, b)  # raises rather than clobber
         a.unlink()
-        files = [after if entry == before else entry for entry in doc.get("files") or []]
+        files = [after if entry == before else entry for entry in place.entries(doc)]
         try:
             safewrite.edit(doc, lambda data: safewrite.put(data, "files", files))
         except Exception:
@@ -1711,7 +1711,7 @@ def files_normalize(app: Any) -> None:
     planned = []
     for doc in app.targets:
         folder = place.normal(Path(doc.get_main_folder() or "."))
-        entries, seen, new = list(doc.get("files") or []), set(), []
+        entries, seen, new = place.entries(doc), set(), []
         for entry in entries:
             # Never through a link: a linked PDF stays the link, and a library
             # reached through one keeps its own spelling of the folder.
@@ -1800,7 +1800,7 @@ def _attach(app: Any, doc: Any, src: Path, *, downloaded: bool = False) -> None:
         if (held := place.holding(doc, src)) is not None:
             app.log_line(f"[yellow]{ref} already has {src.name} (as {held.name})[/]")
             return
-        before = list(doc.get("files") or [])
+        before = place.entries(doc)
         papis.commands.addto.run(doc, [str(src)], git=bool(app.cfg.papis("edit.use_git", "use-git")))
     except Exception as exc:
         app.log_line(f"[red]attach failed:[/] {exc}")
@@ -1810,7 +1810,7 @@ def _attach(app: Any, doc: Any, src: Path, *, downloaded: bool = False) -> None:
         if downloaded:
             src.unlink(missing_ok=True)
 
-    added = [entry for entry in doc.get("files") or [] if entry not in before]
+    added = [entry for entry in place.entries(doc) if entry not in before]
     app.refresh_rows()
     if added:
         app.log_line(f"attached {', '.join(added)} to {ref}")
@@ -2041,7 +2041,7 @@ def doc_merge(app: Any) -> None:
         ui.Item(
             label=ref,
             value=index,
-            hint=f"{doc.get('type', '')} {len(doc.get('files') or [])} file(s)".strip(),
+            hint=f"{doc.get('type', '')} {len(place.entries(doc))} file(s)".strip(),
             haystack=library.display(doc.get("title", "")),
         )
         for index, (ref, doc) in enumerate(choices)
@@ -2214,12 +2214,12 @@ def _merge_run(app: Any, plan: Any, resolved: dict[str, Any]) -> Callable[[], No
 
     # Files first, and resolved against the folder they still live in: an entry
     # may be relative to a folder that is about to be trashed.
-    entries = list(plan.survivor.get("files") or [])
+    entries = place.entries(plan.survivor)
     home = Path(plan.survivor.get_main_folder())
     placed, adopted = [], []
     for doc in plan.others:
         folder = place.normal(Path(doc.get_main_folder() or "."))
-        for entry in doc.get("files") or []:
+        for entry in place.entries(doc):
             source = place.resolve(doc, entry)
             if not source.exists():
                 app.log_line(f"[yellow]missing file, not merged:[/] {entry}")
@@ -2246,7 +2246,7 @@ def _merge_run(app: Any, plan: Any, resolved: dict[str, Any]) -> Callable[[], No
                 app.log_line(f"[yellow]{result.status}[/] {source.name}: {result.message}")
             elif new not in entries:
                 entries.append(new)
-    if entries != list(plan.survivor.get("files") or []):
+    if entries != place.entries(plan.survivor):
         data["files"] = entries
     before = {key: plan.survivor.get(key) for key in data}
 
@@ -2531,7 +2531,7 @@ def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
     doomed = []
     for doc in targets:
         folder = place.normal(Path(doc.get_main_folder() or "."))
-        for entry in doc.get("files") or []:
+        for entry in place.entries(doc):
             path = place.resolve(doc, entry)
             where = place.normal(path)
             if folder in where.parents:
@@ -2541,7 +2541,7 @@ def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
                 other.get("ref") or library.doc_id(other)
                 for other in everyone
                 if library.doc_id(other) != library.doc_id(doc)
-                and any(place.same_file(place.resolve(other, e), path) for e in other.get("files") or [])
+                and any(place.same_file(place.resolve(other, e), path) for e in place.entries(other))
             ]
             note = "" if managed else "outside the managed roots"
             if others:
@@ -2570,7 +2570,7 @@ def doc_delete(app: Any, force: bool = False) -> None:
     shown = [f"  {ui.literal(str(doc.get('ref') or library.doc_id(doc)))}" for doc in targets[:10]]
     if len(targets) > 10:
         shown.append(f"  [dim]… and {len(targets) - 10} more[/]")
-    inside = sum(len(doc.get("files") or []) for doc in targets) - len(doomed)
+    inside = sum(len(place.entries(doc)) for doc in targets) - len(doomed)
     if inside:
         shown.append(f"[dim]{inside} file(s) inside the folders go with them[/]")
 
