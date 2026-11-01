@@ -95,6 +95,12 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
+28. **Data loss: one failed write breaks every later one.** A
+    `safewrite.write` that fails mid-dump (a value ruamel cannot represent)
+    leaves the module-level `_yaml` bound to the closed tmp file, so every
+    later write in the session raises "I/O operation on closed file" until
+    restart. Pinned by the xfail `test_a_failed_write_does_not_break_the_next_one`
+    in `tests/test_edge_safewrite.py`. Worked next, before 4.
 4. **The doctor re-checks stale documents in a background thread.** Today a
    stale entry is re-scanned inside the redraw (~2 ms each), so a mass change
    on disk (a sync, a `git pull`) freezes the next redraw. While the thread
@@ -163,6 +169,11 @@ finishes it. The number in brackets is the review question it came from.
     empty text on failure (`csl` without `citeproc-py`), and `export.as` then
     writes it over the target file, or copies it and reports success. Write
     nothing, copy nothing, log the failure. [43.1]
+29. **A dangling symlink at the destination crashes `place()`.**
+    `os.path.samefile` on the dead link raises `FileNotFoundError` instead of
+    `place()` returning a `conflict` or `error` status. Pinned by the xfail
+    `test_a_dangling_symlink_at_the_destination_is_a_conflict_not_a_crash` in
+    `tests/test_edge_place.py`. Worked after 25, before the README.
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 27. **More and better tests**: more cases where they find bugs — the edges each
