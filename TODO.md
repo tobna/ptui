@@ -112,8 +112,6 @@ finishes it. The number in brackets is the review question it came from.
     substring of exactly one `ref`, jumps to that one. [28.1]
 15. **Deduplication on add** (DOI, arXiv id, title + year). First find what
     `papis add` already does and reuse it (golden rule 3).
-16. **The add and edit forms show their keys** at the bottom: `tab`/`shift+tab`
-    move, `enter` saves, `escape` cancels.
 17. **Test `:doc.add <source> <id>` for `doi` as well as `arxiv`**: parametrise
     `test_doc_add_with_a_uri_skips_both_prompts`. [30.2]
 18. **Editing the author line in the form keeps each author's extra keys**

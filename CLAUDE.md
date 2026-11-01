@@ -659,6 +659,9 @@ true` (`E`) the other one. The structured one is `ui.EditForm`, the add form's l
 `edit.structured_fields`, returning every field (empty means remove) into
 `actions._fields_apply` — one safe write and one undo step for all the keys.
 `author_list` is edited as papis's `author` string and written back as both.
+Both forms end in `#form-keys`, a legend written by hand like the delete
+dialog's: the keys are Textual's (`focus_next`, `Input.Submitted`) and the
+form's own `on_key`, not `keys.toml`, so there is no binding to derive it from.
 `doc.notes`
 hands off to `papis.commands.edit.edit_notes`, which writes the `notes` key
 itself — one of the few writes not going through `safewrite`, for the same

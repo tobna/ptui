@@ -122,3 +122,31 @@ async def test_the_filter_box_is_one_row(app):
         await settle(pilot)
         await press(pilot, "S")
         assert app.screen.query_one("Input").size.height == 1
+
+
+async def test_the_add_and_edit_forms_show_their_keys_on_an_80x24_screen(app):
+    """Nothing on either form said how to move between fields, save or leave."""
+    from pathlib import Path
+
+    from textual.widgets import Input, Static
+
+    forms = [
+        ui.AddForm(Path("paper.pdf"), {}, lambda _: "/library/2020_Someone_A_Long_Title/2020_Someone_A_Long_Title.pdf"),
+        ui.EditForm("Edit Vaswani2017", tuple(app.cfg.get("edit.structured_fields")), {}),
+    ]
+    async with app.run_test(size=(80, 24)) as pilot:
+        await settle(pilot)
+        for form in forms:
+            app.push_screen(form)
+            await settle(pilot)
+            keys = form.query_one("#form-keys", Static)
+            assert all(key in str(keys.render()) for key in ("tab", "shift+tab", "enter", "escape"))
+            assert keys.content_region.height == 1  # one line, not wrapped into a second
+            assert keys.region.bottom <= app.size.height  # and on screen
+            fields = list(form.query(Input))
+            await press(pilot, "tab")  # and they do what it says
+            assert app.focused is fields[1]
+            await press(pilot, "shift+tab")
+            assert app.focused is fields[0]
+            await press(pilot, "escape")
+            assert app.screen is not form

@@ -345,6 +345,7 @@ class AddForm(ModalScreen[dict[str, str] | None]):
     AddForm Input:focus { background: $panel; }
     AddForm .field-label { color: $text-muted; padding: 0 2; }
     AddForm #add-preview { padding: 1 2 0 2; color: $text-muted; }
+    AddForm #form-keys { padding: 1 2 0 2; color: $text-muted; }
     """
 
     def __init__(
@@ -376,6 +377,11 @@ class AddForm(ModalScreen[dict[str, str] | None]):
             # markup=False: a destination path is full of `[doc[year]]`-shaped
             # text that Textual would otherwise read as markup.
             yield Static(id="add-preview", markup=False)
+            # Textual's own keys, not the keymap's: a modal owns the keyboard
+            yield Static(
+                "[$accent]tab[/]/[$accent]shift+tab[/] move   [$accent]enter[/] save   [$accent]escape[/] cancel",
+                id="form-keys",
+            )
 
     def on_mount(self) -> None:
         self._refresh_preview()
