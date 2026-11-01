@@ -505,7 +505,9 @@ toast that vanishes.
   and `app.log` is a toggle only in the sense that pressing it again focuses the
   list. Focus never lands on a pane that is not on screen. Focused, it scrolls
   with the info pane's keys: `ctrl+d`/`ctrl+u` by half a pane, `j`/`k` by a line,
-  and `g g`/`G` go to its top and bottom. The info pane is not
+  and `g g`/`G` go to its top and bottom. Its lines wrap short of its
+  scrollbar, written while it was hidden or not, and wrap again when the
+  terminal is resized. The info pane is not
   transient — `z i` is an explicit choice and focusing must not undo it.
 - `ui.split_ratio` is the **list pane's** share of whichever axis the split
   currently runs along, and the list keeps the whole window whenever it is the

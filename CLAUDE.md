@@ -530,6 +530,13 @@ Three things about the chrome that cost time to find:
   message and lets only `LOG_MARKUP` back through, so an interpolated value
   (`[modes.files]`, `[ui]`, a `[weird]` file name) prints verbatim — callers
   never escape. The status bar does the same per block in `blocks()`.
+- **Write to the log through `LogPane.add`, never `RichLog.write`.** RichLog
+  wraps a line once, at its `scrollable_content_region` width at the time —
+  zero while the pane is hidden, which it mostly is, so a line written then
+  came out one cell per row — and never rewraps, so a terminal narrowed later
+  left the older lines under the scrollbar. `add` wraps at the screen width
+  less the border and the always-on scrollbar (the pane spans the screen) and
+  keeps the line; `PtuiApp.on_resize` calls `rewrap` with the event's width.
 - **The exception marker** is `MARKER_WIDTH` cells the flexible column always
   gives up, so titles stay aligned whether or not a document has anything wrong
   with it — and `header()` indents that column's title by the same amount, or

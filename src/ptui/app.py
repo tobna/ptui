@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+from collections import deque
 from fnmatch import fnmatch
 from typing import Any
 
@@ -148,6 +149,37 @@ class ListTable(DataTable):
         self.app.relayout()  # type: ignore[attr-defined]  # now the widths are real
 
 
+class LogPane(RichLog):
+    """The operation log, wrapped at a width it works out itself.
+
+    `RichLog` wraps a line once, at its own width when the line is written —
+    zero while the pane is hidden, which it mostly is, so those lines came out
+    one cell wide; and a terminal narrowed later left every older line running
+    under the scrollbar. The pane spans the screen, so its width is the
+    screen's less the border and the scrollbar (`overflow-y: scroll` keeps that
+    one on screen), and `rewrap` lays every kept line out again on a resize.
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.entries: deque[str] = deque(maxlen=self.max_lines)
+
+    def wrap_width(self, screen_width: int) -> int:
+        return max(1, screen_width - self.styles.gutter.width - self.styles.scrollbar_size_vertical)
+
+    def add(self, line: str) -> None:
+        self.entries.append(line)
+        self.write(line, width=self.wrap_width(self.app.size.width))
+
+    def rewrap(self, screen_width: int) -> None:
+        width = self.wrap_width(screen_width)
+        if width == self.virtual_size.width:  # every row is padded to the wrap width
+            return  # ~70 ms for a full log, and a window drag sends many resizes
+        self.clear()
+        for line in self.entries:
+            self.write(line, width=width)
+
+
 class PtuiApp(App[None]):
     """Layout CSS lives here; themes only recolour it."""
 
@@ -275,11 +307,8 @@ class PtuiApp(App[None]):
             with Vertical(id="side"):
                 yield info
                 yield files
-        # wrap: a finding quotes a whole path, and the pane has no horizontal scroll
-        # key; min_width: RichLog never wraps narrower than 78 cells otherwise
-        log = RichLog(
-            id="log-pane", markup=True, wrap=True, min_width=1, max_lines=self.cfg.get("log.max_entries", 500)
-        )
+        # wrap: a finding quotes a whole path, and the pane has no horizontal scroll key
+        log = LogPane(id="log-pane", markup=True, wrap=True, max_lines=self.cfg.get("log.max_entries", 500))
         log.border_title = "log"
         yield log
         yield Static(id="which-key")
@@ -353,7 +382,7 @@ class PtuiApp(App[None]):
 
     def _setup_logging(self) -> None:
         logger.remove()
-        pane = self.query_one(RichLog)
+        pane = self.query_one(LogPane)
         level = self.cfg.get("log.level", "info").upper()
 
         def write(message: Any) -> None:
@@ -371,9 +400,9 @@ class PtuiApp(App[None]):
             # papis logs from the importer and download threads too, and a widget
             # may only be touched from the app's own
             if self._thread_id == threading.get_ident():
-                pane.write(line)
+                pane.add(line)
             else:
-                self.call_from_thread(pane.write, line)
+                self.call_from_thread(pane.add, line)
 
         # papis's INFO chatter goes to the file only; its warnings are the
         # "see the papis log" that attach and add point at.
@@ -492,6 +521,7 @@ class PtuiApp(App[None]):
         self.choose_layout(event.size.width)
         if was != self.side_by_side:
             self.apply_split()
+        self.query_one(LogPane).rewrap(event.size.width)
 
     def flex_width_if_side_by_side(self, total: int | None = None) -> int:
         """What the flexible column would get with the info pane beside the list.
@@ -1061,7 +1091,7 @@ class PtuiApp(App[None]):
         for tag, variable in LOG_TAGS.items():
             if tag in message:
                 message = message.replace(tag, f"[{self.theme_variables.get(variable, '')}]")
-        self.query_one(RichLog).write(message)
+        self.query_one(LogPane).add(message)
 
     # ── prompt ──────────────────────────────────────────────────────────────
 

@@ -359,7 +359,7 @@ async def test_a_logged_value_in_brackets_survives(app):
         await press(pilot, "4")
         app.log_line("[yellow]keys.toml:[/] [modes.files] 'x' under [ui] for [dim]dim[/] [weird].pdf")
         await settle(pilot)
-        text = app.query_one(RichLog).lines[-1].text
+        text = app.query_one(RichLog).lines[-1].text.rstrip()  # padded to the pane's width
         assert text == "keys.toml: [modes.files] 'x' under [ui] for dim [weird].pdf"
 
 
@@ -596,6 +596,27 @@ async def test_a_long_log_line_wraps_instead_of_being_cut(app):
         log = app.query_one(RichLog)
         assert "does not exist" in "".join(line.text for line in log.lines)
         assert max(line.cell_length for line in log.lines) <= log.size.width
+
+
+async def test_log_lines_wrap_short_of_the_scrollbar(app):
+    """A line was wrapped at the pane's width when it was written: zero while the
+    pane is hidden, so one cell per row, and a terminal narrowed afterwards left
+    every older line running under the scrollbar."""
+    from textual.widgets import RichLog
+
+    async with app.run_test(size=(60, 30)) as pilot:
+        await press(pilot, "4", "escape")  # shown once: RichLog stops deferring writes
+        for n in range(20):
+            app.log_line(f"while hidden {n} " + "word " * 15)
+        await press(pilot, "4")
+        log = app.query_one(RichLog)
+        assert log.max_scroll_y > 0  # enough lines that the scrollbar is in play
+        for size in [(60, 30), (45, 30)]:
+            await pilot.resize_terminal(*size)
+            await settle(pilot)
+            assert max(line.cell_length for line in log.lines) <= log.scrollable_content_region.width
+            assert len(log.lines) <= 20 * 3  # wrapped into rows, not a cell per row
+            assert log.max_scroll_x == 0  # nothing left to scroll sideways to
 
 
 async def test_the_log_pane_scrolls_with_the_info_pane_keys(app):
