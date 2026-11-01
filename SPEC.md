@@ -695,7 +695,7 @@ from this. Adding a command must not require touching four places.
 | `nav.down` / `nav.up`           | `count:int=1`                 | move cursor                                      |
 | `nav.top` / `nav.bottom`        |                               | first / last                                     |
 | `nav.page_down` / `nav.page_up` |                               |                                                  |
-| `nav.goto`                      | `ref:str`                     | move the cursor to a document by `ref`, exact — for a citekey pasted from a `.tex`; otherwise it warns, and goes to the one ref equal but for case, or else the one containing it |
+| `nav.goto`                      | `ref:str`                     | move the cursor to a document by `ref`, exact — for a citekey pasted from a `.tex`; otherwise it warns, and goes to the one ref equal but for case, or else the one containing it — of several, the one the narrowed list shows |
 | `pane.focus`                    | `pane:list\|info\|files\|log` | direct focus                                     |
 | `pane.cycle`                    | `back:bool=false`             | tab / shift-tab, and `l` / `h` in every pane     |
 | `pane.toggle`                   | `pane:str`                    | show/hide info or files pane; the list never hides |

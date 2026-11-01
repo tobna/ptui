@@ -797,6 +797,25 @@ async def test_goto_without_an_exact_ref_warns_and_takes_the_one_that_contains_i
         assert "no ref vaswani2017" in logged[-1]
 
 
+async def test_goto_takes_the_one_near_match_the_narrowed_list_shows(app):
+    """All three refs contain `20`; with one of them on screen, that one was meant."""
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = []
+        real = app.log_line
+        app.log_line = lambda message: (logged.append(message), real(message))
+        app.apply_narrow("-attention")  # Bengio2003 and He2016
+        await settle(pilot)
+        actions.nav_goto(app, "20")  # still two shown: listed, as before
+        assert "3 refs contain it" in logged[-1]
+        app.apply_narrow("bengio")
+        await settle(pilot)
+        actions.nav_goto(app, "20")
+        assert app.current["ref"] == "Bengio2003"
+        assert "went to Bengio2003" in logged[-1]
+        assert app.narrow_query == "bengio"  # it is shown: nothing to drop
+
+
 async def test_a_saved_search_comes_back_with_its_sort_and_can_be_forgotten(app, papis_lib):
     import json
 

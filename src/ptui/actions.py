@@ -104,7 +104,8 @@ def nav_goto(app: Any, ref: str | None = None) -> None:
     pasted from a `.tex`, `\\cite{...}` and all; a list of keys goes to the first.
 
     Without an exact match it says so, and still goes where there is only one
-    candidate: the one ref equal but for case, else the one ref containing it.
+    candidate: the one ref equal but for case, else the one ref containing it —
+    or, of several, the one the narrowed list shows.
 
     A narrow that hides it is dropped, since jumping is the point; a document
     outside the scope is only reported, because changing the scope is `s`.
@@ -122,6 +123,9 @@ def nav_goto(app: Any, ref: str | None = None) -> None:
         near = [d for d in app.docs if refs[library.doc_id(d)].casefold() == key.casefold()] or [
             d for d in app.docs if key.casefold() in refs[library.doc_id(d)].casefold()
         ]
+        shown = {library.doc_id(d) for d in app.rows}
+        if len(near) > 1 and len(visible := [d for d in near if library.doc_id(d) in shown]) == 1:
+            near = visible  # the one the narrowed list shows is the one meant
         if len(near) != 1:
             some = f": {len(near)} refs contain it, {', '.join(str(d.get('ref')) for d in near[:3])}" if near else ""
             app.log_line(f"[yellow]no ref {key} in scope {app.scope_query or '*'}{some}[/]")

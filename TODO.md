@@ -98,10 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-59. **`g r` prefers the one match shown.** Near matches stay searched in the
-    scope only, as now. When several refs in the scope match but exactly one
-    is shown in the narrowed list, go to that one; still several, list them
-    as now. Nothing outside the scope is searched or reported. [104, 59.1]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 
