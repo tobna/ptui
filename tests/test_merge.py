@@ -202,3 +202,26 @@ def test_author_follows_author_list_and_a_year_as_text_is_no_question():
     assert set(p.clashes) == {"author_list"}
     data = merge.resolve(p, {"author_list": fetched["author_list"]})
     assert data["author"] == "He, Kaiming and Zhang, X."
+
+
+async def test_a_losers_file_outside_its_folder_stays_put_and_stays_attached(app, papis_lib):
+    """An in-place rule leaves a file where it is: one in the loser's folder moves
+    with the survivor (test_edge_merge), one elsewhere is only referenced."""
+    from conftest import settle
+
+    from ptui import actions, place
+
+    elsewhere = papis_lib / "scans" / "book.djvu"
+    elsewhere.parent.mkdir()
+    elsewhere.write_bytes(b"djvu")
+    info = papis_lib / "lib" / "doc1" / "info.yaml"
+    info.write_text(info.read_text() + f"files:\n- {elsewhere}\n")
+    async with app.run_test() as pilot:
+        actions.reload(app, rescan=True)
+        await settle(pilot)
+        survivor, loser = (next(d for d in app.docs if d["papis_id"] == i) for i in ("id0", "id1"))
+        actions._merge_apply(app, merge.plan(survivor, [loser]), {})
+        await settle(pilot)
+        kept = next(d for d in app.docs if d["papis_id"] == "id0")
+        assert [place.resolve(kept, entry) for entry in kept["files"]] == [elsewhere]
+        assert elsewhere.read_bytes() == b"djvu"

@@ -232,7 +232,10 @@ genuinely disagree.
 - **`files` is unioned, never chosen** — losing an attachment is the one outcome
   a merge cannot undo from metadata. Entries are resolved against the folder they
   still live in, *before* it is removed, then routed through `place()` like any
-  other file.
+  other file. A file the rules keep in place (every shipped rule) moves into the
+  survivor's folder when it lived in a folded-in one, since that folder is going,
+  and is merely referenced when it lived anywhere else. If the survivor's
+  `info.yaml` write fails, the moved files go back.
 - `time-added` becomes the earliest of the group: the document has existed since
   whichever copy came first.
 - The folded-in folders are **moved to `undo.trash_dir`**, not deleted, and

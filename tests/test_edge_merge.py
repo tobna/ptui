@@ -55,11 +55,6 @@ def test_survivor_choices_collapse_one_ref_and_name_a_blank_one_by_title():
     assert choices[0][1] is first  # the first document holding a ref is the one it keeps
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: a loser's file under an in-place rule (every shipped rule) is not added to the survivor's "
-    "`files`; it goes to the trash with the loser's folder",
-)
 async def test_a_losers_file_under_an_in_place_rule_stays_attached(app, papis_lib):
     from ptui import actions
 

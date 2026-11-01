@@ -144,6 +144,12 @@ def _entry(dest: Path, doc: Document, style: str, previous: str | None) -> str:
     return str(dest)
 
 
+def normal(path: Path) -> Path:
+    """`path` absolute and free of `..`, worked out from the text alone: a symlink
+    is not followed, so a linked file or folder keeps the name it was given."""
+    return Path(os.path.normpath(os.path.abspath(path)))
+
+
 def resolve(doc: Document, entry: str) -> Path:
     """A `files` entry as an absolute path (entries may be relative to the doc folder)."""
     path = Path(entry).expanduser()
@@ -234,6 +240,24 @@ def place(
         dest.unlink()
         dest.symlink_to(src)
     return PlaceResult("ok", src, rule.name, dest=dest, entry=entry)
+
+
+def adopt(src: Path, folder: Path) -> Path:
+    """Move `src` into `folder` under its own name, `_b`-suffixed on a clash —
+    for a file the rules leave in place whose own folder is about to go (a
+    merge's loser). Never clobbers; a byte-identical file already there is the
+    file, and `src` is left alone."""
+    dest = folder / src.name
+    if _existing(dest) is not None:
+        if _digest(dest) == _digest(src):
+            return dest
+        suffixed = _suffixed(dest)
+        if suffixed is None:
+            raise FileExistsError(f"no free name for {src.name} in {folder}")
+        dest = suffixed
+    _reserve(src, dest)
+    src.unlink()
+    return dest
 
 
 def holding(doc: Document, src: Path) -> Path | None:

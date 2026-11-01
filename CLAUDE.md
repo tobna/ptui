@@ -348,7 +348,9 @@ disagreement — one question each), `resolve()` turns answers into the field se
 is the document you keep**. `actions._merge_apply` does the writing, and two
 things there are load-bearing: a loser's `files` entry may be relative to the
 folder about to be trashed, so it is resolved *before* the move and routed
-through `place()`; and trashing a folder is not enough — `papis.database.delete`
+through `place()` — and a file `place()` leaves in place (`unmanaged`, every
+shipped rule) is `place.adopt`ed into the survivor's folder when it sits in the
+loser's, which is about to go to the trash; and trashing a folder is not enough — `papis.database.delete`
 must be called too, or papis's index hands the document straight back on reload.
 `place.trash()` moves the folder to `undo.trash_dir` (SPEC: files always route
 through trash) rather than deleting it.

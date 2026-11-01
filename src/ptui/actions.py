@@ -2017,17 +2017,37 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
     # Files first, and resolved against the folder they still live in: an entry
     # may be relative to a folder that is about to be trashed.
     entries = list(plan.survivor.get("files") or [])
+    home = Path(plan.survivor.get_main_folder())
+    placed, adopted = [], []
     for doc in plan.others:
+        folder = place.normal(Path(doc.get_main_folder() or "."))
         for entry in doc.get("files") or []:
             source = place.resolve(doc, entry)
             if not source.exists():
                 app.log_line(f"[yellow]missing file, not merged:[/] {entry}")
                 continue
             result = place.place(plan.survivor, source, rules, previous=None)
-            if result.entry and result.entry not in entries:
-                entries.append(result.entry)
-            elif result.status not in ("ok", "already"):
+            new = result.entry
+            if result.status == "unmanaged":
+                # In place means in the document's folder, and the loser's is
+                # about to go: the survivor's folder is where the file now lives.
+                # One outside it stays where it is and is merely referenced.
+                if folder in place.normal(source).parents:
+                    try:
+                        dest = place.adopt(source, home)
+                    except OSError as exc:
+                        app.log_line(f"[red]{source.name} not merged:[/] {exc}")
+                        continue
+                    if not source.exists():
+                        adopted.append((source, dest))
+                    source = dest
+                new = place._entry(source, plan.survivor, "keep", entry)
+            elif result.status == "ok":
+                placed.append(result)
+            if new is None:
                 app.log_line(f"[yellow]{result.status}[/] {source.name}: {result.message}")
+            elif new not in entries:
+                entries.append(new)
     if entries != list(plan.survivor.get("files") or []):
         data["files"] = entries
 
@@ -2037,11 +2057,17 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
 
     try:
         safewrite.edit(plan.survivor, write)
-    except safewrite.StaleError:
-        app.log_line("[yellow]info.yaml changed on disk; press r to reload[/]")
-        return
     except Exception as exc:
-        app.log_line(f"[red]merge failed:[/] {exc}")
+        # File first, info.yaml second: a write that did not land takes the files back.
+        for result in placed:
+            place.rollback(result)
+        for source, dest in adopted:
+            place._reserve(dest, source)
+            dest.unlink()
+        stale = isinstance(exc, safewrite.StaleError)
+        app.log_line(
+            "[yellow]info.yaml changed on disk; press r to reload[/]" if stale else f"[red]merge failed:[/] {exc}"
+        )
         return
 
     # Moving the folder is not enough: papis keeps its own index, and a document

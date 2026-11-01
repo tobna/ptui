@@ -95,10 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-30. **`m m` trashes a loser's file under an in-place rule.** Every shipped rule
-    is in-place, so `place()` leaves the file in the loser's folder, it never
-    reaches the survivor's `files`, and it goes to the trash with that folder.
-    [test_edge_merge.py]
 31. **The delete dialog ticks a shared file spelled differently.** The
     shared-file check compares unresolved paths, so a file another document
     names relative where this one names it absolute is checked by default and
