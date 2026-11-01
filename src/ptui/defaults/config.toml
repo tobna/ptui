@@ -102,7 +102,6 @@ k = "tags:"
 # `reverse` — the shape `\ s` saves in, for the current view.
 [query.saved]
 to-read = "tags:to-read"
-mine    = "author:Nauen"
 
 [marks]
 advance = true                # move cursor down after marking

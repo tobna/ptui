@@ -447,7 +447,7 @@ async def test_a_saved_search_comes_back_with_its_sort_and_can_be_forgotten(app,
         assert len(app.docs) == 3
         await press(pilot, "g", "s")
         assert isinstance(app.screen, ui.SelectList)
-        assert {item.value for item in app.screen.items} >= {"resnet", "to-read", "mine"}  # config's too
+        assert {item.value for item in app.screen.items} >= {"resnet", "to-read"}  # config's too
         await press(pilot, *"resnet", "enter")
         assert app.scope_query == "year:2016"
         assert app.sort_reverse is False
