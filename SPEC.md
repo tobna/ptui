@@ -560,8 +560,9 @@ chord and returns to the list — so a mode is free to define very few bindings,
 none at all. In the list mode `escape` keeps its `escape_chain` meaning. The
 keys that get from any pane to the others — `1`–`4`, `tab`, `h`/`l`, undo and
 redo, the log, `:`, `q` — are written once, in `[global]`, and every pane has them
-unless its own table binds the same keys. A picker does not: its filter box has
-the keyboard, and a letter there is text.
+unless its own table binds the same key or one sharing its prefix: a pane's `g`
+drops the global `g o` in that pane, and is not a conflict. A picker does not:
+its filter box has the keyboard, and a letter there is text.
 
 The user's `keys.toml` holds only their changes, laid over the shipped keymap
 **key by key**, never table by table. In every mode a user binding reaches

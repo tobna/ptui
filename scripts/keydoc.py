@@ -23,7 +23,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 MODE_INTROS = {
     "global": "Every pane — list, info, files and log — has these as well, unless its own table "
-    "binds the same keys. A picker does not: its filter box has the keyboard.",
+    "binds the same key or a chord sharing its prefix (a pane's `g` drops `g o` there). "
+    "A picker does not: its filter box has the keyboard.",
     "list": "The document list — the mode ptui starts in, and the one every other mode falls back to.",
     "files": "The files pane, focused with `3`: the file verbs act on the entry under its cursor.",
     "info": "The info pane, focused with `2` or `tab`.",

@@ -139,13 +139,14 @@ def _over(
 
 def _modes(data: dict[str, Any], path: Path, unknown: list[str]) -> dict[str, dict[Chord, Binding | None]]:
     """One keys.toml as per-mode tables, `[global]` laid under each pane's own,
-    which wins on the same keys."""
+    which wins on the same key and on a shared prefix: a pane's `g` drops the
+    global `g o` in that pane only, rather than a conflict refusing to start."""
     shared = _table("global", data.get("global", {}), path, unknown)
     tables = {
         mode: _table(f"modes.{mode}", bindings, path, unknown) for mode, bindings in data.get("modes", {}).items()
     }
     for mode in PANES:
-        tables[mode] = {**shared, **tables.get(mode, {})}
+        tables[mode] = _over(tables.get(mode, {}), shared)
     return tables
 
 

@@ -647,7 +647,8 @@ has to pass non-URLs through unchanged.
 
 `[global]` in `keys.toml` holds the keys every pane has — `1`-`4`, `tab`,
 `h`/`l`, `u`/`ctrl+r`, `g o`, `:`, `q` — and `keymap.load` lays it under each of
-`keymap.PANES`, the pane's own table winning on the same chord. Not under
+`keymap.PANES` through `keymap._over`, the pane's own table winning on the same
+chord and on a prefix either way (a pane's `g` drops the global `g o` there). Not under
 `[modes.picker]`: `SelectList.on_key` swallows every key the picker table binds,
 so a global letter would never reach the filter box. Each mode used to carry its
 own copy, and a missing copy is how the log pane once trapped the keyboard.

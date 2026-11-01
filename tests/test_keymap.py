@@ -49,6 +49,23 @@ def test_a_user_pane_key_beats_a_shipped_global_chord_in_that_pane_only(tmp_path
     assert km.conflicts() == []
 
 
+def test_a_pane_key_beats_a_global_chord_it_shadows_in_that_pane_only(tmp_path):
+    """Within one file, too: a pane binding `t` next to the global `t y` used to
+    be a conflict that refused to start."""
+    km = _user(
+        tmp_path,
+        '[global]\n"t y" = { cmd = "app.reload" }\n"w" = { cmd = "app.reload", args = { rescan = true } }\n'
+        '[modes.info]\n"t" = { cmd = "nav.top" }\n"w q" = { cmd = "nav.bottom" }\n',
+    )
+    assert km.lookup("info", ("t",)).cmd == "nav.top"
+    assert km.lookup("info", ("t", "y")) is None
+    assert km.lookup("info", ("w",)) is None  # the other way round: the pane's chord takes the global key
+    assert km.lookup("info", ("w", "q")).cmd == "nav.bottom"
+    assert km.lookup("list", ("t", "y")).cmd == "app.reload"
+    assert km.lookup("list", ("w",)).args == {"rescan": True}
+    assert km.conflicts() == []
+
+
 def test_rebinding_a_shipped_command_drops_its_shipped_keys(tmp_path):
     km = _user(
         tmp_path,

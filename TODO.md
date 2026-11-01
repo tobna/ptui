@@ -140,10 +140,6 @@ finishes it. The number in brackets is the review question it came from.
 18. **Editing the author line in the form keeps each author's extra keys**
     (affiliation, ORCID, …) when the name still matches; today the whole
     `author_list` is rebuilt from the line. [32.2]
-19a. **A pane's own key beats `[global]` on a shared prefix too.** A pane
-    binding `g` next to the global `g o` is a conflict today and ptui refuses to
-    start; the pane's key should win and the shadowed global chord be dropped
-    for that pane only.
 20. **`f n` never follows symlinks, and a relative entry is always the shortest
     one.** It resolves the file through symlinks but builds the relative path
     from the folder as papis names it, so a library reached through a symlink

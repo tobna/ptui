@@ -18,7 +18,7 @@ instead of doing anything, and the binding is already in place for when they lan
 
 ## `[global]`
 
-Every pane — list, info, files and log — has these as well, unless its own table binds the same keys. A picker does not: its filter box has the keyboard.
+Every pane — list, info, files and log — has these as well, unless its own table binds the same key or a chord sharing its prefix (a pane's `g` drops `g o` there). A picker does not: its filter box has the keyboard.
 
 | Keys | Command | Does what |
 | --- | --- | --- |

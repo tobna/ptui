@@ -22,7 +22,7 @@ escape_chain = ["modal", "visual", "narrow"]
 
 # Keys that work in every pane — list, info, files and log — so that no pane
 # can be left without a way to the others. A pane's own table wins where both
-# bind a key. Not in a picker: its filter box has the keyboard, and letters there
+# bind a key, or a chord sharing its prefix. Not in a picker: its filter box has the keyboard, and letters there
 # are text.
 [global]
 "1"        = { cmd = "pane.focus", args = { pane = "list" } }
