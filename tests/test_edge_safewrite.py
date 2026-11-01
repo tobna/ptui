@@ -154,11 +154,6 @@ def test_a_value_yaml_cannot_represent_leaves_the_file_and_no_tmp(tmp_path, monk
     assert not list(tmp_path.glob("*.ptui.tmp"))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: one failed dump leaves the shared ruamel YAML instance bound to the closed tmp file; "
-    "every later safewrite.write in the session raises 'I/O operation on closed file'",
-)
 def test_a_failed_write_does_not_break_the_next_one(tmp_path, monkeypatch):
     monkeypatch.setattr(safewrite, "_yaml", _fresh_yaml())
     path = tmp_path / "info.yaml"

@@ -149,6 +149,11 @@ per key.
   never `data[key] = …` or `pop`.** ruamel hangs a comment on the node *before*
   it, so replacing a list (`c t`) or removing a key deleted the comment that
   introduces the next key. `put`/`drop` move those lines across.
+- **A ruamel `YAML` instance is not reusable after a failed dump**: it keeps the
+  dump's output stream and context, so one unrepresentable value made every
+  later write raise "I/O operation on closed file". `safewrite.write` dumps
+  through a fresh `_dumper()`, configured like the module's `_yaml` (which
+  still loads: a failed load cleans up after itself).
 - `papis.format.format` **returns the unformatted pattern** (or raises deep in
   `string.Formatter`) when a key is missing; `default=""` does not save nested
   lookups like `{doc[author_list][0][family]}`. Check for a leftover `{`.

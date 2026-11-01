@@ -95,12 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-28. **Data loss: one failed write breaks every later one.** A
-    `safewrite.write` that fails mid-dump (a value ruamel cannot represent)
-    leaves the module-level `_yaml` bound to the closed tmp file, so every
-    later write in the session raises "I/O operation on closed file" until
-    restart. Pinned by the xfail `test_a_failed_write_does_not_break_the_next_one`
-    in `tests/test_edge_safewrite.py`. Worked next, before 4.
 4. **The doctor re-checks stale documents in a background thread.** Today a
    stale entry is re-scanned inside the redraw (~2 ms each), so a mass change
    on disk (a sync, a `git pull`) freezes the next redraw. While the thread

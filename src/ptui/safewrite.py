@@ -28,6 +28,17 @@ _yaml.preserve_quotes = True
 _yaml.width = 4096  # papis writes long lines; rewrapping them is a noisy diff
 
 
+def _dumper() -> YAML:
+    """A fresh instance per dump, configured like `_yaml`. ruamel keeps a dump's
+    output and context on the instance and does not clear them when the dump
+    raises, so after one failed write the shared one sent every later dump to the
+    closed tmp file — "I/O operation on closed file" until a restart."""
+    yaml = YAML()
+    yaml.preserve_quotes = _yaml.preserve_quotes
+    yaml.width = _yaml.width
+    return yaml
+
+
 class StaleError(Exception):
     """`info.yaml` changed under us. Reload before retrying; never merge blind."""
 
@@ -53,7 +64,7 @@ def write(info: InfoFile) -> None:
     tmp = info.path.with_name(f"{info.path.name}.ptui.tmp")
     try:
         with tmp.open("w", encoding="utf-8") as fd:
-            _yaml.dump(info.data, fd)
+            _dumper().dump(info.data, fd)
             fd.flush()
             os.fsync(fd.fileno())
         os.replace(tmp, info.path)
