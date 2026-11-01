@@ -42,3 +42,10 @@ def test_signature_shows_each_arguments_type_and_default():
     assert commands.signature("mark.all_filtered") == "[unmark: bool = false]"
     assert commands.signature("log.scroll") == "[up: bool = false] [lines: int = 0] [end: bool = false]"
     assert commands.signature("doctor.run") == "[checks: str] [current: bool = false]"  # "" says nothing
+
+
+def test_an_unregistered_command_still_logs_not_implemented(app, monkeypatch):
+    logged = []
+    monkeypatch.setattr(app, "log_line", logged.append)
+    app.run_command("no.such")
+    assert logged == ["[yellow]no.such is not implemented yet[/]"]

@@ -472,10 +472,11 @@ class PtuiApp(App[None]):
         self.refresh_status()
 
     def run_command(self, name: str, args: dict[str, Any] | None = None) -> None:
+        if name not in commands.REGISTRY:  # asked first: a KeyError from inside a command is a failure
+            self.log_line(f"[yellow]{name} is not implemented yet[/]")
+            return
         try:
             commands.run(name, self, args)
-        except KeyError:
-            self.log_line(f"[yellow]{name} is not implemented yet[/]")
         except Exception as exc:  # a broken command must not kill the session
             # once: the loguru sink puts it in the pane, the traceback goes to log.file
             logger.exception(f"{name} failed: {exc}")

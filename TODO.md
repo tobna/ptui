@@ -119,9 +119,6 @@ finishes it. The number in brackets is the review question it came from.
 35. **`doctor.fix` misses fixes made in place.** It diffs against a shallow
     `dict(doc)`, so papis's `files` fix writes nothing, and string-cleaner's
     initials fix writes `author` but not `author_list`. [test_edge_doctor.py]
-39. **A `KeyError` inside a command reads as "not implemented yet"**, and its
-    traceback is dropped: `run_command` takes every `KeyError` for an unknown
-    name. [test_edge_app.py]
 44. **An error after a prompt ends the session.** What runs after a prompt is
     submitted (`s`, `/`, `\ s`, `g r`, `m q`, the `:` line's arguments, …) has
     no guard, unlike a command started from a key, so any exception there
