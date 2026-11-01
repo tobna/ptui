@@ -1573,7 +1573,13 @@ def _delete_apply(app: Any, targets: list[Any], files: list[Doomed]) -> None:
         ids = {library.doc_id(doc) for doc in targets}
 
         def redo() -> None:
-            again = [doc for doc in app.docs if library.doc_id(doc) in ids]
+            import papis.database
+
+            # The whole library, not `app.docs`: the scope may have changed since the undo.
+            database = papis.database.get(app.cfg.get("general.library") or None)
+            again = [database.find_by_id(i) for i in ids]
+            if None in again:  # without the document, its files would be trashed alone
+                raise RuntimeError("cannot redo: a deleted document is no longer in the library")
             back[0] = _delete_run(app, again, paths, label)  # the new run is what undo reverses
             reload(app)
 

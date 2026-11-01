@@ -185,6 +185,24 @@ async def test_redo_deletes_it_again(app, papis_lib):
         assert (papis_lib / "lib" / "doc0" / "info.yaml").exists()  # and it undoes again
 
 
+async def test_redo_finds_the_document_outside_the_scope(app, papis_lib):
+    from ptui import actions
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "d", "d", "enter")
+        await settle(pilot)
+        await press(pilot, "u")
+        await settle(pilot)
+
+        actions.scope(app, "title:residual")  # doc0 is no longer in app.docs
+        await settle(pilot)
+        await press(pilot, "ctrl+r")
+        await settle(pilot)
+        assert not (papis_lib / "lib" / "doc0").exists()
+        assert (papis_lib / "trash" / "doc0" / "info.yaml").exists()
+
+
 async def test_a_checked_file_is_trashed_and_comes_back_with_undo(app, papis_lib):
     pdf = _attach(papis_lib, "doc0", "paper.pdf")
 
