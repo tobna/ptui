@@ -103,7 +103,7 @@ src/ptui/
   undo.py            the undo history and the trash/git/none strategies
   defaults/          shipped config.toml, keys.toml
 .github/workflows/
-  test.yml           CI: `uv sync --locked` + `uv run pytest -q` on 3.13 and 3.14, every push and PR
+  test.yml           CI: `uv sync --locked` + `uv run pytest -q` on 3.13, every push and PR
 scripts/
   keydoc.py          regenerates KEYS.md; tests/test_docs.py fails while stale
   shot.py            headless screenshot of the real app (--text, --icons, --rows)
