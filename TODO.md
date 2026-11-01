@@ -95,8 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-1a. **`g g` and `G` in the log pane** jump to its top and bottom, like vim.
-    (From the review of the H.1 commit.)
 3. **One `keys.toml` section for keys that work in every mode** (the pane keys,
    `h`/`l`, `u`/`ctrl+r`, …) instead of copying them into each mode's table —
    the copies are how the log pane once trapped the keyboard. [11.1]

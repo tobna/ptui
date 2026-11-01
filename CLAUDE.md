@@ -199,8 +199,8 @@ Built:
   keep the source's hard wraps); `info.scroll` (`J`/`K` in the list,
   `ctrl+d`/`ctrl+u` in the pane) scrolls `#info-pane` by half its height, and
   `refresh_info` scrolls home when the document changes (`app._info_of`);
-  `log.scroll` is the same over `#log-pane` (`ctrl+d`/`ctrl+u`, and `j`/`k`
-  one line at a time)
+  `log.scroll` is the same over `#log-pane` (`ctrl+d`/`ctrl+u`, `j`/`k`
+  one line at a time, `g g`/`G` with `end`)
 - **query history**: `actions.history` / `remember` over `query.history_file`
   (plain lines, newest last); `app.recall` walks it on `up`/`down` in the
   prompts named by `actions.HISTORY_KINDS`

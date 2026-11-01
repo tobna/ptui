@@ -603,6 +603,10 @@ async def test_the_log_pane_scrolls_with_the_info_pane_keys(app):
         assert log.scroll_y == bottom - half - 1
         await press(pilot, "j", "ctrl+d")
         assert log.scroll_y == bottom
+        await press(pilot, "g", "g")
+        assert log.scroll_y == 0
+        await press(pilot, "G")
+        assert log.scroll_y == bottom
 
 
 async def test_two_flexible_columns_share_the_room(papis_lib):

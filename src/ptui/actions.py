@@ -72,9 +72,12 @@ def nav_page_up(app: Any) -> None:
     _move(app, -max(1, _table(app).size.height - 2))
 
 
-def _scroll(app: Any, pane: str, up: bool, lines: int = 0) -> None:
-    """`lines`, or half the pane when that is 0."""
+def _scroll(app: Any, pane: str, up: bool, lines: int = 0, end: bool = False) -> None:
+    """`lines`, or half the pane when that is 0; `end` goes all the way."""
     widget = app.query_one(pane)
+    if end:
+        (widget.scroll_home if up else widget.scroll_end)(animate=False)
+        return
     step = lines or max(1, widget.size.height // 2)
     widget.scroll_relative(y=-step if up else step, animate=False)
 
@@ -86,9 +89,10 @@ def info_scroll(app: Any, up: bool = False) -> None:
 
 
 @command("log.scroll", "scroll the log")
-def log_scroll(app: Any, up: bool = False, lines: int = 0) -> None:
-    """Half a pane, or `lines` of it — `j`/`k` in the log move one."""
-    _scroll(app, "#log-pane", up, lines)
+def log_scroll(app: Any, up: bool = False, lines: int = 0, end: bool = False) -> None:
+    """Half a pane, or `lines` of it — `j`/`k` in the log move one — or with
+    `end` to the top (`up`) or the bottom, `g g` and `G` as in vim."""
+    _scroll(app, "#log-pane", up, lines, end)
 
 
 _CITE = re.compile(r"\\\w*cite\w*\*?(?:\[[^]]*\])*\{([^}]*)\}")

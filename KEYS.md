@@ -171,6 +171,8 @@ The info pane, focused with `2` or `tab`.
 | `4` | `pane.focus` pane=log | focus a pane |
 | `ctrl+d` | `log.scroll` | scroll the log |
 | `ctrl+u` | `log.scroll` up=True | scroll the log |
+| `G` | `log.scroll` end=True | bottom of the log |
+| `g g` | `log.scroll` up=True end=True | top of the log |
 | `g o` | `app.log` | close the log |
 | `h` | `pane.cycle` back=True | previous pane |
 | `j` | `log.scroll` lines=1 | scroll down a line |

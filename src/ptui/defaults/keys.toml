@@ -196,6 +196,8 @@ escape_chain = ["modal", "visual", "narrow"]
 "k"        = { cmd = "log.scroll", args = { up = true, lines = 1 }, desc = "scroll up a line" }
 "ctrl+d"   = { cmd = "log.scroll" }
 "ctrl+u"   = { cmd = "log.scroll", args = { up = true } }
+"g g"      = { cmd = "log.scroll", args = { up = true, end = true }, desc = "top of the log" }
+"G"        = { cmd = "log.scroll", args = { end = true }, desc = "bottom of the log" }
 "1"        = { cmd = "pane.focus", args = { pane = "list" } }
 "2"        = { cmd = "pane.focus", args = { pane = "info" } }
 "3"        = { cmd = "pane.focus", args = { pane = "files" } }
