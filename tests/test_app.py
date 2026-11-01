@@ -64,6 +64,20 @@ async def test_escape_leaves_any_mode(app):
         assert (app.mode, app.pending) == ("list", ())
 
 
+async def test_stacked_the_files_pane_alone_is_as_tall_as_its_entries(app):
+    """With the info pane hidden (`z i`), the files pane used to sit at the top
+    of the side's share of the height, with blank rows under it."""
+    async with app.run_test(size=(80, 24)) as pilot:
+        await settle(pilot)
+        assert not app.side_by_side
+        await press(pilot, "z", "i", "3")
+        listing, files = app.query_one("#list-pane"), app.query_one("#files-pane")
+        assert files.region.bottom == app.query_one("#hint-bar").region.y  # nothing under it
+        assert listing.region.bottom == files.region.y  # the list has the rest
+        await press(pilot, "1")  # and the list takes everything back when it closes
+        assert listing.region.bottom == app.query_one("#hint-bar").region.y
+
+
 async def test_z_chords_resize_the_panes(app):
     # this is about the manual chords, so pin the layout: at 80 columns `auto`
     # would choose stacked on its own

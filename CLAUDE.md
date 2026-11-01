@@ -548,7 +548,10 @@ cleared by `pane.toggle_layout` so an explicit `z z` survives every later resize
 `PtuiApp.apply_split()` is the only place pane geometry is set: it writes the
 layout direction and *both* dimensions from `app.side_by_side` / `app.split`,
 so `z z`, `z i` and `z +/-` all just mutate that state and call it. The list
-pane cannot be hidden and takes the whole window when it is alone.
+pane cannot be hidden and takes the whole window when it is alone. Stacked,
+with the info pane hidden, `#side` holds the files pane alone and goes
+`height: auto` while the list takes `1fr`; the list's `split` share left the
+side's rows blank under a two-entry files pane.
 
 `PtuiApp.focus_pane()` owns the **log** and **files** panes' visibility: they
 are the transient panes (the files pane is the right column's second half,

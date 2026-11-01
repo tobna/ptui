@@ -563,10 +563,15 @@ class PtuiApp(App[None]):
         self.query_one("#panes").styles.layout = "horizontal" if self.side_by_side else "vertical"
         table = self.query_one(DataTable)
         side = self.query_one("#side")
-        side.display = self.query_one("#info-pane").display or self.query_one("#files-pane").display
-        share = f"{int(self.split * 100)}%" if side.display else "1fr"
+        info = self.query_one("#info-pane").display
+        side.display = info or self.query_one("#files-pane").display
+        # Stacked, the files pane alone (`z i`) is as tall as its entries and the
+        # list has the rest: the side's share of the height left blank rows under it.
+        fit = side.display and not info and not self.side_by_side
+        share = f"{int(self.split * 100)}%" if side.display and not fit else "1fr"
         table.styles.width, table.styles.height = (share, "1fr") if self.side_by_side else ("1fr", share)
-        side.styles.width = side.styles.height = "1fr"
+        side.styles.width = "1fr"
+        side.styles.height = "auto" if fit else "1fr"
         self.call_after_refresh(self.refresh_rows)  # columns refit to the new width
 
     # ── columns ─────────────────────────────────────────────────────────────

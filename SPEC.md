@@ -559,6 +559,8 @@ toast that vanishes.
 - The **files pane** lists the current document's `files` in stored order — the
   first entry is "the" file — and is where the file verbs act, on the entry
   under its own cursor (`j`/`k` there move it). Like the log it is transient.
+  Stacked under the list with the info pane hidden, it takes only the rows
+  its entries need, and the list the rest.
 - The **log pane is transient**: it appears when it is focused and disappears
   when focus leaves it, so `escape` closes it like any other transient surface
   and `app.log` is a toggle only in the sense that pressing it again focuses the

@@ -117,8 +117,6 @@ finishes it. The number in brackets is the review question it came from.
 53. **Low priority: `/bert` should find `{B}ERT`.** The list shows the title
     without LaTeX braces, but `/` searches the stored text, so what you see
     is not what you can find.
-54. **Blank rows under the files pane.** At 80x24 in the stacked layout,
-    `z i` and then `3` leave about five empty rows under the files pane.
 55. **The file verbs and the edit form overwrite an outside change.** H.45
     fixed the `c` verbs; `x`, `J`/`K`, `p`, `r`, `f n` and the `E` form still
     build what they write from the copy ptui loaded, so a change made to the
