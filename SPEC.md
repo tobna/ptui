@@ -692,7 +692,8 @@ recalling a name).
 ## Delete dialog (required behaviour)
 
 - Every path in `files` **that lives outside the document folder** gets a
-  checkbox. The ones inside it travel with the folder — there is no decision to
+  checkbox — outside once normalised, so `../../pdfs/x.pdf` is offered rather
+  than said to go with the folder. The ones inside it travel with the folder — there is no decision to
   make, so offering one would be theatre; the dialog says how many they are.
 - Checked by default **only** for files under a managed root
   (the document folder, plus `files.pdf_root` if it is configured). Never

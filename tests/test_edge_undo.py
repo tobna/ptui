@@ -56,11 +56,6 @@ def test_a_history_of_one_keeps_only_the_last_step():
     assert calls == ["b"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: _doomed_files tests `folder in path.parents` on the unresolved path, so "
-    "`../../pdfs/x.pdf` counts as inside the folder and is never offered — it is left orphaned",
-)
 async def test_a_relative_entry_that_climbs_out_of_the_folder_is_offered(papis_lib):
     _pdf(papis_lib)
     _add_entry(papis_lib, "doc0", "../../pdfs/paper.pdf")

@@ -95,10 +95,6 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 Worked in this order, one commit each; an entry is deleted in the commit that
 finishes it. The number in brackets is the review question it came from.
 
-31a. **The delete dialog never offers `../../pdfs/x.pdf`.** `_doomed_files`
-    tests `folder in path.parents` on the unnormalised path, so an entry that
-    climbs out of the folder reads as inside it, gets no checkbox, and is left
-    orphaned while the dialog says it goes with the folder. [test_edge_undo.py]
 32. **`f r` leaves dangling entries when one entry raises.** Nothing guards
     `place()` across a document's entries: the earlier ones have moved, and
     `info.yaml` still names their old paths. [test_edge_actions.py]

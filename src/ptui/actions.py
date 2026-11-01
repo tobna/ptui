@@ -2307,18 +2307,23 @@ def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
     under `pdf_root` or somewhere else entirely.
 
     Checked by default only under a managed root, and never when another
-    document points at the same realpath: with a shared `pdf_root` and a script
+    document points at the same file: with a shared `pdf_root` and a script
     appending entries, two documents on one file is a realistic accident.
+
+    Inside and outside are decided on normalised paths: `../../pdfs/x.pdf` is
+    written under the folder but lives outside it, and does not go with it.
     """
-    root = app.cfg.as_path("files.pdf_root")
+    pdf_root = app.cfg.as_path("files.pdf_root")
+    root = place.normal(pdf_root) if pdf_root else None
     doomed = []
     for doc in targets:
-        folder = Path(doc.get_main_folder() or ".")
+        folder = place.normal(Path(doc.get_main_folder() or "."))
         for entry in doc.get("files") or []:
             path = place.resolve(doc, entry)
-            if folder in path.parents:
+            where = place.normal(path)
+            if folder in where.parents:
                 continue
-            managed = root is not None and root in path.parents
+            managed = root is not None and root in where.parents
             others = [
                 other.get("ref") or library.doc_id(other)
                 for other in app.docs
@@ -2328,7 +2333,7 @@ def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
             note = "" if managed else "outside the managed roots"
             if others:
                 note = f"also in {', '.join(others[:3])}"
-            doomed.append(Doomed(doc, entry, path, ui.FileChoice(str(path), managed and not others, note)))
+            doomed.append(Doomed(doc, entry, path, ui.FileChoice(str(where), managed and not others, note)))
     return doomed
 
 

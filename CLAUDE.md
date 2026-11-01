@@ -249,7 +249,9 @@ values before the write, so undoing a `c` verb restores a key's *absence* too.
 The delete dialog's "also in" check is `place.same_file`: two entries name one
 file when their paths match once normalised (`place.normal`, `os.path.normpath`,
 no link followed) or once links are followed. Comparing them as written ticked a
-shared file another document spelled relative, and trashed it.
+shared file another document spelled relative, and trashed it. Inside the folder
+and under `pdf_root` are decided on `place.normal` paths too: `../../pdfs/x.pdf`
+is written under the folder and was never offered, orphaned by the delete.
 
 Two things that cost time here:
 

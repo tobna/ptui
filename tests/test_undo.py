@@ -397,3 +397,21 @@ async def test_empty_trash_deletes_only_what_is_older_than_the_retention(app, pa
         assert (trash / "doc0").exists()
         assert not (trash / "doc1").exists()
         assert "doc1" not in json.loads((trash / place.TRASH_INDEX).read_text())
+
+
+async def test_an_entry_that_climbs_into_pdf_root_is_managed_and_checked(papis_lib):
+    """`../../pdfs/x.pdf` lives under `pdf_root` once normalised, so the dialog
+    treats it like the absolute spelling: offered, and ticked by default."""
+    root = papis_lib / "pdfs"
+    root.mkdir()
+    (root / "x.pdf").write_bytes(b"pdf")
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    info.write_text(info.read_text() + "files:\n- ../../pdfs/x.pdf\n")
+    app = build_app(papis_lib)
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "d", "d")
+        (choice,) = app.screen.files
+        assert Path(choice.label) == root / "x.pdf"
+        assert choice.checked
+        await press(pilot, "escape")
