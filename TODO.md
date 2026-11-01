@@ -106,9 +106,6 @@ finishes it. The number in brackets is the review question it came from.
     target (it works). When `g r` has to drop a narrow to reach the target, the
     range ends instead of stretching — that one is a decision for the user, not
     to be guessed.
-24. **`c u` from Crossref asks first.** A title search can match the wrong
-    paper and fill gaps from it; show what was found (title, year, first
-    author) and ask "is this the paper?" before planning anything. [42.1]
 35. **`doctor.fix` misses fixes made in place.** It diffs against a shallow
     `dict(doc)`, so papis's `files` fix writes nothing, and string-cleaner's
     initials fix writes `author` but not `author_list`. [test_edge_doctor.py]

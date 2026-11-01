@@ -280,7 +280,9 @@ changes` — so a title fixed by hand reverts on the next update. `doc.refresh`
 and the result is one write and one undo step. The sources come from the
 document, without the network: papis's own data matching (the DOI; the title,
 for Crossref — offered last, since a title search can find the wrong paper),
-plus arXiv for an arXiv id. Data only, never the PDF; the fetched `ref` and
+plus arXiv for an arXiv id. What Crossref found — title, year, first author —
+is shown and confirmed ("is this the paper?") before anything is planned, or
+its gaps would be filled from another paper without a question. Data only, never the PDF; the fetched `ref` and
 `citations` are dropped (the ref is the library's own, citations have their own
 file in papis).
 

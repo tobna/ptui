@@ -2139,7 +2139,27 @@ def _refresh_fetch(app: Any, doc: Any, importer: Any) -> None:
     app.run_worker(job, thread=True, group="import")
 
 
-def _refresh_merge(app: Any, doc: Any, source: str, data: dict[str, Any]) -> None:
+def _refresh_merge(app: Any, doc: Any, source: str, data: dict[str, Any], *, confirmed: bool = False) -> None:
+    if source == "crossref" and not confirmed:
+        # A title search finds *a* paper, and the gaps would be filled from it
+        # without a question: so the first question is whether it is this one.
+        import papis.document
+
+        names = data.get("author_list") or (
+            papis.document.split_authors_name([str(data["author"])]) if data.get("author") else []
+        )
+        first = str(names[0].get("family") or "?") if names and isinstance(names[0], dict) else "?"
+        found = f"{library.display(data.get('title', '?'))} ({data.get('year', '?')}), {first}"
+        items = [ui.Item(label="yes, update from it", value=True), ui.Item(label="no, leave it as it is", value=False)]
+
+        def answer(ok: bool, _invert: bool) -> None:
+            if ok:
+                _refresh_merge(app, doc, source, data, confirmed=True)
+            else:
+                app.log_line(f"{source}: not the paper; {doc.get('ref', '')} left as it was")
+
+        ui.pick(app, items, title=f"Crossref found: {found} — is this the paper?")(answer)
+        return
     plan = merge.plan(doc, [data])
     if not plan.gaps and not plan.clashes:
         app.log_line(f"{source}: nothing new for {doc.get('ref', '')}")

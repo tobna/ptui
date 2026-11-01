@@ -31,7 +31,8 @@ half: open the library, find the paper in three keystrokes, hit `o`.
   session in each library come back.
 - **Update without losing your edits** — `c u` refetches a document from its
   DOI, arXiv id or title and merges: missing fields are filled, and every real
-  disagreement is a question. `papis update --auto` just overwrites.
+  disagreement is a question. A title search shows what it found and asks
+  whether that is the paper first. `papis update --auto` just overwrites.
 - **Read before you open** — the info pane shows the abstract under the
   metadata; `J`/`K` scroll it without leaving the list.
 - **Marks that survive** — marks are keyed by document, not by row, so sorting

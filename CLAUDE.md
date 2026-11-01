@@ -230,8 +230,9 @@ Built:
 - **`doc.refresh`** (`c u`): `fetch.refetchers` builds importers from the
   document (papis `get_matching_importers_by_doc` + arXiv by id, no network),
   `fetch.refetch` runs papis's `fetch_importers(download_files=False)` in a
-  thread worker, then `merge.plan` with the fetched dict as the other record
-  and `actions._ask_clashes` — the loop `doc.merge` uses too — into
+  thread worker, then (for `crossref`, a title search, only after "is this the
+  paper?" — `_refresh_merge(confirmed=True)`) `merge.plan` with the fetched
+  dict as the other record and `actions._ask_clashes` — the loop `doc.merge` uses too — into
   `_fields_apply`. Tests stub `papis.importer.fetch_importers`, not
   `fetch.refetch`, so ptui's own filtering still runs
 - **`doc.move`** (`:` only): `papis.commands.mv.run` per target into another

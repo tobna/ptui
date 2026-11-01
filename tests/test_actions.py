@@ -556,6 +556,8 @@ async def test_refresh_fills_gaps_asks_each_clash_and_undoes_in_one_step(app, pa
         await settle(pilot)
         await press(pilot, "c", "u")  # title only: Crossref is the one source
         await settle(pilot)
+        assert "Attention is All you Need (2017), Vaswani — is this the paper?" in app.screen.title_text
+        await press(pilot, "enter")  # yes
         assert isinstance(app.screen, ui.SelectList)
         assert [item.label for item in app.screen.items][:2] == [
             "Attention Is All You Need",
@@ -570,6 +572,27 @@ async def test_refresh_fills_gaps_asks_each_clash_and_undoes_in_one_step(app, pa
         await press(pilot, "u")
         await settle(pilot)
         assert "doi" not in info.read_text()
+
+
+async def test_refresh_from_crossref_writes_nothing_when_it_found_another_paper(app, papis_lib, monkeypatch):
+    """A title search can find the wrong paper, and its gaps were filled silently."""
+
+    def fetch_importers(importers, download_files):
+        for importer in importers:
+            importer.ctx.data = {"title": "Attention Is Not All You Need", "year": 2021, "doi": "10.1/other"}
+        return list(importers)
+
+    monkeypatch.setattr("papis.importer.fetch_importers", fetch_importers)
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    before = info.read_text()
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "c", "u")
+        await settle(pilot)
+        assert "Attention Is Not All You Need (2021), ? — is this the paper?" in app.screen.title_text
+        await press(pilot, "down", "enter")  # no
+        await settle(pilot)
+    assert info.read_text() == before
 
 
 async def test_export_as_offers_every_papis_exporter_and_yanks_the_targets(app, monkeypatch):
