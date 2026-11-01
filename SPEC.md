@@ -436,7 +436,10 @@ Required of the chrome, in any theme:
 - The status bar is a row of coloured blocks: mode, scope, narrow, doctor on
   the left; pending chord, sort and counts on the right. Powerline separators
   come from `ui.glyph`, so an ASCII terminal gets plain blocks at the same
-  width.
+  width. **The counts never yield.** When the bar is too narrow, the sort block
+  goes first (it changes only when asked, and a shown column's header carries
+  it), then the scope and narrow are cut with an ellipsis, the longer first,
+  then the left group goes, the mode block last.
 - The hint bar shows **only implemented commands**. It is always on screen, and
   advertising a key that logs "not implemented yet" there is worse than one
   hint fewer.

@@ -124,10 +124,6 @@ async def test_a_terminal_resized_mid_session_keeps_the_cursor_and_the_whole_sta
             assert len(lines(app)) == height
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: at 80 columns a scope, a narrow and one mark push the shown/total counts off the status bar",
-)
 async def test_the_counts_stay_on_the_status_bar_at_80_columns(papis_lib):
     """SPEC: the bar shows scope and narrow, and the counts. Short values, a
     common terminal: the right-hand group simply runs off the edge."""
@@ -138,3 +134,23 @@ async def test_the_counts_stay_on_the_status_bar_at_80_columns(papis_lib):
         assert "year:2020" in status(app) and "/ scaling" in status(app)
         assert "1 marked" in status(app)
         assert "1 shown / 3 total" in status(app)
+
+
+async def test_a_crowded_status_bar_gives_up_the_sort_then_cuts_the_longer_query(papis_lib):
+    """What yields, in order, so the counts never do: the sort block, then the
+    queries with an ellipsis (the longer first), then the left group."""
+    app = awkward_app(papis_lib)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await settle(pilot)
+        await press(pilot, "s", *"year:2020", "enter")
+        assert "time-added ↓" in status(app)  # room for everything yet
+        await press(pilot, "space", "/", *"scalinglawsforneurallanguagemodels", "enter")
+        bar = status(app)
+        assert "time-added" not in bar
+        assert "year:2020" in bar  # the shorter query is whole
+        assert "/ scalinglaws" in bar and "…" in bar  # the longer one is cut
+        assert bar.rstrip().endswith("1 marked (0 visible) 0 shown / 3 total")
+        await pilot.resize_terminal(50, 24)  # room for the counts and the mode, no more
+        await settle(pilot)
+        assert status(app).rstrip().endswith("1 marked (0 visible) 0 shown / 3 total")
+        assert " LIST " in status(app) and "year:2020" not in status(app)

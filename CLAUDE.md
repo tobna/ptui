@@ -617,6 +617,10 @@ Three things about the chrome that cost time to find:
   the next. Theme variables work inside markup (`[$accent on $panel]`), which is
   what keeps the bar in whatever palette is live. `ui.glyph("sep_right")` falls
   back to a space, so an ASCII terminal gets the same widths without the arrows.
+  `refresh_status` builds the layouts from fullest to barest (sort dropped,
+  then the queries cut to a falling `cap` with `library.fit`, then the left
+  group) and draws the first whose `blocks()` widths fit; the counts are in
+  every one of them.
 
 Every `c` verb is `actions._set_field(app, key, value_of, what)` — plan one
 value per target, confirm when there is more than one, write through

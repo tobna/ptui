@@ -114,10 +114,6 @@ finishes it. The number in brackets is the review question it came from.
     much went. A new `undo.auto_empty_trash`, shipped `true`, turns it off.
     Once ptui is closed `u` cannot restore from the trash anyway, so it is only
     a safety net. SPEC's "never unasked" for `lib.empty_trash` goes with it.
-50. **The status bar loses its counts at 80 columns.** With a scope, a narrow
-    and one mark, the right-hand group runs off the edge and "/ 3 total" is
-    gone. Decide what shortens first so the counts always stay. (Pinned in
-    `tests/test_session_display.py`.)
 51. **After an outside edit, the list row keeps the old title.** Edit a title
     in `info.yaml` outside ptui, then `:app.reload true`: the info pane shows
     the new title, the row the old one, until the file is written again.

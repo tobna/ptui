@@ -1041,33 +1041,45 @@ class PtuiApp(App[None]):
     def refresh_status(self) -> None:
         """A lualine-shaped bar: mode block, scope and narrow on the left, the
         counts on the right. Colours are theme variables, so every theme gets
-        the same shape in its own palette."""
+        the same shape in its own palette.
+
+        When it all does not fit, the counts never yield. The sort block goes
+        first: it changes only when asked (`S`), and a shown column's header
+        carries it. Then the scope and the narrow are cut with an ellipsis, the
+        longer one first, and last the left group itself.
+        """
         visible_marks = sum(1 for d in self.rows if library.doc_id(d) in self.marks)
         arrow = ui.glyph("sort_desc" if self.sort_reverse else "sort_asc")
-        left = [(f" {self.mode.upper()} ", "$background", "$primary")]
+        mode = (f" {self.mode.upper()} ", "$background", "$primary")
         if self.visual is not None:
-            left = [(f" {'UNMARK' if self.visual[1] else 'VISUAL'} ", "$background", "$accent")]
-        left.append((f" {ui.glyph('scope')} {self.scope_query or '*'} ", "$text", "$panel"))
-        if self.narrow_query:
-            left.append((f" / {self.narrow_query} ", "$background", "$secondary"))
-        if self.doctor_only:
-            left.append((f" {ui.glyph('warning')} doctor ", "$background", "$warning"))
+            mode = (f" {'UNMARK' if self.visual[1] else 'VISUAL'} ", "$background", "$accent")
 
-        right: list[tuple[str, str, str]] = []
-        if self.pending:
-            right.append((f" {' '.join(self.pending)}- ", "$background", "$warning"))
-        right.append((f" {self.sort_key} {arrow} ", "$text", "$panel"))
+        def left(cap: int) -> list[tuple[str, str, str]]:
+            """The left group, each query cut to `cap` cells."""
+            out = [mode, (f" {ui.glyph('scope')} {library.fit(self.scope_query or '*', cap)} ", "$text", "$panel")]
+            if self.narrow_query:
+                out.append((f" / {library.fit(self.narrow_query, cap)} ", "$background", "$secondary"))
+            if self.doctor_only:
+                out.append((f" {ui.glyph('warning')} doctor ", "$background", "$warning"))
+            return out
+
+        pending = [(f" {' '.join(self.pending)}- ", "$background", "$warning")] if self.pending else []
+        sort = (f" {self.sort_key} {arrow} ", "$text", "$panel")
         marked = f"{len(self.marks)} marked ({visible_marks} visible) " if self.marks else ""
-        right.append(
-            (
-                f" {marked}{len(self.rows)} shown / {len(self.docs)} total ",
-                "$background",
-                "$primary",
-            )
-        )
-
-        head, used = self.blocks(left, rightwards=True)
-        tail, tail_width = self.blocks(right, rightwards=False)
+        counts = (f" {marked}{len(self.rows)} shown / {len(self.docs)} total ", "$background", "$primary")
+        longest = max(cell_len(self.scope_query or "*"), cell_len(self.narrow_query))
+        layouts = [
+            (left(longest), [*pending, sort, counts]),
+            *((left(cap), [*pending, counts]) for cap in range(longest, 0, -1)),
+            ([mode], [*pending, counts]),
+            ([], [*pending, counts]),
+        ]
+        # shortcut: below the counts' own width (~42 cells, with marks) they run off too
+        for head_blocks, tail_blocks in layouts:  # the fullest that fits
+            head, used = self.blocks(head_blocks, rightwards=True)
+            tail, tail_width = self.blocks(tail_blocks, rightwards=False)
+            if used + tail_width <= self.size.width:
+                break
         gap = max(0, self.size.width - used - tail_width)
         self.query_one("#status-bar", Static).update(f"{head}[on {STATUS_BG}]{' ' * gap}[/]{tail}")
 
