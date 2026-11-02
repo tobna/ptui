@@ -212,3 +212,25 @@ async def test_the_same_title_in_another_year_asks_too_and_says_which_year_is_th
         await press(pilot, "enter")  # go to it
         assert app.current["ref"] == "He2016"
         assert len(app.docs) == 3
+
+
+async def test_adding_places_only_the_new_paper_not_the_marked_ones(app, papis_lib, tmp_path):
+    """After an add, ptui ran the placement rules on the *marked* papers, not the
+    new one: with a rule that moves PDFs, adding a paper moved their files unasked."""
+    from cover_helpers import attach
+
+    from ptui import actions
+
+    for n in range(3):
+        attach(papis_lib, f"doc{n}", f"old{n}.pdf")
+    new = tmp_path / "new paper.pdf"
+    new.write_bytes(b"new")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "space", "space")  # mark two documents
+        data = {"title": "Freshly Added", "year": "2026", "author_list": [{"family": "Doe", "given": "Jane"}]}
+        actions._add_document(app, new, data)
+        await pilot.pause(0.3)
+        assert all((papis_lib / "lib" / f"doc{n}" / f"old{n}.pdf").exists() for n in range(3))
+        placed = list((papis_lib / "pdfs").glob("*.pdf"))
+        assert [p.read_bytes() for p in placed] == [b"new"]
