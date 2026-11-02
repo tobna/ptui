@@ -3,7 +3,7 @@
 Feedback from the first sessions with a real library. Ordered roughly by how
 much it hurts. Root causes are noted where they are already understood; they
 were traced in the code, not guessed. Finished items are deleted, not struck
-through — what shipped is described in `CLAUDE.md`, and the leftovers each
+through — what shipped is described in `README.md`, `SPEC.md` and `KEYS.md`, and the leftovers each
 entry left behind stay here as their own item.
 
 ## A. Broken
@@ -118,16 +118,6 @@ finishes it. The number in brackets is the review question it came from.
     undoes the step before them, and on many marked documents they act at
     once, where SPEC says destructive batch operations confirm. One undo step
     per run, and the batch confirm `_set_field` uses. With tests. [132 b]
-68. **Stale docs.** CLAUDE.md's Status gives a test count: drop it, it is
-    stale by the next commit. CLAUDE.md and `fetch.available()`'s docstring
-    say a new importer plugin shows up in `a` for free, but `available()`
-    offers only the names in `fetch.SOURCES`. SPEC's "Not in v0" still lists
-    the structured editor, undo and saved searches. SPEC, CLAUDE.md and
-    `actions._reread` still say `r` only re-asks papis's cache, which H.60
-    changed. Then trim CLAUDE.md to what only it says: drop the "Built:"
-    inventory, repeats, notes on removed things, and anything that restates
-    SPEC, README, KEYS, TODO or a docstring, pointing there instead. [132 d,
-    133.1]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 

@@ -1,65 +1,53 @@
 # CLAUDE.md — working notes for agents
 
 ptui is a [Textual](https://textual.textualize.io/) TUI for
-[papis](https://github.com/papis/papis). `SPEC.md` is the design contract —
-read it before changing behaviour; this file is the map of what actually
-exists. `TODO.md` is the backlog from real use: **read it before starting anything.**
-Section A (broken things) is empty, and every bound key now has a command
-behind it; work comes from § C (default-changing decisions), § D (display
-polish) and § E (measurements owed and the wrong assumptions they would
-correct). Finished entries are deleted from
-it, not struck through.
+[papis](https://github.com/papis/papis). `README.md` says what it does,
+`SPEC.md` how it must behave (the design contract — read it before changing
+behaviour), `KEYS.md` every binding, and `TODO.md` what is left: **read
+`TODO.md` before starting anything.** The code's docstrings carry most of the
+reasons. This file holds what none of those say: where things live, the traps,
+and the reasons that have no single place in the code.
 
 ## Golden rules
 
-1. **Keep `CLAUDE.md`, `README.md` and `KEYS.md` current.** Any change to structure,
-   commands, config keys, or workflow updates both, in the same commit. If they
-   have drifted: re-read `ls -R src` and the recent commits, fix `CLAUDE.md` for
-   agents (layout, commands, status, gotchas) and `README.md` for humans (short,
-   install, features), and update `SPEC.md` if behaviour diverged.
-   `KEYS.md` is generated: touch `keys.toml` or a command's `desc` and rerun
-   `uv run python scripts/keydoc.py` in the same commit — `tests/test_docs.py`
-   fails while it is stale. (`.claude/` is local-only and not tracked.)
+1. **Keep `CLAUDE.md`, `README.md` and `KEYS.md` current.** Any change to
+   structure, commands, config keys, or workflow updates them in the same
+   commit. This file points to the others instead of restating them, or the
+   copies drift. If they have drifted: re-read `ls -R src` and the recent
+   commits, fix this file for agents (layout, traps, where things live),
+   `README.md` for humans (short, install, features), and `SPEC.md` if
+   behaviour diverged. `KEYS.md` is generated: touch `keys.toml` or a command's
+   `desc` and rerun `uv run python scripts/keydoc.py` in the same commit —
+   `tests/test_docs.py` fails while it is stale. (`.claude/` is local-only and
+   not tracked.)
 2. **`SPEC.md` wins over intuition.** If the code must deviate, change the spec
-   in the same commit and say why.
-3. **ptui is a frontend: ask papis, do not re-implement it.** Field types,
-   the scope query grammar, check names, the `time-added` format, the downloader
-   list — anything papis decides is read from papis at run time, so a papis
-   release changes ptui with it. Before writing logic, look for the papis
-   function that already does it; a copy is a bug waiting for the next release.
-   Deliberate exceptions, decided — do not "fix" them: `/` is ptui's own quick
-   filter (papis's grammar is `s`); `c f` on `files`/`notes` writes through
-   `safewrite` and renames nothing on disk, unlike `papis update`; `[doctor]
-   checks = []` runs every registered check, not `doctor-default-checks`.
-4. **Verify every papis API call against the installed version** (`uv run python -c ...`).
-   The internal API moves between minor releases (0.16 moved the doctor checks
-   to `papis.doctor`), so `pyproject.toml` pins `papis>=0.16.1,<0.17`, and
-   pytest turns any `DeprecationWarning` raised from ptui into an error — that is
-   how papis announces its next removals. Do not
-   trust API names from `SPEC.md` or from memory — several in this file were
-   wrong until checked (`papis.arxiv.get_data` silently drops `journal_ref`,
-   `doctor.run` defaults to `fix=True`).
-5. **Never touch `info.yaml` outside the safe-write helper.** Papis caches;
-   direct writes desync it. Unknown keys and comments must survive a write.
-6. **Documents are identified by `papis_id`, never by folder path.**
-7. Commit in standalone steps. No AI/Claude mentions in commit messages.
+   in the same commit and say why. Its hard requirements — the safe write and
+   the round-trip invariant, `papis_id` as the only identity, the keymap prefix
+   invariant — are the ones a change most often breaks.
+3. **ptui is a frontend: ask papis, do not re-implement it.** SPEC §
+   Architecture decisions says why and lists the three decided exceptions — do
+   not "fix" them. Before writing logic, look for the papis function that
+   already does it.
+4. **Verify every papis API call against the installed version**
+   (`uv run python -c ...`; the version pin and its reason are in SPEC §
+   Architecture decisions). Do not trust API names from `SPEC.md` or from
+   memory — several in this file were wrong until checked
+   (`papis.arxiv.get_data` silently drops `journal_ref`, `doctor.run` defaults
+   to `fix=True`).
+5. Commit in standalone steps. No AI/Claude mentions in commit messages.
 
 ## Toolchain
 
-`uv` for everything. Python 3.13+ (dev machine runs 3.14).
+`uv` for everything: install and launch are in `README.md` § Install, tests and
+lint in § Development. The dev machine runs Python 3.14; CI runs 3.13.
 
 ```sh
-uv sync                 # install
-uv run ptui             # launch (also available as `papis ptui`)
-uv run pytest           # tests
-uv run ruff check --fix && uv run ruff format
-
 uv run python scripts/keydoc.py    # regenerate KEYS.md after a keymap change
 uv run python scripts/glyphs.py    # print ui.GLYPHS + icon candidates in your own font
 
 # look at the UI without a terminal — writes a PNG you can open
 uv run python scripts/shot.py /tmp/shot.png --size 160x30 slash n a u e n
-uv run python scripts/shot.py --text --icons          # print the screen as text instead, nerd-font glyphs on
+uv run python scripts/shot.py --text --icons   # print the screen as text instead, nerd-font glyphs on
 ```
 
 **Look at the screenshot before claiming a visual bug is fixed.** Pilot presses
@@ -70,9 +58,7 @@ real keys, so this exercises the actual app; several layout problems in
 taken with `c r … enter` wrote a rating into a live document — found, reverted
 through `safewrite`, and the file restored from the library's own git. Only
 read-only keys belong in a screenshot: navigation, `/`, a picker you escape out
-of. Anything that writes goes in a test, against the fixture. It does turn
-session state and the query history off, so a screenshot neither starts from
-nor overwrites where your last real session ended.
+of. Anything that writes goes in a test, against the fixture.
 
 **The PNG lies about spacing.** SVG export writes each styled run as its own
 positioned text element, so bold text looks like it has lost the space beside it
@@ -101,9 +87,9 @@ src/ptui/
   merge.py           folding duplicates into one: gaps, clashes, survivor choice
   safewrite.py       the only path that writes info.yaml
   undo.py            the undo history and the trash/git/none strategies
-  defaults/          shipped config.toml, keys.toml
+  defaults/          shipped config.toml, keys.toml — their comments document every key
 .github/workflows/
-  test.yml           CI: `uv sync --locked` + `uv run pytest -q` on 3.13, every push and PR
+  test.yml           CI
 scripts/
   keydoc.py          regenerates KEYS.md; tests/test_docs.py fails while stale
   shot.py            headless screenshot of the real app (--text, --icons, --rows)
@@ -112,10 +98,13 @@ tests/
 ```
 
 Data flow: a keypress becomes a chord in `app.on_key`, resolves through
-`keymap` to a name in `commands.REGISTRY`, and lands in `actions.py`. Adding a
-command means adding one decorated function — help, the hint bar and which-key
-pick it up for free. An unregistered command logs "not implemented yet" rather
-than crashing, which is how the shipped keymap can bind post-v0 commands.
+`keymap` to a name in `commands.REGISTRY`, and lands in `actions.py`; a new
+command is one decorated function there. A bound name with no command behind
+it logs "not implemented yet". To list such names, run `uv run python -c` over
+`keymap.load()` and `commands.REGISTRY` — import `actions` first, or the
+registry is empty and every key looks unbound. A shipped config key nothing
+reads fails `tests/test_config.py::test_every_shipped_key_is_read_somewhere`.
+
 Every entry point is guarded — log the failure once, the traceback to
 `log.file`, keep the session: `PtuiApp.run_command` for keys and the `:` line,
 `PtuiApp.on_input_submitted` for every prompt's result
@@ -127,33 +116,19 @@ through it. Every worker (`@work`, `run_worker`) is started with
 then keeps. An exception that escapes a Textual handler or a worker ends the
 app, so a new entry point needs the same guard, and a new worker the flag.
 
-User config lives in `ptui/` in papis's config folder (`config.config_dir()`:
-papis's `get_config_folder()`, which honours `$PAPIS_CONFIG_DIR`; on Linux
-usually `~/.config/papis/ptui/`) and mirrors
-`src/ptui/defaults/`. `config.load` repairs what cannot work — a value outside
-`config.CHOICES` (one inside it in the wrong case is folded: the code compares
-exactly), a table given as a scalar (`ui = "dark"`), a split ratio off the screen, a column with no `format` or
-`width` — back to the shipped default and records a sentence in `Config.invalid`,
-logged at startup and by `\ c`. A TOML syntax error, or a binding with no `cmd`,
-is the one thing it refuses: the command line prints the file and exits 1. Anything papis already owns (library paths, `editor`,
-`opentool`, `use-git`) is read from papis config; `config.toml` may override
-per key.
+The user's config is `config.config_dir()` (SPEC § Architecture decisions) and
+mirrors `src/ptui/defaults/`. `config.load` puts a value that cannot work back
+to the shipped default and records a sentence in `Config.invalid`, logged at
+startup and by `\ c`. A TOML syntax error, or a binding with no `cmd`, is the
+one thing it refuses: the command line prints the file and exits 1.
 
 ## papis and Textual gotchas (learned the hard way)
 
 - **`rg` skips `.venv`**: uv writes a `.venv/.gitignore` of `*`, so searching
   the installed papis needs `rg -uu`. An empty result without it proves nothing
   — this file once said papis never mentions `time-added`, for exactly that reason.
-- **`PAPIS_NP=0`** is set in `library.py`. Papis forks a process pool to build
-  its cache; inside a TUI that copies the whole app and dies on Textual's
-  redirected file descriptors (`ValueError: bad value(s) in fds_to_keep`).
 - **Never name app state after a Textual property.** `App.visible` exists, so
   the narrowed list is `app.rows`. Check `hasattr(App, name)` before adding one.
-- The `papis.command` entry point must be a **`click.Command`**, so `cli.main`
-  is decorated with `@click.command`.
-- Papis resolves the current library from lazily-loaded global state, so tests
-  need the autouse `papis_lib` fixture (`tests/conftest.py`) or they depend on
-  whoever runs them having a library named `papers`.
 - Textual widgets are driven manually: `can_focus = False` everywhere except the
   prompt `Input`, so every key reaches `App.on_key` and the keymap owns dispatch.
   **The log pane is the exception, and must stay one**: RichLog is focusable, so
@@ -162,649 +137,176 @@ per key.
   the keymap sees it.
 - Do not shadow Textual internals: `SelectList._populate` is called that because
   `Widget._render` already exists and overriding it renders nothing.
-- `Static.update` parses markup, and a destination path is full of
-  `[doc[year]]`-shaped text — pass `markup=False` for anything path-shaped.
-- **Inside a `safewrite.edit` mutation, write with `safewrite.put` / `drop`,
-  never `data[key] = …` or `pop`.** ruamel hangs a comment on the node *before*
-  it, so replacing a list (`c t`) or removing a key deleted the comment that
-  introduces the next key. `put`/`drop` move those lines across.
-- **A ruamel `YAML` instance is not reusable after a failed dump**: it keeps the
-  dump's output stream and context, so one unrepresentable value made every
-  later write raise "I/O operation on closed file". `safewrite.write` dumps
-  through a fresh `_dumper()`, configured like the module's `_yaml` (which
-  still loads: a failed load cleans up after itself).
-- **Read `files` through `place.entries(doc)`, never `doc.get("files")`.** A
-  hand-written `files: paper.pdf` is a string; papis reads it as one entry
-  (`Document.get_files`), and iterating it gave its letters — `x` and `J` then
-  wrote `[p, a, p, e, r, …]` back.
-- `papis.format.format` **returns the unformatted pattern** (or raises deep in
-  `string.Formatter`) when a key is missing; `default=""` does not save nested
-  lookups like `{doc[author_list][0][family]}`. Check for a leftover `{`.
-
-## Status
-
-**v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty.
-
-Built:
-
-- config + keymap loading, command registry, prefix-conflict check
-- safe `info.yaml` writes, `place()` file placement
-- the app: list + info panes, scope query, debounced narrow, sorting, marks,
-  which-key, hint bar, status bar, log pane, `help.show`
-- **narrow grammar**: whitespace terms ANDed, `-negation`, `"phrases"`,
-  `field:value`, `year:>2023` ranges, matches highlighted; one matcher shared
-  with every picker filter box
-- verbs: `doc.open`, `doc.open_folder`, `doc.browse`, `doc.edit_raw`,
-  `export.{citekey,path,url,bibtex,as}` (`as`: any papis exporter;
-  `papis.commands.export.run` returns `""` on failure — `csl` without
-  citeproc-py — so empty text is a failure that writes and copies nothing),
-  `files.relocate`
-- `SelectList` modal + `sort.picker`, `files.open_pick`, `lib.switch`
-- the add flow: inbox picker, metadata form, live destination preview, `place()`
-- **layout**: `ui.layout = "auto"` picks side-by-side vs stacked from the column
-  fit, optional columns yield to `list.flex_target`, `list.row_height` wraps the
-  flex column, the sort arrow sits in the sorted column's header
-- **glyphs**: one `ui.GLYPHS` table (ASCII + nerd font), `icons = true` shipped,
-  a one-cell document-kind column including the arXiv-only `preprint`
-- **doctor**: read-only findings in the info pane, `! !` narrows the list to the
-  documents that have them, fixes only on an explicit verb
-- **`:` command line** (`cmdline.open`, also `ctrl+p`): a `SelectList` over
-  `commands.REGISTRY` with each command's binding as the hint
-- **the `c` namespace**: `doc.set` (`c f`), `doc.tag`/`doc.untag` (`c t`/`c T`),
-  `doc.status` (`c s`), `doc.rating` (`c r`) — one field on every target through
-  `safewrite`, typed from papis's own declared key types
-- **`doc.edit`**: `e` is `$EDITOR` on `info.yaml`, `E` a form over the common
-  fields, and `edit.mode = "structured"` swaps them; **`doc.notes`** (`g n`) is
-  `$EDITOR` too, under `app.suspend()`
-- **themes**: Textual's 21 plus `tokyonight-moon`, `theme.picker` (`\ t`),
-  titled panes, a lualine-shaped status bar, the doctor's exception marker
-- **`doc.delete` (`d d`) + `app.undo`/`app.redo`** (`u` / `ctrl+r`): the
-  checkbox dialog, and all three `undo.strategy` values
-- **`files.attach`** (`f a`): `papis addto` on the cursor's document — a
-  path, a URL, or the inbox
-- **the files pane** (`3`): `files.detach` (`x`), `files.reorder` (`K`/`J`),
-  `files.repoint` (`p`), `files.rename` (`r`), `files.normalize` (`f n`) —
-  each on the entry under `app.file_index`, each one undo step
-- **the abstract** closes the info pane (whitespace collapsed — fetched ones
-  keep the source's hard wraps); `info.scroll` (`J`/`K` in the list,
-  `ctrl+d`/`ctrl+u` in the pane) scrolls `#info-pane` by half its height, and
-  `refresh_info` scrolls home when the document changes (`app._info_of`);
-  `log.scroll` is the same over `#log-pane` (`ctrl+d`/`ctrl+u`, `j`/`k`
-  one line at a time, `g g`/`G` with `end`)
-- **query history**: `actions.history` / `remember` over `query.history_file`
-  (plain lines, newest last); `app.recall` walks it on `up`/`down` in the
-  prompts named by `actions.HISTORY_KINDS`, only the entries that start with
-  what was typed before the first `up` (a prefix search; the typed line itself
-  is skipped)
-- **session state** (opt-in, `general.persist_state = false` shipped):
-  `actions.restore_state` before the first `reload`,
-  `save_state` from `PtuiApp.on_unmount` — which runs after the widgets are
-  gone, so the cursor comes from `app._info_of`, not `app.current`. The test
-  fixture turns `persist_state` off, or two sessions in one test leak into
-  each other
-- **`doc.refresh`** (`c u`): `fetch.refetchers` builds importers from the
-  document (papis `get_matching_importers_by_doc` + arXiv by id, no network),
-  `fetch.refetch` runs papis's `fetch_importers(download_files=False)` in a
-  thread worker — except for `crossref`, which is `fetch.crossref`, below —
-  then `_refresh_found` (a Crossref hit is picked first) and `_refresh_merge`:
-  `merge.plan` with the fetched dict as the other record and
-  `actions._ask_clashes` — the loop `doc.merge` uses too — into
-  `_fields_apply`. A test of ptui's own filtering stubs papis
-  (`papis.importer.fetch_importers`, `papis.crossref.get_data`), not
-  `fetch.refetch`, or the filtering never runs
-- **Crossref is `fetch.crossref`**, `papis.crossref.get_data(query=…,
-  max_results=fetch.CROSSREF_HITS)`, for `c u` and the `crossref` add source
-  alike: papis's `CrossrefImporter.match` returns `None` for any text and its
-  fetch keeps the first hit, so the add source never worked and `c u` could
-  not choose. `actions._hit_items` lists the hits plus "none of these", whose
-  value is `actions.NONE_OF_THESE`, not `None` — `SelectList` opens on the row
-  whose value equals its `current`, which defaults to `None`
-- **`doc.move`** (`:` only): `papis.commands.mv.run` per target into another
-  library, folder name kept. The target's index is built *before* the move —
-  papis's `mv` adds to it, and an index built afterwards already holds the
-  document, which then lists twice
-- **visual mode**: `visual.start` (`v`, `V` with `unmark`) — `app.visual` holds
-  the anchor and the marks from before, and `_move` recomputes the marks as
-  base ± the range, so a verb pressed mid-range acts on what is drawn. A
-  refilter or any other mark command ends it (or the next move would undo them)
-
-Every shipped binding has a command behind it; one that ever does not logs "not
-implemented yet", and `uv run python -c` over `keymap.load()` and
-`commands.REGISTRY` lists them (import `actions` first, or the registry is empty
-and every key looks unbound). Every shipped config key is read somewhere, and
-`tests/test_config.py::test_every_shipped_key_is_read_somewhere` keeps it so.
-
-`undo.py` is the history and the three strategies; `actions._delete_apply` is
-the one place that removes a document. Whatever `undo.strategy` says, **files
-always route through trash** — a configured `pdf_root` sits outside the library,
-so git covers none of it. `trash` moves the folder to `undo.trash_dir` and undo
-moves it back, `git` does `git rm` plus one commit per *operation* (the log is
-the history) and undo `git revert`s it, `none` still trashes but records
-nothing and clears the stack, so `u` cannot offer the operation before it.
-`git` needs the library in a git work tree: `undo.require_git` puts `trash` in
-its place, with a sentence, from `cli.main` (into `Config.invalid`), from
-`config.set` and from `lib.switch` — the CLI rather than `on_mount`, so
-`build_app` tests can still drive the git path on a plain folder, where
-`_delete_run` refuses before it trashes a single file.
-Metadata edits push an in-memory step under every strategy. A `c` verb's step
-holds the values each write replaced, read from the file it rewrote, so undo
-restores a key's *absence* too, and a tag a script added since loading.
-
-`files` entries are written by `place._entry` from `place.normal` paths on
-both sides — `os.path.normpath`, **never `Path.resolve()`**: resolving turned a
-library reached through a symlink into `../../../../data/…` entries and a linked
-PDF into its target. A `relative-doc` entry that would climb to `/` is written
-absolute instead, with a log line.
-
-The delete dialog's "also in" check runs over the whole library (papis's
-`get_all_documents`), not `app.docs`: a document the scope hides still loses a
-file that is trashed. It is `place.same_file`: two entries name one
-file when their paths match once normalised (`place.normal`, `os.path.normpath`,
-no link followed) or once links are followed. Comparing them as written ticked a
-shared file another document spelled relative, and trashed it. Inside the folder
-and under `pdf_root` are decided on `place.normal` paths too: `../../pdfs/x.pdf`
-is written under the folder and was never offered, orphaned by the delete.
-
-Two things that cost time here:
-
-- **`papis.database.clear_cached()` is not enough to make a restored document
-  reappear.** It drops the in-process handle; the backend then re-reads its
-  *on-disk* pickle, which papis rewrote when the document was deleted. Undo
-  calls `reload(app, rescan=True)`, which calls the database's own `clear()`
-  first and pays for a rescan of the library. `r` is bound to that rescan
-  too: the pickle never sees an `info.yaml` edited outside papis either.
+- **App-level resize fires before layout**: widget sizes, and `App.size`
+  itself, are stale in `App.on_resize`. Read `event.size` there, and refit from
+  a widget's own `on_resize` (`ListTable.on_resize`).
 - **`ConfirmDelete` binds `enter` with `priority=True`.** `SelectionList` binds
   both `space` and `enter` to toggling, so without the priority the confirm key
   ticks a checkbox instead.
-
-`PtuiApp.fit_columns()` sizes the list: a configured width is a ceiling, and
-each fixed column asks for `PtuiApp.natural_width()` — `library.p90` of what it
-renders over `app.rows` (the whole narrowed set, or the column jitters while
-scrolling), floored at its header. The `width = 0` column absorbs the rest, and
-a fixed column that would squeeze it below `MIN_FLEX` is dropped instead of
-scrolling sideways. `fit_columns` allocates in two passes — required columns
-first against `MIN_FLEX`, then `optional = true` ones against the larger
-`list.flex_target` — so an optional column can never outbid a required one. Cells come from `PtuiApp.cell_text()` — the one place a
-column is rendered, used by both the sizing pass and the row build — and are
-cut with `library.fit` (rich `cell_len`/`set_cell_size`, so CJK counts double;
-backs off to the last colon or space rather than cutting mid-word). The refit
-hangs off `ListTable.on_resize` — the app-level resize event fires before
-layout, when widget sizes are still stale.
-
-`cell_text` is cached per document and stamped with `library.mtime` (the
-`info.yaml` mtime, the same stamp the doctor cache uses): `papis.format` reads
-papis config on every call, and every narrow keystroke redraws every row —
-3 s at 5000 documents before the cache, 0.2–0.4 s after (the rest is Textual's
-`add_row`). It formats without `default=`: with one, papis logs a warning plus
-traceback for each `{doc[author_list][0][family]}` on a document with no
-authors, 10 ms apiece. A stale entry means the file changed since the row was
-drawn, so `cell_text` `load()`s the document before formatting it again (stat
-first, then read): formatting the copy in memory stored the old title under the
-new stamp, and the row kept it even through a rescan. A document's *first* draw
-trusts what papis loaded. `row_cells` paints one row with what the last
-`refresh_rows` decided (`app._paint`), so `mark.toggle` redraws its row alone
-through `refresh_row`.
-
-`PtuiApp.header()` puts the sort arrow on the sorted column. It matches by
-rewriting the sort key into a column's format string (`PtuiApp.sort_format`:
-`author_list.0.family` -> `{doc[author_list][0][family]}`), so a key no column
-shows — `time-added`, the shipped default — simply matches nothing and no
-header changes. `sync_columns` caches the headers alongside the fit, or a new
-sort key would not redraw them.
-
-`ui.glyph("mark")` is the only way a symbol reaches the screen. `ui.GLYPHS`
-holds the ASCII and nerd-font column for each name; `ui.use_icons()` is called
-once from `PtuiApp.__init__` and sets a module global, so call sites do not
-carry `ui.icons` around. Adding a symbol means adding a row to that table, in
-both columns, one cell wide; a slot with no sensible ASCII twin uses a space,
-and a nerd glyph no clearer than the ASCII one (the sort arrows) is simply
-repeated in both columns. `glyph(name, fallback)` takes a second glyph *name*
-for families keyed by data — `glyph(f"type.{kind}", "type.misc")`.
-Shipped default is `icons = true`; `scripts/shot.py --icons` forces it on
-regardless of config, and `scripts/glyphs.py` prints the table plus the
-still-undecided candidates so a real terminal can choose.
-
-A `[[list.columns]]` entry with `glyph = "type"` renders its formatted value
-through the `type.*` family instead of printing it — that is the one-cell
-document-kind column. Its value comes from `{doc[kind]}`, which `library.kind()`
-derives: the `type` field (case-folded, `phdthesis` -> `thesis` through papis's
-`bibtex_type_aliases`), except that an article with no venue and no trace but
-arXiv's reads as `preprint`. The DOI decides whenever there is one — read
-through python-doi's `find_doi_in_text` (papis's dependency, and listed in ptui's own `pyproject.toml` since ptui imports it), so a `doi.org` URL
-counts as the bare DOI and arXiv's prefix cannot hide behind it; a document
-with **no** DOI falls through to `library.on_arxiv` (`eprinttype`, else an
-arxiv.org URL), which is what makes the 19 arXiv imports that never recorded a
-DOI read correctly. Measured on the real library: 190 preprints, and the order
-matters — 182 documents carry a publisher DOI *and* an arXiv eprint, so eprint
-may never outrank a DOI. Local data only, so a stale entry for a paper that did
-get published stays flagged; `library.flatten` injects `kind` and it wins over
-any stored key of that name.
-
-In `SelectList` the cursor glyph tracks the **highlighted** row, not the
-`current` value — every picker has a highlight, only some are opened with a
-current value, and that one is marked bold instead. `on_option_list_option_
-highlighted` rewrites the two prompts that changed rather than the whole list.
-
-`list.row_height` above 1 wraps **only** the flexible column, through
-`library.fit_lines` — a greedy cell-accurate wrap that returns newline-joined
-rows, so the table never guesses where to break. Budgeting `width * lines`
-instead would silently drop the last words, because a word-wrap fits fewer cells
-than the product. `scripts/shot.py --rows 2` renders it.
-
-`library.parse_query()` is the whole narrow grammar: whitespace-separated
-terms, ANDed by `match_doc`, so typing more always narrows. A term may be bare,
-`-negated`, `"quoted"`, `field:value` (dotted paths work — `resolve` handles
-them) or a numeric range (`year:>2023`, `year:2020..2024`). Aliases come from
-`[query.aliases]`, the same table the scope prompt uses, and are expanded inside
-`parse_query` — do not expand them again at the call site. The scope prompt
-itself has no grammar of its own: the expanded string goes to papis's
-`db.query`, so `OR`, `NOT` and parentheses (papis 0.16) work there, and
-`expand_aliases` also expands right after a `(` and after a negating `-`. `shlex` does the
-quoting, with `"` as the only quote — an apostrophe opened one, so `don't` and
-`o'brien` matched nothing — and raises on the half-typed quote you always have,
-so an unterminated query is retried closed. `match_text` is the same matcher over one blob, which is
-what `ui.Item.matches` uses: **one matcher for `/` and every picker filter**.
-A document's text is matched as stored *and* as the list shows it
-(`library.shown_too`: the `strip_latex` form on a line of its own, when it
-differs; regex mode is `MULTILINE`, so `^` starts either), or `/bert` missed
-the `{B}ERT` drawn as `BERT`. Pickers match their labels as they are.
-Fuzzy is opt-in and requires the matched run to fit `FUZZY_SPAN` times the
-needle; plain subsequence matching was the A1/A2 bug and must not come back.
-Narrowing filters and never reorders — the sort is the user's.
-
-`merge.py` holds the merge decisions and writes nothing: `plan()` splits keys
-into *gaps* (only the others had them — filled silently) and *clashes* (a real
-disagreement — one question each), `resolve()` turns answers into the field set,
-`survivor_choices()` maps distinct refs to documents because **the ref you keep
-is the document you keep**. `author_list` values go through `merge._authors`
-(a bare `author` string becomes papis's `split_authors_name` list) and compare
-by the names they hold, so a survivor with only `author` is asked rather than
-silently overwritten, and a gap is always filled with a record's own list. `actions._merge_apply` does the writing, and two
-things there are load-bearing: a loser's `files` entry may be relative to the
-folder about to be trashed, so it is resolved *before* the move and routed
-through `place()` — and a file `place()` leaves in place (`unmanaged`, every
-shipped rule) is `place.adopt`ed into the survivor's folder when it sits in the
-loser's, which is about to go to the trash; and trashing a folder is not enough — `papis.database.delete`
-must be called too, or papis's index hands the document straight back on reload.
-`place.trash()` moves the folder to `undo.trash_dir` (SPEC: files always route
-through trash) rather than deleting it. `_merge_apply` pushes one undo step
-around `_merge_run`, which returns the undo for exactly that run — the
-survivor's old fields first (a stale write must leave the rest alone), then the
-folders back from the trash, then the moved files, then `reload(rescan=True)`;
-redo re-runs it with the same plan and answers, like `_delete_apply`'s redo.
-It also stamps the move in the trash's `.ptui-trashed.json` (`place.trashed_at`):
-a moved folder keeps its old mtime, and `lib.empty_trash` must delete by when
-something was trashed, not by when it was last edited. `actions.auto_empty_trash`
-(from `on_mount`, while `undo.auto_empty_trash`) deletes the same set unasked,
-with one log line; both share `_old_trash` and `_purge`.
-
-`tests/conftest.py` builds apps through `build_app(papis_lib, extra)`, which is
-how the undo strategies get one app each against one library each, and the
-`git_lib` fixture is a real `git init` in `tmp_path` — the git strategy is `git
-rm` plus a commit, and mocking that would test the mock. `tests/test_undo.py`
-covers the dialog defaults, all three strategies, batch-as-one-step, and the
-metadata stack parametrised over every strategy.
-
-The `app` test fixture redirects `pdf_root`, `log.file` **and**
-`undo.trash_dir` into `tmp_path`, and declares the `files.rules` that move PDFs
-to `pdf_root` — the shipped rules are all `in-place`, so a test that exercises
-relocation has to opt in (lists are replaced wholesale, so it spells out all
-three rules, not just the moving one). The last one was added after a merge test
-quietly filled the developer's real `~/.local/share/ptui/trash`; any new command
-that writes outside the library needs the same treatment. It also sets
-`doctor.scan_on_startup = false`: no test asserts on the startup scan, and the
-thread competed with `settle`'s 0.2 s for the GIL — under load the first press
-landed before the list had rows and the command found no target. And
-`undo.auto_empty_trash = false`, or a test that sets up an old trash for
-`lib.empty_trash` finds it emptied by the startup; the one test of the
-startup emptying flips it back through `app.cfg.data`.
-
-`papis_lib` sets **`PAPIS_CACHE_DIR`** into `tmp_path` for the same reason:
-papis pickles its database index into the user's real cache dir under a hash of
-the *library path*, and pytest reuses `tmp_path` names after `/tmp` is cleared.
-A run then loaded an older run's index for the same path and saw documents whose
-`files` had already been relocated — `test_relocate_moves_files_and_rewrites_
-info_yaml` failing on a library that looked, on disk, untouched. Two runs with
-one `--basetemp` reproduce it.
-
-`papis_lib` also points `XDG_CONFIG_HOME` into `tmp_path`: papis 0.16 treats
-`$XDG_CONFIG_HOME/papis` as a deprecated location and *copies* it into a
-`PAPIS_CONFIG_DIR` that does not exist yet — the developer's real config.
-
-`fetch.py` fronts papis's importer plugins. The `a` picker offers only the
-importers in the curated `fetch.SOURCES` that papis registers
-(`fetch.available()`), so a new importer plugin needs a row there; its URL entry
-hands an http(s) URL to whatever importers and downloaders papis matches, so a
-new downloader plugin is used with no change here. Three traps, all measured, all commented in
-the module: **matching hits the network** (the `doi` importer's `match()` GETs
-doi.org for any string that is not an existing path, so never call
-`get_matching_importers_by_uri` on arbitrary input — pick by name); the
-`fallback` downloader matches anything, so URL dispatch is http(s) only;
-constructors differ per importer, so `cls.match(uri)` is the only generic way in.
-Importers download PDFs themselves (`ctx.files`), which is why there is no
-downloader here. The fetch runs in a **thread worker** — some of them take
-seconds and pull a PDF.
-
-`add_form(app, path, fetched)` takes `path=None` for a metadata-only document;
-`papis.commands.add.run([])` accepts that. **`add.run` asks about a duplicate
-itself, in a prompt_toolkit pager** that dies inside Textual ("asyncio.run()
-cannot be called from a running event loop"), so `_add_document` asks first
-(`_duplicate`: papis's `locate_document_in_lib`, then the title — same year
-first, then any year, the question naming the year the library has) and sets
-papis's `unique-document-keys` to `[]` around the one `add.run` call. `_KEEP_FETCHED` carries the keys the
-form has no box for (abstract, eprint, venue…) into the document.
-
-`doctor.py` never calls `papis.commands.doctor.run()` — that takes `fix=True`
-by **default** and mutates the document as a side effect of looking at it.
-The checks themselves live in `papis.doctor` since 0.16, and findings come from
-`REGISTERED_CHECKS[name].operate(doc)`, which is read-only. Configured check
-names go through papis's `DEPRECATED_CHECK_NAMES`, so `key-type` still means
-`field-type`, as it does on papis's own command line.
-A fix runs the check's own `fix_action` (which mutates the in-memory `Document`),
-diffs the keys it touched against a **deep** copy (papis's `files` and initials
-fixes edit a list or the author dicts in place, which a shallow copy shares), and writes only those through `safewrite`; on any
-failure the document is reloaded, or it would keep an edit that never landed.
-`[doctor] checks = []` means every registered check — a shipped list would rot
-against whatever a papis release registers.
-
-**There is no findings widget.** Per document, findings are a section of the
-info pane (`PtuiApp.doctor_lines`), rendered like `files` and shown only when
-there is something to say. Over the library, `doctor.run` narrows the list —
-`app.doctor_only` is a filter over the scoped set, the same shape as
-`marked_only` (the tuple of check names that ran, `False` when off, read through
-`doctor.peek(doc, checks)`), so jumping to an entry is moving the cursor and `escape` (the
-`narrow` step of `escape_chain`) drops it. Fixing is a verb: `doctor.fix`, or
-`doctor.fix_pick` for one finding. The old `view.doctor` picker is gone — it
-made the reader dismiss a modal to see the next finding.
-
-`doctor.LIBRARY_WIDE` is the split that fixes the phantom findings:
-`duplicated_keys_check` accumulates into papis's module-level
-`DUPLICATED_KEYS_SEEN`, so the second look at one document sees its own values
-from the first. It is the **only** stateful registered check in papis 0.16 —
-`duplicated-values` looks for repeats *inside* one list field and is
-per-document. `findings()` excludes the library-wide set; `scan_library()` is
-their one pass and clears papis's state first.
-
-`doctor.CACHE` maps `papis_id` -> (`info.yaml` mtime, findings, the check names
-run). `scan` replaces only the named checks' findings and adds their names; a
-stale entry's other checks run again in the same pass, since the new stamp
-vouches for them. The stored names are already resolved, so `cached` re-scans
-through `_scan`, never `scan`: back through `check_names`, an empty list would
-mean *every* check. It is filled by `PtuiApp.scan_library` (a thread worker at startup, ~1.7 s for 754
-documents, off with `[doctor] scan_on_startup`), which repaints the rows when it
-is done. Staleness is the mtime, not a notification: every write goes through
-`safewrite` or `place`, both touch the file, and a `stat` cannot be forgotten at
-a new call site the way an invalidation call can. The redraw reads the cache
-through `doctor.peek`, which never runs a check: a stale entry keeps its old
-findings and the document goes into `doctor.STALE`, and `refresh_info` (the end
-of every redraw) starts `PtuiApp.recheck`, a thread worker that drains it
-through `cached()` — the blocking read, which re-scans with the checks the entry
-was scanned with — and repaints the rows. Re-checking inside the redraw froze
-it after a mass change on disk. Anything stored under a newer stamp is checked
-on the file as it is now: `cached()` reads a fresh copy (`_from_disk`; it runs
-in that thread, and `load()` empties a document before refilling it under the
-redraw reading it), and `scan()`, the main thread's call, `load()`s the
-document in place so the findings it returns can still be fixed on it. `None` means *never scanned*, which the info pane
-renders as "not checked" — never as clean. The cache is module state keyed by
-`papis_id`, so the `papis_lib` fixture clears it and `STALE`: every fixture
-reuses `id0`.
-
-`library.venue()` is the conference or journal **name**: first non-empty of
-`booktitle`, `journal`, `journaltitle`. It deliberately ignores the `venue` key —
-that holds the host city (`New Orleans, Louisiana, USA`). `library.kind()` uses
-it, so a city can never read as evidence of publication, and `flatten()` injects
-the name under `venue` so display paths get the name and never the city.
-`refresh_info` therefore renders the **flattened** document — but `place.resolve`
-still gets `self.current`, because the flattened copy has no main folder.
-
-`library.display()` is the only way a stored value becomes text: it joins
-lists, so `tags` never renders as `['x']`. Column formats go through
-`library.flatten()`, which joins *scalar* lists in the document before handing
-it to `papis.format` — lists of dicts stay indexable, because
-`{doc[author_list][0][family]}` is the shipped `Author` format.
-
-`ui.layout = "auto"` is decided by `PtuiApp.choose_layout()`, from
-`flex_width_if_side_by_side()` — it runs `fit_columns()` against a hypothetical
-pane width, which is how the circularity breaks (layout depends on the fit
-depends on the pane width depends on the layout). Side by side wins while that
-flex width reaches `list.flex_target`. Two traps, both paid for already:
-`App.size` is **stale** inside `App.on_resize`, so the decision reads
-`event.size.width`; and `apply_split()` deliberately does *not* re-decide, or it
-would immediately overwrite that with the stale number. `app.layout_auto` is
-cleared by `pane.toggle_layout` so an explicit `z z` survives every later resize.
-
-`PtuiApp.apply_split()` is the only place pane geometry is set: it writes the
-layout direction and *both* dimensions from `app.side_by_side` / `app.split`,
-so `z z`, `z i` and `z +/-` all just mutate that state and call it. The list
-pane cannot be hidden and takes the whole window when it is alone. Stacked,
-with the info pane hidden, `#side` holds the files pane alone and goes
-`height: auto` while the list takes `1fr`; the list's `split` share left the
-side's rows blank under a two-entry files pane.
-
-`PtuiApp.focus_pane()` owns the **log** and **files** panes' visibility: they
-are the transient panes (the files pane is the right column's second half,
-`#side`, under the info pane; `j`/`k` there move `app.file_index`); each opens when focused and closes when focus leaves. Every
-path routes through there — `1`-`4`, `tab`/`l`, escape, `g o` and a mouse click
-(`PtuiApp.on_click` walks up from the clicked widget to the pane) (`app.log` is now
-just "focus it, or focus the list if it is already up") — which is what fixed
-both halves of the old bug: escape left the pane on screen looking dead, and
-`4` focused a pane that was never shown, putting the keyboard somewhere
-invisible. The info pane is deliberately *not* included: `z i` is an explicit
-toggle and focusing must not argue with it.
-
-**Themes are Textual's**, not files ptui ships: `App.available_themes` has 21,
-`apply_theme` switches, `theme.picker` (`\ t`) lists them, `[ui] theme` picks
-the startup one. The picker previews through `SelectList.preview`, called
-from the highlight handler; `ui.pick` calls it with `current` again on cancel,
-and that is the whole restore. `on_mount` populates straight onto `current`
-(`_populate(highlight)`), or row 0 would be previewed first. A preview does not
-`refresh_rows` (0.3 s at 5000 documents, per row passed); `enter` does.
-`app.EXTRA_THEMES` registers the few where Textual's namesake
-is a *different* palette — `tokyonight-moon` (the shipped default, LazyVim's
-own) is not Textual's `tokyo-night`, which is the night variant. The old
-`defaults/themes/*.tcss` and `config.theme_dirs` are gone: that stylesheet
-hand-rolled a palette Textual already had, and half of it styled widgets that
-never existed (`#cmdline`, `ConfirmDialog`, `#help-overlay`).
-
-Things about the chrome that cost time to find:
-
-- **`ui.literal`, never an escape helper, for a value inside Textual markup.**
-  Textual *drops* `[Extended]` from a title, and neither `rich.markup.escape`
-  nor `textual.markup.escape` touches it — both only escape what already looks
-  like a tag. Escaping every `[` is the one thing that survives `[Extended]`,
-  `[doc[year]]` and `[bold]` alike. `RichLog` is the exception: it parses Rich
-  markup, where `escape` is right.
-- **papis logs through the stdlib, ptui through loguru.** `_setup_logging`
-  strips the `papis` logger's handlers and installs `PapisToLoguru`: under
-  `papis ptui`, papis's `StreamHandler` holds the terminal's stderr from before
-  Textual started and printed over the screen. papis WARNING and up reach the
-  pane (prefixed with the papis module), everything reaches `log.file`. The
-  pane sink hops to the app thread itself — papis logs from worker threads.
-  Pytest's `caplog` sees no papis record for the same reason; add a loguru sink.
-- **`RichLog` parses Rich markup, not Textual's**, so `$error` means nothing in
-  the log pane: `LOG_LEVELS` maps a loguru level to a theme variable and the
-  sink looks the hex up in `theme_variables`. Record text is escaped there —
-  papis quotes values like `[doc[year]]`, which Rich would eat. INFO is
-  deliberately absent from the map: the ordinary line must not shout. For the
-  same reason `log_line` rewrites `LOG_TAGS` (`[red]`, `[yellow]`, `[green]`)
-  into theme hexes as the message goes past: a call site reads `[red]failed:[/]`
-  and still comes out in the palette, without forty call sites learning the
-  Rich/Textual markup split. Before that, `log_line` escapes the *whole*
-  message and lets only `LOG_MARKUP` back through, so an interpolated value
-  (`[modes.files]`, `[ui]`, a `[weird]` file name) prints verbatim — callers
-  never escape. The status bar does the same per block in `blocks()`.
-- **Write to the log through `LogPane.add`, never `RichLog.write`.** RichLog
-  wraps a line once, at its `scrollable_content_region` width at the time —
-  zero while the pane is hidden, which it mostly is, so a line written then
-  came out one cell per row — and never rewraps, so a terminal narrowed later
-  left the older lines under the scrollbar. `add` wraps at the screen width
-  less the border and the always-on scrollbar (the pane spans the screen) and
-  keeps the line; `PtuiApp.on_resize` calls `rewrap` with the event's width.
-- **The exception marker** is `MARKER_WIDTH` cells the flexible column always
-  gives up, so titles stay aligned whether or not a document has anything wrong
-  with it — and `header()` indents that column's title by the same amount, or
-  `Title` sits two cells left of every title under it. It reads
-  `doctor.cached(doc)`; a never-scanned document draws nothing, and the info
-  pane is where "not checked" is said. It is the only exception marker there will be: a
-  missing file is already a doctor finding (papis's `files` check), and how many
-  files a document has is information, not an exception.
 - **A pane's ID beats `.pane-active` in Textual's specificity**, so the active
   rule is written `#list-pane.pane-active, …`. Without the ID the focused
   border silently never lights up.
 - **`DataTable` cells are Rich, not CSS.** The marked-row colour comes from
   `self.theme_variables["accent"]` — the same table the CSS reads — because a
   CSS class cannot reach inside a cell.
-- **The status bar is markup, not widgets**: `PtuiApp.blocks()` emits coloured
-  blocks joined by powerline separators, drawing each separator in the previous
-  block's colour on the next one's so the arrow reads as one block flowing into
-  the next. Theme variables work inside markup (`[$accent on $panel]`), which is
-  what keeps the bar in whatever palette is live. `ui.glyph("sep_right")` falls
-  back to a space, so an ASCII terminal gets the same widths without the arrows.
-  `refresh_status` builds the layouts from fullest to barest (sort dropped,
-  then the queries cut to a falling `cap` with `library.fit`, then the left
-  group) and draws the first whose `blocks()` widths fit; the counts are in
-  every one of them. `refresh_hints` takes the binding's `desc` (`keys.toml`'s
-  short one, falling back to the registry's) and skips any entry that would
-  not fit whole; `ListTable.on_resize` → `refresh_rows` refits it on a resize.
+- `Static.update` parses markup, and a destination path is full of
+  `[doc[year]]`-shaped text — pass `markup=False` for anything path-shaped.
+- **A value inside Textual markup goes through `ui.literal`**, never an escape
+  helper (its docstring says why). `RichLog` is the exception: it parses *Rich*
+  markup, where `rich.markup.escape` is right — and where `$error` means
+  nothing, hence `LOG_TAGS` and `LOG_LEVELS`.
+- **Write to the log through `PtuiApp.log_line`, never `RichLog.write`**:
+  `log_line` escapes the message for its callers, so they never do, and
+  `LogPane.add` wraps it (its docstring says why `RichLog`'s own wrap fails).
+- **papis logs through the stdlib, ptui through loguru.** `_setup_logging`
+  strips the `papis` logger's handlers and installs `PapisToLoguru`: under
+  `papis ptui`, papis's `StreamHandler` held the terminal's stderr from before
+  Textual started and printed over the screen. Pytest's `caplog` sees no papis
+  record for the same reason; add a loguru sink.
+- **Inside a `safewrite.edit` mutation, write with `safewrite.put` / `drop`,
+  never `data[key] = …` or `pop`** — their docstrings say which comment a bare
+  assignment deletes.
+- **Read `files` through `place.entries(doc)`, never `doc.get("files")`**, and
+  write entries from `place.normal` paths, **never `Path.resolve()`**:
+  resolving turned a library reached through a symlink into `../../../../data/…`
+  entries and a linked PDF into its target.
+- `papis.format.format` **returns the unformatted pattern** (or raises deep in
+  `string.Formatter`) when a key is missing; `default=""` does not save nested
+  lookups like `{doc[author_list][0][family]}`. Check for a leftover `{`.
+- **`papis.commands.export.run` returns `""` on failure** (`csl` without
+  citeproc-py), having logged it: empty text is a failure, never something to
+  write to a file or copy.
+- **`papis.database.clear_cached()` is not enough to bring back a document
+  restored on disk.** It drops the in-process handle; the backend then re-reads
+  its *on-disk* pickle, which papis rewrote when the document went. Call
+  `actions.reload(app, rescan=True)`, which clears the database first and pays
+  for a rescan of the library.
 
-Every `c` verb is `actions._set_field(app, key, value_of, what)` — plan one
-value per target, confirm when there is more than one, write through
-`safewrite`. `value_of` maps the *stored* value to the new one and runs twice:
-on the loaded document to validate, then inside the `safewrite.edit` mutation
-on what the file holds by then — computing it from the in-memory document
-dropped a tag a script had added since loading. The old value it is handed
-there goes through `safewrite.plain` (ruamel's comment slots stripped, or undo
-would carry them into the next write); `library.typed` therefore tests the
-stored type with `isinstance`, since ruamel reads a float as `ScalarFloat`.
-They differ only in `value_of`: `doc.set` runs the typed text,
-`doc.tag` unions with what the document already has (**adding, not replacing**
-— tagging twenty marked documents must not wipe what each had), `doc.untag`
-subtracts and returns `None` when the last tag goes, so the key goes with it.
-`doc.rating` writes an int by hand because papis declares no type for it, and 0
-clears. `actions.tags_of` normalises whatever is in the file, since `tags: a, b`
-is legal YAML that papis's own `field-type` check would call wrong.
+## Where things live
 
-`doc.set` decides the *type* of what it writes through `library.typed`, and the
-types come from papis's own `document-field-types` (`tags:list`, `year:int`,
-read with `papis.document.get_document_field_types()`, which also honours the
-deprecated `doctor-key-type-keys`) rather than a table here — otherwise setting
-`tags` to a string is exactly what the `field-type` doctor check exists to
-complain about. Undeclared keys keep the type
-already stored under them, and everything else stays text: guessing that `04` in
-an unknown field is a number is how `volume` loses its zero. A list splits on
-**commas only**, each item stripped — whitespace too split `machine learning`
-in two, and the edit form, which shows a list joined with `, `, split every
-multi-word tag on save. An empty value **removes** the key. Every value is computed before anything is written, so a
-bad number aborts the batch instead of half-applying it, and a batch of more
-than one confirms first (the picker is the dialog; SPEC's preview list is
-ponytail'd down to the count, which is the whole question for a field set).
+SPEC says what each feature does and the docstrings say why the code is shaped
+the way it is. What follows is the map between them, plus the reasons that
+belong to no one function.
 
-**ptui stamps `time-added` itself.** papis does it only in `papis add`'s click
-`cli()` (behind `time-stamp`), and `add.run`, which ptui calls, does not — yet
-the key is the shipped default sort *and* `list.sort_tiebreak`. Without a
-stamp every new document lands in the null tail of "recently added", which is
-how the bug was reported. `_add_document` does `data.setdefault` with
-`library.stamp()` when papis's `time-stamp` is on (`papis.strings.time_format`,
-which sorts lexically, so `_comparable`'s string branch is enough), and
-`lib.backfill_dates` — unbound, `:` only — stamps the documents that predate
-that from their `info.yaml` mtime. It plans, confirms through `ui.pick` and
-hands off to `_set_apply`, so the whole backfill is one undoable step. The
-mtime is a ceiling, not a fact: a later edit moves it, and there is nothing
-else on disk to ask.
+**Writing.** Every `c` verb is `actions._set_field`; several keys of one
+document (the edit form, `c u`, the file verbs) are `actions._fields_apply`.
+Both take a value as a function of what the file holds as it is rewritten, and
+both push one undo step under every strategy. The old value handed to that
+function is `safewrite.plain`, so `library.typed` tests the stored type with
+`isinstance`: ruamel reads a float as `ScalarFloat`. A batch confirms through
+the picker with the count alone — SPEC § Marks asks for a preview list,
+ponytail'd down to the count, which is the whole question for a field set. A
+write `safewrite` refuses (`StaleError`) goes to `actions._reread` at every
+call site. The edit form and `c u` `load()` the document before they start, so
+the form shows the file and a value the file gained is a clash for `c u`, not a
+gap. Both editor forms end in `#form-keys`, a legend written by hand like the
+delete dialog's: the keys are Textual's and the form's own `on_key`, not
+`keys.toml`, so there is no binding to derive it from.
 
-`_set_apply` ends in `_resort` (`apply_sort` + `refilter`), not a bare
-`refresh_rows`: the value just written may be the sort key — always, for the
-backfill — and `refresh_rows` keeps the cursor on the document, so the row
-moves and the cursor follows it.
+The writes that skip `safewrite` are papis's own API: `add.run` (adding),
+`addto.run` (`files.attach`, SPEC § Safe write) and `edit_notes`
+(`doc.notes`). addto writes ptui's *in-memory* document back whole with
+PyYAML, which is why `_attach` `load()`s it right before. An attach is not
+undoable: `u` after one undoes the step before it.
 
-`cmdline.open` and `help.show` split by what they list: help renders the current
-mode's *keymap* and only browses, the `:` line renders the *registry* and runs
-what you pick — so an unbound command is still reachable, and a bound one
-teaches its keys through `Item.hint` (`show_keys_in_cmdline`).
-`PtuiApp.ENABLE_COMMAND_PALETTE = False` is what lets `ctrl+p` reach it —
-Textual's palette is a system binding and runs above `App.on_key`.
+**Deleting, merging, undo.** `undo.py` is the history and the three
+strategies; `actions._delete_apply` is the one place that removes a document.
+`undo.require_git` runs from `cli.main`, `config.set` and `lib.switch` — the
+CLI rather than `on_mount`, so `build_app` tests can still drive the git path on
+a plain folder, where `_delete_run` refuses before it trashes a single file.
+The delete dialog's "also in" check is `place.same_file` over papis's
+`get_all_documents`. `merge.py` decides and writes nothing; `actions._merge_apply`
+and `_merge_run` write, and their comments give the order of each step. The
+trash index is `place.trashed_at`; `lib.empty_trash` and
+`actions.auto_empty_trash` share `_old_trash` and `_purge`.
 
-Arguments are the point of it — everything else already has a key — so picking a
-command that has parameters opens the prompt instead of running it, and `enter`
-on an empty line keeps every default. The prompt's placeholder is
-`commands.signature` — `<required: type>`, `[optional: type = default]`, a
-`None` or `""` default left unsaid. `commands.parse_args` maps the typed line
-onto the signature: positional, `shlex`-quoted, coerced by the annotation, which
-is a **string** (`from __future__ import annotations`) — hence the textual
-`"bool" in annotation` test, `bool` before `int` so `"false"` does not read as
-truthy. Too many arguments, an unclosed quote and a bad number all raise
-`ValueError` and are reported in the log by `actions.cmdline_run`.
+**The list.** Columns are sized by `PtuiApp.fit_columns` from `natural_width`,
+and rendered by `cell_text` — the one place a column is rendered, for sizing
+and rows alike — cut by `library.fit` / `fit_lines`. The `cell_text` cache took
+a narrow keystroke from 3 s to 0.2–0.4 s at 5000 documents; the rest is
+Textual's `add_row`. `row_cells` paints one row from `app._paint`, so
+`mark.toggle` redraws its row alone (`refresh_row`). `ui.glyph(name)` is the
+only way a symbol reaches the screen; a new one is a row in `ui.GLYPHS`, in both
+columns, one cell wide. The kind column is a `[[list.columns]]` entry with
+`glyph = "type"` over `{doc[kind]}`, which `library.flatten` injects from
+`library.kind()`, winning over any stored `kind` key; measured on the real
+library, 190 documents read as preprints. python-doi is a direct dependency
+because `kind()` imports its `find_doi_in_text`. `flatten()` also injects
+`library.venue()` under `venue`, so `refresh_info` renders the flattened
+document — but `place.resolve` still gets `self.current`, because the flattened
+copy has no main folder.
 
-`doc.edit_raw` re-parses `info.yaml` after `$EDITOR` returns and **does not
-reload** when it no longer parses: papis cannot load it either, so reloading
-would redraw the document as having lost every field. `doc.edit` opens what
-`edit.mode` names (`editor`, the default, or `structured`) and with `other =
-true` (`E`) the other one. The structured one is `ui.EditForm`, the add form's layout over
-`edit.structured_fields`, returning every field (empty means remove) into
-`actions._fields_apply` — one safe write and one undo step for all the keys.
-Like `_set_field`'s, a value there may be a function of what the file holds
-under its key as it is rewritten, and undo restores what the write replaced:
-the file verbs (`x`, `J`/`K`, `p`, `f n`; `r` does it in its own mutation) and
-`lib.backfill_dates` pass such functions, so an entry or a stamp a script
-added since loading survives (`actions._entries` reads a stored `files` the way
-`place.entries` reads a document's). The form and `c u` also `load()` the
-document before they start, so the form shows the file and a value the file
-gained is a clash for `c u` rather than a gap; a gap is still only filled if it
-is one when written. A write `safewrite` refuses (`StaleError`: the file
-changed between its read and its write) goes to `actions._reread` at every
-call site, which `load()`s that one document at once, without the library
-rescan `r` pays for, and says "reloaded from disk; do it again".
-`author_list` is edited as papis's `author` string and written back as both;
-`actions._authors_from` keeps the whole entry of every author whose family and
-given name are unchanged, so an edited line does not strip ORCIDs.
-Both forms end in `#form-keys`, a legend written by hand like the delete
-dialog's: the keys are Textual's (`focus_next`, `Input.Submitted`) and the
-form's own `on_key`, not `keys.toml`, so there is no binding to derive it from.
-`doc.notes`
-hands off to `papis.commands.edit.edit_notes`, which writes the `notes` key
-itself — one of the few writes not going through `safewrite`, for the same
-reason `papis.commands.add.run` does not: it is papis's own API. Both suspend
-the app, which `App.run_test` refuses, so a test needs
-`monkeypatch.setattr(app, "suspend", contextlib.nullcontext)`.
+**Panes and chrome.** Layout is `choose_layout`, `flex_width_if_side_by_side`
+and `apply_split` (the only place pane geometry is set); `pane.toggle_layout`
+clears `app.layout_auto`. `PtuiApp.focus_pane()` owns the log and files panes'
+visibility, and every path that moves focus — `1`-`4`, `tab`/`l`, escape,
+`g o`, a click (`on_click`) — must go through it, or a pane is left on screen
+looking dead, or gets the keyboard while hidden. The info pane is deliberately
+not one of them: `z i` is an explicit toggle. `app.EXTRA_THEMES` holds the
+themes ptui registers itself (SPEC § Chrome and themes); a theme preview does not `refresh_rows` (0.3 s at 5000
+documents, for every row the highlight passes), `enter` does. The exception marker is `MARKER_WIDTH` cells the
+flexible column always gives up, so titles stay aligned, and it is the only
+exception marker there will be: a missing file is already a doctor finding
+(papis's `files` check), and how many files a document has is information, not
+an exception. The status bar is markup, not widgets (`PtuiApp.blocks`,
+`refresh_status`); theme variables work inside markup (`[$accent on $panel]`),
+which keeps it in the live palette.
 
-**`files.attach` is `papis.commands.addto.run`, on purpose** (SPEC § Safe
-write): it must give exactly what `papis addto` gives — papis's file name, the
-source left alone, no `place()` rules. addto writes ptui's *in-memory* document
-back whole with PyYAML, so `_attach` calls `doc.load()` right before it (or an
-edit made since loading is overwritten) and again in `finally`. Comments in
-`info.yaml` do not survive it. `place.holding` skips a byte-identical file,
-which addto would add again as `-a`. A URL is downloaded in a thread worker
-(`_download`) and the temp file removed after; addto never sees the URL. Not
-undoable — `u` after an attach undoes the step before it. Testing trap: addto
-imports `papis.paths.download_remote_files` at call time, so monkeypatching it
-for a fake download also catches addto's own call on the local copy — the fake
-has to pass non-URLs through unchanged.
+**Queries.** `library.parse_query` is the narrow grammar and expands
+`[query.aliases]` itself — do not expand them again at a call site. The scope
+prompt has no grammar of its own: the alias-expanded string goes to papis's
+`db.query`. `match_text` is the same matcher over one blob, used by
+`ui.Item.matches`, so `/` and every picker filter share it. Query history is
+`actions.history` / `remember`, walked by `app.recall` in the prompts
+`actions.HISTORY_KINDS` names. Session state is `actions.restore_state`, before
+the first `reload`, and `save_state`, from `PtuiApp.on_unmount`. Visual mode is
+`app.visual` (the anchor, the direction, the marks from before) and
+`actions._visual_extend`, which recomputes the marks on every move.
 
-`[global]` in `keys.toml` holds the keys every pane has — `1`-`4`, `tab`,
-`h`/`l`, `u`/`ctrl+r`, `g o`, `:`, `q` — and `keymap.load` lays it under each of
-`keymap.PANES` through `keymap._over`, the pane's own table winning on the same
-chord and on a prefix either way (a pane's `g` drops the global `g o` there). Not under
-`[modes.picker]`: `SelectList.on_key` swallows every key the picker table binds,
-so a global letter would never reach the filter box. Each mode used to carry its
-own copy, and a missing copy is how the log pane once trapped the keyboard.
+**Fetching and adding.** `fetch.SOURCES` is what the `a` picker offers; the
+traps of matching are in SPEC § Adding and commented in `fetch.py`. `c u` is
+`fetch.refetchers` (no network), then `fetch.refetch` in a thread worker — or
+`fetch.crossref` for a title — then `actions._refresh_found` and
+`_refresh_merge`: `merge.plan` with the fetched record as the other document,
+and `_ask_clashes`, the loop `doc.merge` uses, into `_fields_apply`. A test of
+ptui's own filtering stubs papis (`papis.importer.fetch_importers`,
+`papis.crossref.get_data`), not `fetch.refetch`, or the filtering never runs.
+Adding is `add_form(app, path, fetched)` (`path=None` for a metadata-only
+document) into `_add_document`, which asks about a duplicate first
+(`_duplicate`), stamps `time-added`, and turns papis's own duplicate check off
+around its one `add.run` call; `_KEEP_FETCHED` carries the keys the form has no
+box for. `doc.move` is `papis.commands.mv.run` per target; `doc_move` comments
+the order its target index must be built in.
 
-The user's `keys.toml` is built into the same per-mode tables and laid over the
-shipped ones by `keymap._over`: a user entry drops every shipped one it
-`_collide`s with (same chord or a prefix either way) and nothing else, so a
-user binding always adds. Decided, do not bring back: dropping the shipped key
-of a command the user rebinds took `down` with `j` and `enter` with `o`.
-`"key" = false` is a `None` entry — it drops like a binding, is filtered out at
-the end, and is the one way to remove a shipped key. `Keymap.conflicts()`
-therefore only ever sees collisions inside one of the user's own tables.
+**Doctor.** `doctor.py`'s docstrings hold its reasons. One trap they do not: the
+check names a cache entry stores are already resolved, so `cached` re-scans
+through `_scan`, never `scan` — back through `check_names`, an empty list would
+mean *every* check. Per document, findings are a section of the info pane
+(`PtuiApp.doctor_lines`). Over the library, `app.doctor_only` filters the
+scoped set the way `marked_only` does: the tuple of check names that ran,
+`False` when off, read through `doctor.peek(doc, checks)`. The startup scan is
+`PtuiApp.scan_library`.
 
-`escape` and the help key are dispatched above the keymap (`app.on_key`):
-outside `[modes.list]` escape drops any pending chord and returns to the list,
-so a mode with few or no bindings can never trap the keyboard; inside the list
-mode it resolves through `escape_chain` as usual. `?` follows whatever
-`[modes.list]` binds `help.show` to and works in every mode unless that mode
-binds the key itself. `help.show` renders the current mode's keymap through
-`SelectList`, so it can never drift from `keys.toml`.
+**Keymap.** `keymap.load` lays `[global]` under each pane and the user's tables
+over the shipped ones; its docstring says how. Decided, do not bring back:
+dropping the shipped key of a command the user rebinds took `down` with `j` and
+`enter` with `o`. `escape` and the help key are dispatched in `app.on_key`,
+above the keymap. The `:` line's argument prompt is `commands.signature` and
+`commands.parse_args`.
+
+## Tests
+
+`tests/conftest.py` says what each fixture isolates and why: `papis_lib`
+(autouse) papis's config, cache, current library and ptui's doctor caches,
+`build_app(papis_lib, extra)` everything the app writes outside the library,
+`git_lib` a real git repository. A new command that writes outside the library
+needs its path redirected in `build_app` too. Other traps:
+
+- `$EDITOR` verbs suspend the app, which `App.run_test` refuses:
+  `monkeypatch.setattr(app, "suspend", contextlib.nullcontext)`.
+- addto imports `papis.paths.download_remote_files` at call time, so
+  monkeypatching it for a fake download also catches addto's own call on the
+  local copy — the fake has to pass non-URLs through unchanged.
 
 ## Conventions
 
