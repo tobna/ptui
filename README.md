@@ -10,6 +10,7 @@
   <img alt="Python" src="https://img.shields.io/badge/python-3.13%2B-blue">
   <img alt="Built with Textual" src="https://img.shields.io/badge/built%20with-Textual-5a5aff">
   <img alt="papis" src="https://img.shields.io/badge/papis-0.16.x-b8283c">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
 
 ---
