@@ -36,7 +36,7 @@ async def test_a_rescan_picks_up_documents_a_sync_added_and_removed(papis_lib):
 
 async def test_a_tag_added_outside_survives_a_tag_added_inside(papis_lib):
     """A script tags the paper while ptui shows it; then the person tags it too.
-    The tags used to be worked out from the copy loaded at startup (TODO H.45)."""
+    The tags used to be worked out from the copy loaded at startup."""
     app = awkward_app(papis_lib)
     async with app.run_test(size=(120, 40)) as pilot:
         await settle(pilot)

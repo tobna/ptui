@@ -74,7 +74,7 @@ async def test_relocate_reports_conflicts_without_touching_anything(app, papis_l
 
 async def test_undoing_a_relocate_puts_file_and_entry_back_and_redo_moves_them_again(app, papis_lib):
     """`f r` pushed no undo step, so `u` right after it undid the tag before it
-    and left the file in the PDF root (TODO H.66)."""
+    and left the file in the PDF root."""
     _attach(papis_lib)
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     src = papis_lib / "lib" / "doc0" / "downloaded paper.pdf"
@@ -98,7 +98,7 @@ async def test_undoing_a_relocate_puts_file_and_entry_back_and_redo_moves_them_a
 async def test_a_file_that_cannot_move_back_on_undo_keeps_its_entry_where_it_is(app, papis_lib):
     """Undoing `f r` wrote `files` back, then moved each file: one that could
     not move stayed in the PDF root while its entry named the old path — here
-    another file, downloaded since under that name (TODO H.72)."""
+    another file, downloaded since under that name."""
     import yaml
     from cover_helpers import attach, info
 
@@ -152,7 +152,7 @@ async def test_relocating_a_batch_asks_first_counting_the_marks_the_narrow_hides
 
 
 async def test_normalize_and_backfill_ask_first_on_a_batch_counting_what_the_narrow_hides(app, papis_lib):
-    """Both had their own copy of the batch confirm (TODO H.71)."""
+    """Both had their own copy of the batch confirm."""
     from cover_helpers import info
 
     from ptui import ui
@@ -180,7 +180,7 @@ async def test_normalize_and_backfill_ask_first_on_a_batch_counting_what_the_nar
 
 
 async def test_the_relocate_undo_step_counts_the_documents_whose_files_changed(app, papis_lib):
-    """It counted every target, the ones with nothing to move too (TODO H.73)."""
+    """It counted every target, the ones with nothing to move too."""
     _attach(papis_lib)
     async with app.run_test() as pilot:
         await settle(pilot)

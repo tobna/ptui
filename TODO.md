@@ -93,7 +93,7 @@ Nothing open: the `:` commands of `SPEC.md` are all built.
 ## H. From the commit-by-commit review of `test-and-improve` (2026-11-01)
 
 Worked in this order, one commit each; an entry is deleted in the commit that
-finishes it. The number in brackets is the review question it came from.
+finishes it.
 
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs

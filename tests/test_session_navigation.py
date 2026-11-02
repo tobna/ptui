@@ -171,7 +171,7 @@ async def test_open_the_log_scroll_it_close_it_and_quit_from_it(papis_lib):
 async def test_a_line_logged_while_the_log_is_closed_reads_as_one_line(papis_lib):
     """Open the log, close it, do something that logs, open it again. The pane
     is hidden when the line is written, and a hidden widget has no width: this
-    once came out one character per row (TODO H.7)."""
+    once came out one character per row."""
     app = awkward_app(papis_lib)
     async with app.run_test(size=(120, 30)) as pilot:
         await settle(pilot)

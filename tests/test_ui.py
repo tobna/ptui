@@ -15,7 +15,7 @@ def test_item_filtering_ands_substrings_over_label_and_hint():
 
 
 def test_item_filtering_no_longer_matches_any_needle_in_a_long_filename():
-    # the A2 bug: `note` matched this by subsequence — Atte(n)ding visi(o)n (T)ransform(e)r
+    # `note` once matched this by subsequence — Atte(n)ding visi(o)n (T)ransform(e)r
     pdf = ui.Item(label="Locality-Attending Vision Transformer.pdf", value=1)
     note = ui.Item(label="Locality-Attending Vision Transformer_note.pdf", value=2)
     assert not pdf.matches("note")

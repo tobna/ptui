@@ -24,7 +24,7 @@ def test_library_wide_checks_are_kept_out_of_the_per_document_set():
 
 
 def test_looking_twice_at_a_document_finds_the_same_thing():
-    """The B2.1 regression: `duplicated-keys` accumulates seen values in papis's
+    """`duplicated-keys` accumulates seen values in papis's
     module state, so it used to invent findings on the second look."""
     doc = papis.document.from_data({"title": "x", "type": "article", "ref": "ok", "doi": "10.1/a"})
     runs = [len(doctor.findings(doc)) for _ in range(4)]
@@ -297,13 +297,13 @@ async def test_fix_pick_applies_the_selected_fix(app, tmp_path):
         # and the pane no longer claims a finding that has been fixed
         assert "refs" not in str(app.query_one("#info").render())
 
-        await press(pilot, "u")  # one finding, one step (TODO H.66)
+        await press(pilot, "u")  # one finding, one step
         assert "ref: bad ref!" in info.read_text()
 
 
 async def test_undoing_a_fix_puts_the_field_back_and_redo_fixes_it_again(app, tmp_path):
     """`! f` pushed no undo step, so `u` right after it undid the step before
-    and the fixed field stayed fixed (TODO H.66)."""
+    and the fixed field stayed fixed."""
     from conftest import press
 
     from ptui import actions

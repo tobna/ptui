@@ -3,7 +3,7 @@ script, a sync, `papis` on the command line. Each must build what it writes from
 the file, not from the copy in memory, and undo must put back what the file held.
 
 The outside edit lands right before the verb, with no redraw in between: a
-redraw re-reads a document it finds stale (TODO H.51), which would hide the bug.
+redraw re-reads a document it finds stale, which would hide the bug.
 """
 
 import os
@@ -186,7 +186,8 @@ REFUSED = [
 
 @pytest.mark.parametrize(("verb", "done"), REFUSED)
 async def test_a_refused_write_rereads_the_file_so_doing_it_again_works(app, papis_lib, monkeypatch, verb, done):
-    """`r` re-asked papis's cache, which never saw the outside edit (TODO H.57)."""
+    """A refused write used to send you to `r`, which only re-asked papis's
+    cache and so never saw the outside edit."""
     from cover_helpers import logs
 
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
@@ -213,7 +214,7 @@ UNDONE = REFUSED[:4]  # c f, x, ! f, f r: the verbs with an undo step
 async def test_an_undo_that_meets_a_changed_file_stays_for_u_to_try_again(app, papis_lib, monkeypatch, verb, done):
     """It said `_reread`'s "do it again", which after `u` reads as running the
     verb again, and the step had gone to the redo stack: `u` again undid the
-    step before it (TODO H.70)."""
+    step before it."""
     from cover_helpers import logs
 
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
@@ -240,7 +241,7 @@ async def test_an_undo_that_meets_a_changed_file_stays_for_u_to_try_again(app, p
 @pytest.mark.parametrize(("verb", "done"), [*UNDONE, REFUSED[5]])  # and m m
 async def test_a_redo_that_meets_a_changed_file_stays_for_ctrl_r_to_try_again(app, papis_lib, monkeypatch, verb, done):
     """`f r` and `m m` rerun on redo, and a refused write ended the rerun in a
-    RuntimeError: the step was dropped, so `ctrl+r` could not try again (TODO H.74)."""
+    RuntimeError: the step was dropped, so `ctrl+r` could not try again."""
     from cover_helpers import logs
 
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
@@ -269,7 +270,7 @@ def _pdfs(papis_lib) -> dict[str, bytes]:
 
 async def test_a_relocate_redo_retried_moves_only_what_the_refused_try_left(app, papis_lib, monkeypatch):
     """The retry relocates the document that was refused, and leaves alone the
-    one the first try relocated; one `u` then puts both back (TODO H.74)."""
+    one the first try relocated; one `u` then puts both back."""
     attach(papis_lib, "doc0", "a.pdf")
     attach(papis_lib, "doc1", "b.pdf")
     async with app.run_test() as pilot:
@@ -308,7 +309,7 @@ async def test_a_relocate_redo_retried_moves_only_what_the_refused_try_left(app,
 
 async def test_a_merge_redo_retried_moves_each_file_once(app, papis_lib, monkeypatch):
     """A refused survivor write takes the files back, so the retry starts from
-    where the undo left things and places each of them once (TODO H.74)."""
+    where the undo left things and places each of them once."""
     attach(papis_lib, "doc1", "b.pdf")
     loser_file = papis_lib / "lib" / "doc1" / "b.pdf"
     async with app.run_test() as pilot:
@@ -347,7 +348,7 @@ BATCH = [
 @pytest.mark.parametrize(("verb", "done"), BATCH)
 async def test_a_batch_undo_or_redo_partly_done_says_how_much_and_what_is_left(app, papis_lib, monkeypatch, verb, done):
     """With one document of a batch changed on disk, the others were undone,
-    but the log said "undo did not happen" (TODO H.75)."""
+    but the log said "undo did not happen"."""
     from cover_helpers import logs
 
     for folder in ("doc0", "doc1"):
