@@ -127,7 +127,12 @@ finishes it. The number in brackets is the review question it came from.
     stale by the next commit. CLAUDE.md and `fetch.available()`'s docstring
     say a new importer plugin shows up in `a` for free, but `available()`
     offers only the names in `fetch.SOURCES`. SPEC's "Not in v0" still lists
-    the structured editor, undo and saved searches. [132 d]
+    the structured editor, undo and saved searches. SPEC, CLAUDE.md and
+    `actions._reread` still say `r` only re-asks papis's cache, which H.60
+    changed. Then trim CLAUDE.md to what only it says: drop the "Built:"
+    inventory, repeats, notes on removed things, and anything that restates
+    SPEC, README, KEYS, TODO or a docstring, pointing there instead. [132 d,
+    133.1]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 
