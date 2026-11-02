@@ -899,11 +899,30 @@ def doc_edit_raw(app: Any) -> None:
     try:
         safewrite.read(Path(doc.get_info_file()))
     except Exception as exc:
+        key = _editor_key(app)
+        again = f"press {key} again" if key else "run doc.edit_raw again"
         app.log_line(f"[red]invalid YAML, nothing reloaded:[/] {exc}")
-        app.log_line("[yellow]papis cannot load this document until it parses — press E again[/]")
+        app.log_line(f"[yellow]papis cannot load this document until it parses — {again}[/]")
         return
     _resync(app, doc)
     app.log_line(f"edited {doc.get('ref', doc.get('title', ''))}")
+
+
+def _opens_editor(app: Any, other: bool) -> bool:
+    """Whether `doc.edit` with this `other` is `$EDITOR` rather than the form."""
+    return (app.cfg.get("edit.mode", "editor") == "structured") == other
+
+
+def _editor_key(app: Any) -> str | None:
+    """The keys that open `$EDITOR` from here: `doc.edit_raw`, or the `doc.edit`
+    binding `edit.mode` sends there — `e` by default, `E` when it is `structured`."""
+    for mode in (app.mode, "list"):
+        for binding in app.km.modes.get(mode, {}).values():
+            if binding.cmd == "doc.edit_raw" or (
+                binding.cmd == "doc.edit" and _opens_editor(app, bool(binding.args.get("other")))
+            ):
+                return binding.keys
+    return None
 
 
 def _resync(app: Any, doc: Any) -> None:
@@ -938,7 +957,7 @@ def doc_edit(app: Any, other: bool = False) -> None:
     doc = app.current
     if doc is None:
         return
-    if (app.cfg.get("edit.mode", "editor") == "structured") == other:
+    if _opens_editor(app, other):
         doc_edit_raw(app)
         return
     doc.load()  # the form shows the file, not the copy loaded before a script changed it

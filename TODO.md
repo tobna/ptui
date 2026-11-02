@@ -98,10 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-65. **"press E again" names the wrong key.** When `$EDITOR` leaves
-    `info.yaml` unparsable, `doc.edit_raw` says "press E again", but with the
-    shipped `edit.mode = "editor"` the editor is `e` and `E` opens the form.
-    Name the key the keymap binds to the editor. [132 a]
 66. **`f r` and the doctor's fixes cannot be undone and do not confirm a
     batch.** `files.relocate` and `doctor.fix` push no undo step, so `u`
     undoes the step before them, and on many marked documents they act at

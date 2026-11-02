@@ -335,22 +335,28 @@ async def test_tagging_a_batch_confirms_and_keeps_each_documents_own_tags(app):
         ]
 
 
-async def test_edit_reports_yaml_it_can_no_longer_parse(app, papis_lib, monkeypatch):
+@pytest.mark.parametrize(("mode", "key"), [("editor", "e"), ("structured", "E")])
+async def test_edit_reports_yaml_it_can_no_longer_parse(papis_lib, monkeypatch, mode, key):
+    """It said "press E again" whatever opened the editor, and with the shipped
+    `edit.mode = "editor"` `E` is the form."""
     import contextlib
 
     import papis.commands.edit
+    from conftest import build_app
 
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     monkeypatch.setattr(papis.commands.edit, "run", lambda doc, **kw: info.write_text("title: [unclosed\n"))
+    app = build_app(papis_lib, f'[edit]\nmode = "{mode}"\n')
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = []
         monkeypatch.setattr(app, "log_line", logged.append)
         # $EDITOR takes the terminal for real, which a headless pilot has not got
         monkeypatch.setattr(app, "suspend", contextlib.nullcontext)
-        await press(pilot, "e")  # $EDITOR on the whole file: what e opens by default
+        await press(pilot, key)  # $EDITOR on the whole file
         await settle(pilot)
         assert any("invalid YAML" in message for message in logged)
+        assert any(f"press {key} again" in message for message in logged)
         assert app.current["title"] == "Attention Is All You Need"  # not reloaded
 
 

@@ -519,7 +519,8 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
   full-screen. Do **not** embed a pty in the pane. On return the file is
   re-parsed: invalid YAML is reported and **nothing is reloaded**, because papis
   cannot load the document either and a silent reload would show it as having
-  lost every field.
+  lost every field. The report names the key the keymap binds to `$EDITOR` at
+  that moment (`e`, or `E` under `structured`).
 - `doc.edit_raw` (`:` line) always forces the `$EDITOR` path.
 - Field verbs write through the safe write, never the editor: `doc.tag` adds to
   what a document already has rather than replacing it, `doc.untag` removes the
