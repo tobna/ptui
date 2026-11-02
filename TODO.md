@@ -118,8 +118,6 @@ finishes it. The number in brackets is the review question it came from.
     is. With a test. [145 c]
 73. **The `f r` undo label counts every target**, including documents where
     nothing moved. Count the ones that changed. [145 d]
-26. **A README for people**, written carefully and readably, describing the
-    project as it stands once the entries above are done.
 
 ## Not yet exercised
 

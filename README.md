@@ -3,7 +3,7 @@
 <p align="center">
   A fast, keyboard-driven terminal UI for
   <a href="https://github.com/papis/papis">papis</a>.<br>
-  <em>v0 — browsing, searching, marking, opening and filing. Early days.</em>
+  <em>Beta. Not on PyPI yet.</em>
 </p>
 
 <p align="center">
@@ -14,162 +14,275 @@
 
 ---
 
-## Why
+papis keeps your library as plain folders, one `info.yaml` per paper, and its
+command line is good for scripts. ptui is for working in that library by hand:
+find a paper in a few keystrokes, read the abstract, open the PDF, tag it, copy
+its BibTeX. It reads and writes the same files papis does, so the `papis`
+command keeps working next to it.
 
-`papis` is a great library manager and a slow browser. ptui is the browsing
-half: open the library, find the paper in three keystrokes, hit `o`.
-
-- **Two-layer search** — a real papis query for the scope, an instant in-memory
-  filter on top. The status bar always shows both, so a missing document is
-  never a mystery. `/` takes terms: `vision -survey a:nauen y:>2023`, all ANDed,
-  matches highlighted as you type, 2 ms across a 750-document library.
-- **Vim keys, discoverable** — which-key popups after a prefix, a context hint
-  bar, and a `?` overlay listing the *effective* keymap of whichever mode you are
-  in, generated from `keys.toml` so it can never drift.
-- **Picks up where you left off**, if you ask it to — with
-  `general.persist_state = true`, the scope, sort and cursor of your last
-  session in each library come back.
-- **Update without losing your edits** — `c u` refetches a document from its
-  DOI, arXiv id or title and merges: missing fields are filled, and every real
-  disagreement is a question. A title search lists what Crossref found and
-  asks which one is the paper first. `papis update --auto` just overwrites.
-- **Read before you open** — the info pane shows the abstract under the
-  metadata; `J`/`K` scroll it without leaving the list.
-- **Marks that survive** — marks are keyed by document, not by row, so sorting
-  and filtering never lose them. Batch operations confirm against the real count.
-  `v` marks a range as you move (`V` unmarks one), the way vim's visual mode does.
-- **Safe by construction** — every write ptui makes re-checks `info.yaml`'s
-  mtime, writes atomically, and leaves unknown keys and comments untouched.
-  Files move via `os.link`, never a clobbering `mv`.
-- **Add from anywhere papis can reach** — `a` lists the sources: a file, the
-  inbox, an arXiv id, a DOI, an ISBN, a `.bib`, a publisher URL, a Crossref
-  search (pick the paper from its hits), or a PDF to read an id out of. arXiv adds fetch the paper too, and a paper the library already
-  has (same DOI, arXiv id or URL, or the same title) is asked about first.
-  The list comes from papis's own importer plugins, so installing one adds a
-  row. `f a` attaches a file or URL to the document you are on, exactly as
-  `papis addto` would.
-- **Merge duplicates** — mark the copies, `m m`, and keep the citekey you want.
-  Fields only one record had are filled in, real disagreements ask, attachments
-  are unioned, and the folded-in folders go to the trash rather than the void;
-  `u` undoes the whole merge.
-- **Doctor without the surgery** — findings show up in the info pane for the
-  document you are on, `! !` narrows the list to every document that has any,
-  and nothing is written until you ask (`! f`, or `! o` to pick one finding).
-  papis's own `doctor.run` fixes by default; ptui never calls it.
-- **Files that file themselves** — ordered rules decide where a PDF belongs;
-  `f r` relocates and renames a whole selection to the scheme, skipping anything
-  it does not understand.
-- **SSH-friendly** — `icons = false` swaps every nerd-font glyph for its ASCII
-  twin at the same width, no forked worker pools, and the info pane moves under
-  the list by itself once the title column would get squeezed.
-- **Tells you what a document is** — one column, one cell: conference paper,
-  journal article, thesis, or an arXiv-only `preprint` worked out from the
-  metadata. Nerd-font glyphs by default, ASCII on request.
-- **Edit fields without leaving the list** — `c t` adds tags (keeping the ones
-  already there; comma-separated, so `machine learning` is one tag), `c T`
-  removes them, `c s` sets the reading status, `c r` the
-  rating, and `c f` any field at all, with the type papis declares for it
-  (`tags` a list, `year` an int). All batch-aware over marks, batches confirm
-  first, every write through the safe-write path. `e` opens the whole
-  `info.yaml` in `$EDITOR`, telling you if you saved YAML papis can no longer
-  parse; `E` a form over the common fields (typed, one undo step).
-  `edit.mode = "structured"` swaps the two.
-- **Looks like your editor** — 22 themes, previewed as you move through `\ t`: the
-  catppuccin family, gruvbox, nord, rosé pine, solarized, dracula, and
-  `tokyonight-moon` (LazyVim's default) shipped as the out-of-the-box palette.
-  Titled panes, a lualine-shaped status bar, and marks in the theme's accent.
-- **Delete you can take back** — `d d` asks first, against the *total* marked
-  count with the refs listed, and every file gets a checkbox that is ticked only
-  when the file lives somewhere ptui manages. `u` puts it all back: folders
-  return from the trash, or, with `undo.strategy = "git"`, ptui's own commit is
-  reverted. Files always route through the trash whatever the strategy, because
-  your PDF root is usually outside the repo. What has sat in the trash longer
-  than `undo.trash_retention_days` (30) is deleted at startup, with a line in
-  the log; `undo.auto_empty_trash = false` keeps it.
-- **Every command by name** — `:` (or `ctrl+p`) fuzzy-completes over the whole
-  command registry with each command's key binding beside it, so the keymap
-  teaches itself while you use it.
-
-- **Searches you come back to** — `\ s` saves the scope and sort under a name,
-  `g s` lists them next to the ones in `config.toml`, and `up` in any query
-  prompt recalls what you typed before (type a few letters first to recall
-  only the queries that start with them). `g r` jumps to a pasted
-  `\cite{key}`; `m q` marks by query without touching the view.
-
-- **A files pane** — `3` lists the document's files in order; `x` detaches one
-  (the file stays), `K`/`J` reorder, `p` repoints a broken path at a file in the
-  folder, `r` renames to papis's own `add-file-name` scheme, `f n` tidies path
-  styles. Every one of them is a single `u` away from undone.
+The [keys](KEYS.md) are vim-like, and you can start without learning them. Press a prefix
+such as `g` or `c` and a menu shows what can follow. `?` lists every key of the
+pane you are in, and `:` finds any command by name.
 
 ## Install
 
-Not on PyPI yet — install from a checkout:
+You need Python 3.13 or newer and [uv](https://docs.astral.sh/uv/).
 
 ```sh
-git clone https://github.com/tnauen/ptui && cd ptui
+git clone https://github.com/tobna/ptui
+cd ptui
 uv sync
-uv run ptui                 # or: uv run papis ptui
+uv run ptui
 ```
 
-To get `ptui` on your `$PATH`:
+`uv tool install --editable .` gives you a `ptui` command that works in any
+directory. If you have no papis library yet, `uv run papis init
+/path/to/library` creates one.
 
-```sh
-uv tool install --editable .
-```
+<details>
+<summary>Running it as <code>papis ptui</code></summary>
 
-`papis ptui` only works when ptui lives in the *same* environment as papis — a
-plugin is found through papis's own entry points. If your papis came from pipx:
+papis finds ptui only when both are installed in the same environment. From the
+checkout, `uv run papis ptui` works. If your papis came from pipx, add ptui to
+it:
 
 ```sh
 pipx inject --editable --include-apps papis /path/to/ptui
 ```
 
-## Configure
+</details>
 
-Config lives in `~/.config/papis/ptui/`:
+## What it does
 
-| file            | what                                                |
-| --------------- | --------------------------------------------------- |
-| `config.toml`   | panes, columns, sorting, file-placement rules        |
-| `keys.toml`     | every binding, plus which-key and hint-bar behaviour |
+**Search**<br>
+Two layers. `s` asks papis for the scope, and `/` filters it as you type
+(`vision -survey year:>2023`). The status bar shows both, so you can tell why a
+paper is not in the list.
 
-The shipped defaults in [`src/ptui/defaults/`](src/ptui/defaults) are the
-reference; your files hold only what you change. In `keys.toml` a binding of
-yours always adds: it replaces only the shipped bindings it collides with — the
-same key, a prefix of it or one it is a prefix of — so a command you bind to a
-new key keeps its shipped ones (`enter` still opens below). `"o" = false`
-unbinds a key:
+<details>
+<summary>Filter terms, sorting and saved searches</summary>
+
+In `/`, every term has to match: `-word` excludes, `"two words"` is a phrase,
+`field:value` looks in one field, and `year:>2023` or `year:2020..2024`
+compares numbers. `a:`, `t:`, `y:` and `k:` are short for author, title, year
+and tags, in `/` and in `s`. `escape` drops the filter.
+
+`S` picks the sort and `ctrl+s` reverses it. `\ s` saves the scope and sort
+under a name, and `g s` brings it back. In a search prompt, `up` recalls
+earlier queries; type a few letters first to see only those that start with
+them. `g r` jumps to a citekey, and you can paste a whole `\cite{key}`.
+
+With `general.persist_state = true`, ptui starts where your last session in
+that library ended.
+
+</details>
+
+<br>
+
+**Marks**<br>
+Marks belong to papers, so sorting and filtering keep them. A command acts on
+the marked papers, or on the one under the cursor when nothing is marked.
+
+<details>
+<summary>Ranges, marking by query, and batch confirms</summary>
+
+`space` marks and moves on. `v` marks everything the cursor passes until you
+press `v` or `escape` again, like vim's visual mode, and `V` unmarks the same
+way. `m a` marks the filtered list, `m q` marks by a query without changing
+the view, `m i` inverts, `m c` clears, and `g m` shows only the marked papers.
+
+Field edits, deletes, moves, `f r` and doctor fixes ask first when they would
+change more than one paper, and the count includes marked papers the filter
+hides.
+
+</details>
+
+<br>
+
+**Editing**<br>
+`c t` tags, `c s` sets the reading status, `c r` rates, and `c f` sets any
+field. `e` opens `info.yaml` in your editor, and `E` a form over the common
+fields.
+
+<details>
+<summary>Tags, field types, the editor and the form</summary>
+
+`c t` adds tags and keeps the ones already there. Tags are separated by commas,
+so `machine learning, cv` is two tags. `c T` removes tags. A rating goes from
+0 to 5, and 0 clears it. ptui writes the type papis declares for a field, so
+`year` stays a number and `tags` a list. An empty value removes the field.
+
+If you save YAML in the editor that no longer parses, ptui says so and shows
+the paper as it was until you fix the file. The form covers title, authors,
+year, tags, citekey, DOI and URL, and `edit.mode = "structured"` swaps `e` and
+`E`. `g n` opens the paper's notes.
+
+</details>
+
+<br>
+
+**Updating from the source**<br>
+`c u` fetches the paper again from its DOI, its arXiv id or a Crossref search.
+It fills in the fields the paper lacks and asks about each field where the
+source disagrees with what you have; `papis update --auto` would overwrite
+them. A Crossref search lists its hits, so you pick the right paper first.
+
+**Adding papers**<br>
+`a` adds a paper from a file, your inbox, an arXiv id, a DOI, an ISBN, a URL, a
+`.bib`, a Crossref search and more. A form shows what was found before
+anything is written, and if the library already has the paper, ptui asks
+first.
+
+<details>
+<summary>Every source, duplicates, and the date added</summary>
+
+The sources are a file, your inbox (`~/Downloads` unless you set
+`files.inbox`), a URL, a `.bib` file, an arXiv id, a DOI, an ISBN, a PubMed id,
+a DBLP key, a Zenodo record, a Crossref search, a PDF to read a DOI or arXiv id
+from, or an existing papis folder or library. `i` goes straight to the inbox,
+and `:doc.add arxiv 2607.00687` skips both questions. An arXiv import brings
+the PDF along.
+
+ptui counts a paper as already there when the DOI, ISBN, arXiv id, URL or
+title matches, and asks whether to go to it, add it anyway or cancel.
+
+ptui stamps `time-added` on what it adds, so the default sort puts new papers
+on top. papis stamps only papers added with `papis add`, so run
+`:lib.backfill_dates` once to date the older ones by when their `info.yaml`
+last changed.
+
+</details>
+
+<br>
+
+**Merging, deleting and undo**<br>
+`m m` merges duplicates into one paper and `d d` deletes, and `u` undoes
+either. Deleted and merged-away folders wait in a trash for 30 days.
+
+<details>
+<summary>What a merge keeps, what undo covers, and the trash</summary>
+
+A merge is for a paper you have twice, say from arXiv and from the
+proceedings. You choose which citekey survives, each real disagreement is one
+question, and every file is kept. The delete dialog has a checkbox for each
+file; only files in a folder ptui manages start ticked. `:doc.move` moves
+papers to another papis library.
+
+`u` undoes and `ctrl+r` redoes, up to 50 steps in a session. That covers field
+edits, the form, `c u`, everything in the files pane, `f n`, `f r`, doctor
+fixes, deletes and merges. `f a`, edits made in your editor and `:doc.move`
+cannot be undone.
+
+The trash is `~/.local/share/ptui/trash`. At startup ptui deletes what has
+been there more than 30 days and says so in the log, and `:lib.empty_trash`
+empties it when you ask. If the library is a git repository,
+`undo.strategy = "git"` makes each delete a commit that `u` reverts. Files
+still go to the trash, since a PDF folder outside the library is not in the
+repository.
+
+</details>
+
+<br>
+
+**Files**<br>
+`o` opens the PDF and `f a` attaches a file or URL. Placement rules decide
+where files belong, and `f r` moves them there. `3` opens a pane with the
+paper's files, to reorder, rename, repoint or detach them.
+
+<details>
+<summary>Opening, the files pane, and a rule that moves PDFs</summary>
+
+`o` (or `enter`) opens the main file with papis's `opentool`, `f o` picks one
+when there are several, `O` opens the folder and `b` the URL or DOI. `f a`
+works as `papis addto` does.
+
+In the files pane, `x` takes a file off the list and leaves it on disk, `K`
+and `J` move it (the first one is the main file), `p` points a broken entry at
+another file, `r` renames to papis's naming scheme, and `m` applies the
+placement rules.
+
+The rules are `[[files.rules]]` in `config.toml`, tried in order, and the first
+match wins. The shipped ones leave every file where papis put it, so nothing
+moves until you write a rule that does. This one keeps all PDFs in one folder
+outside the library:
 
 ```toml
-[modes.list]
-"o" = { cmd = "doc.open_folder" }   # swap o and O
-"O" = { cmd = "doc.open" }
-"D" = { cmd = "doc.delete" }        # delete on D as well as d d
-"b" = false                         # unbind
+[files]
+pdf_root = "~/papers"
+
+[[files.rules]]
+name = "pdfs to one folder"
+match = ["*.pdf"]
+op = "move"
+dest = "{pdf_root}/{doc[ref]}.pdf"
+path_style = "absolute"
 ```
 
-Values papis already owns (library paths, `editor`,
-`opentool`) come from papis config unless you override them.
+A move never overwrites an existing file.
 
-## Keys
+</details>
 
-`j`/`k` move · `h`/`l` previous/next pane · `o` open · `/` filter · `s` search ·
-`space` mark · `S` sort · `a` add · `i` add from inbox · `e` edit `info.yaml` ·
-`\ t` theme · `q` quit.
+<br>
 
-Prefixes are namespaces, and hold one to see its menu: `g` go · `f` files ·
-`y` yank · `c` change · `m` marks · `z` layout · `d` delete · `\` admin.
-So `y y` yanks a `\cite{…}`, `f r` files a PDF where it belongs.
+**The doctor**<br>
+papis's doctor checks every paper in the background, and the list marks the
+ones with problems. `! !` shows only those. Nothing is fixed until you ask:
+`! f` fixes the paper, and `! o` one finding you pick.
 
-Sorted by "recently added" and everything sits in one lump at the bottom?
-papis stamps `time-added` only from `papis add` on the command line, so
-documents that arrived any other way have none. ptui stamps it on every document
-it adds (unless papis's `time-stamp` is off); run `:lib.backfill_dates` once to
-fill it in for the rest, from each `info.yaml`'s modification time.
+**Copying and exporting**<br>
+`y y` copies `\cite{key}`, `y b` the BibTeX, and `y e` exports in any format
+papis has an exporter for. ptui uses `wl-copy`, `xclip` or `pbcopy` when one
+is installed, and otherwise the terminal (OSC 52), which also works over SSH.
 
-**[KEYS.md](KEYS.md) lists every binding** — key, command name and what it does,
-per mode, generated from the shipped keymap. `?` shows the same table inside the
-app, for whichever mode you are in.
+**Safe writes**<br>
+Before each write, ptui checks that `info.yaml` has not changed since it read
+it. If something else changed it (a sync, a script, papis itself), ptui
+reloads that paper and asks you to do it again. Your comments and keys ptui
+does not know survive the write, except with `f a`, which is `papis addto`.
+
+**Looks**<br>
+Themes, previewed as you move through `\ t`. Nerd-font icons, or plain
+characters with `ui.icons = false`. On a narrow terminal the info pane moves
+under the list.
+
+<details>
+<summary>Panes, columns and the mouse</summary>
+
+There are four panes: the list (`1`), info (`2`), files (`3`) and the log
+(`4`). `tab`, `h` and `l` move between them. `z z` switches between side by
+side and stacked, `z i` hides the info pane, and `z +` and `z -` move the
+split. The columns are papis format strings in `[[list.columns]]`, and
+`list.row_height = 2` gives long titles a second line. `ui.mouse = false`
+leaves the mouse to the terminal so you can select text.
+
+</details>
+
+## First steps
+
+```sh
+ptui                  # your default papis library
+ptui -l work          # the library papis calls "work"
+ptui tags:to-read     # start with a papis query as the scope
+```
+
+| Keys                         | What happens                                       |
+| ---------------------------- | -------------------------------------------------- |
+| `s` `a:nauen` `enter`        | ask papis for one author's papers                  |
+| `/` `vision -survey` `enter` | keep those with "vision" and without "survey"      |
+| `space` `space`              | mark two papers                                    |
+| `c t` `to-read` `enter`      | tag both (ptui asks first, since it is two papers) |
+| `y b`                        | copy their BibTeX                                  |
+| `o`                          | open the PDF of the paper under the cursor         |
+
+`q` quits. Every key is in [KEYS.md](KEYS.md).
+
+## Configuration
+
+ptui reads `config.toml` and `keys.toml` from the `ptui` folder in papis's
+config folder, usually `~/.config/papis/ptui/`. Neither has to exist: write
+only what you want to change. [CONFIG.md](CONFIG.md) lists every setting with
+its default, and [KEYS.md](KEYS.md) every key binding and how yours combine
+with the shipped ones.
 
 ## Development
 
@@ -177,13 +290,15 @@ app, for whichever mode you are in.
 uv sync
 uv run pytest
 uv run ruff check --fix && uv run ruff format
+uv run python scripts/keydoc.py      # regenerate KEYS.md after changing keys.toml
+uv run python scripts/configdoc.py   # regenerate CONFIG.md after changing config.toml
 ```
 
-CI ([`.github/workflows/test.yml`](.github/workflows/test.yml)) runs the same
-`uv sync` and `uv run pytest` on every push and pull request, on Python 3.13.
-
-Design contract: [`SPEC.md`](SPEC.md). Agent notes: [`CLAUDE.md`](CLAUDE.md).
+CI runs the tests on Python 3.13 for every push and pull request, and they
+fail while KEYS.md or CONFIG.md is out of date. [SPEC.md](SPEC.md) says how
+ptui is meant to behave, and [CLAUDE.md](CLAUDE.md) holds notes on the code
+for coding agents.
 
 ## License
 
-MIT
+MIT, see [LICENSE](LICENSE).
