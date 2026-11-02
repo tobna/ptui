@@ -7,7 +7,7 @@
 library = ""                  # empty = papis default library
 startup_query = ""            # scope query applied at launch
 persist_state = false         # restore last position, scope, sort — per library
-state_file = "~/.local/state/ptui/state.json"
+state_file = "~/.local/state/ptui/state.json"   # where persist_state keeps it
 track_opens = false           # write `opened_at` on doc.open
 
 [ui]
@@ -87,8 +87,8 @@ optional = true               # only once the flex column has its flex_target
 
 [query]
 narrow_mode = "substring"     # substring | fuzzy | regex; terms are ANDed either way
-narrow_debounce_ms = 60
-narrow_fields = ["title", "author", "tags", "ref", "year"]
+narrow_debounce_ms = 60       # wait after a keystroke before / filters
+narrow_fields = ["title", "author", "tags", "ref", "year"]   # where a / term without field: looks
 history_file = "~/.local/state/ptui/query_history"   # up/down in s, / and m q; empty = none
 saved_file = "~/.local/state/ptui/saved.json"   # what `\ s` saves; [query.saved] below is yours to edit
 
@@ -131,8 +131,8 @@ supplement = ["*_supp*.pdf", "*_appendix*.pdf"]
 slides = ["*_slides.pdf", "*_talk.pdf"]
 
 [files.default]
-op = "in-place"
-path_style = "keep"
+op = "in-place"               # in-place | move | copy | link | hardlink
+path_style = "keep"           # keep | absolute | relative-doc
 
 [[files.rules]]
 name = "notes stay put"
@@ -156,23 +156,23 @@ scan_on_startup = true        # fill the findings cache in the background (~2ms/
 
 [undo]
 strategy = "trash"            # trash | git | none  (files ALWAYS use trash)
-trash_dir = "~/.local/share/ptui/trash"
-trash_retention_days = 30
+trash_dir = "~/.local/share/ptui/trash"   # where deleted and merged-away folders go
+trash_retention_days = 30     # days a folder stays there
 auto_empty_trash = true       # at startup, delete what has been in the trash longer than that
 stack_size = 50               # in-memory metadata undo, any strategy
-git_warn_untracked = true
+git_warn_untracked = true     # with strategy git, say when git does not track pdf_root
 
 [edit]
 mode = "editor"               # what e opens: editor ($EDITOR) | structured (a form); E opens the other
 editor = ""                   # empty = papis `editor` / $EDITOR
 use_git = false               # papis `use-git` wins if set
-structured_fields = ["title", "author_list", "year", "tags", "ref", "doi", "url"]
+structured_fields = ["title", "author_list", "year", "tags", "ref", "doi", "url"]   # the fields of the edit form
 
 [export]
-citekey_format = "\\cite{{{doc[ref]}}}"
+citekey_format = "\\cite{{{doc[ref]}}}"   # what y y copies, a papis format string
 clipboard = "auto"            # auto | wl-copy | xclip | pbcopy | osc52
 
 [log]
 level = "info"
-max_entries = 500
-file = "~/.local/state/ptui/ptui.log"
+max_entries = 500             # lines the log pane keeps
+file = "~/.local/state/ptui/ptui.log"   # everything, tracebacks included; empty = none
