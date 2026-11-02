@@ -99,6 +99,25 @@ finishes it. The number in brackets is the review question it came from.
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
 
+## I. Possible bugs, left as they are for now (2026-11-02)
+
+Found while making undo and redo cope with an `info.yaml` changed on disk.
+Not fixed on purpose for now.
+
+- **A retried undo can overwrite a script's edit.** When the undo of a `c`
+  verb or a doctor fix meets a stale file, `_rewrite`'s retry rewrites every
+  document of the step, including those the first try already undid. A key a
+  script changed on one of those in between is overwritten, and the "undo
+  done on N" count includes them again. Narrowing the retry to the stale
+  documents has to go per document, because doctor fixes undo newest first.
+- **A merge's undo names a path, not the paper.** Its `StaleError` comes
+  straight from `safewrite.edit`, not through `_raise_stale`, so the message
+  names the `info.yaml` path where every other one names the ref.
+- **`u` after a partial redo undoes the step before it.** A redo that is
+  partly done stays on the redo stack, so `u` at that moment reverses the
+  previous step while this one is half redone. A partial undo already stays
+  on the undo stack for exactly this reason.
+
 ## Not yet exercised
 
 Regex narrow mode, marks at scale, `lib.switch`, and the `[modes.files]` keymap.
