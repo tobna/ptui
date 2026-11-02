@@ -196,7 +196,8 @@ Both take a value as a function of what the file holds as it is rewritten, and
 both push one undo step under every strategy. The old value handed to that
 function is `safewrite.plain`, so `library.typed` tests the stored type with
 `isinstance`: ruamel reads a float as `ScalarFloat`. A batch confirms through
-`_confirm_batch` (shared with `f r` and the doctor's fixes): the picker, with the count alone — SPEC § Marks asks for a preview list,
+`_confirm_batch` (shared with `f r` and the doctor's fixes, which count only the documents
+with something to fix): the picker, with the count alone — SPEC § Marks asks for a preview list,
 ponytail'd down to the count, which is the whole question for a field set. A
 write `safewrite` refuses (`StaleError`) goes to `actions._reread` at every
 call site. The edit form and `c u` `load()` the document before they start, so
@@ -221,7 +222,8 @@ The delete dialog's "also in" check is `place.same_file` over papis's
 and `_merge_run` write, and their comments give the order of each step.
 `files.relocate` is the same shape: `_relocate_apply` pushes the undo
 `_relocate_run` returns for exactly its run; the add flow calls
-`_relocate_run` on the new document alone and records nothing. The
+`_relocate_run` on the new document alone and records nothing. A doctor
+run is one step through `actions._fix`. The
 trash index is `place.trashed_at`; `lib.empty_trash` and
 `actions.auto_empty_trash` share `_old_trash` and `_purge`.
 

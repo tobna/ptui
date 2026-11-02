@@ -2593,30 +2593,65 @@ def doctor_fix_pick(app: Any) -> None:
     ]
 
     def apply(index: int, _invert: bool) -> None:
-        _apply_one(app, *found[index])
+        _fix(app, [found[index]])
 
     ui.pick(app, items, title="Fix which finding?")(apply)
 
 
-def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> bool:
+def _apply_one(app: Any, doc: Any, finding: doctor.Finding) -> dict[str, tuple[Any, Any]]:
+    """One fix, written. Returns what `doctor.fix` does — empty when nothing landed."""
     if finding.fix_action is None:
         app.log_line(f"[yellow]no automatic fix for[/] {finding.name}: {finding.msg}")
-        return False
+        return {}
     try:
         changed = doctor.fix(doc, finding)
     except safewrite.StaleError:
         _reread(app, doc)
-        return False
+        return {}
     except Exception as exc:
         app.log_line(f"[red]fix failed:[/] {exc}")
-        return False
+        return {}
     if not changed:  # papis's fix had nothing to go on — `keys-missing` cannot invent an author
         app.log_line(f"[yellow]{finding.name} on {doc.get('ref', '')}: the fix changed nothing[/]")
-        return False
+        return {}
     app.log_line(f"fixed {finding.name} on {doc.get('ref', '')}: {', '.join(changed)}")
     doctor.scan(doc, _checks(app))  # the write invalidated the cache; the pane reads it
     app.refresh_rows()
-    return True
+    return changed
+
+
+def _fix(app: Any, found: list[tuple[Any, doctor.Finding]]) -> int:
+    """Apply each finding, then push one undo step for every fix that landed.
+    Returns how many did.
+
+    Undo writes back what each write replaced, newest first — two fixes may
+    touch one key — and redo writes what they wrote, as `_fields_apply` does
+    for one document.
+    """
+    fixed = [(doc, changed) for doc, finding in found if (changed := _apply_one(app, doc, finding))]
+    if fixed:
+        docs = len({library.doc_id(doc) for doc, _ in fixed})
+        app.history.push(
+            undo.Step(
+                f"fix {len(fixed)} finding(s) on {docs} document(s)",
+                lambda: _rewrite(app, fixed[::-1], 0),
+                lambda: _rewrite(app, fixed, 1),
+            )
+        )
+    return len(fixed)
+
+
+def _rewrite(app: Any, fixed: list[tuple[Any, dict[str, tuple[Any, Any]]]], side: int) -> None:
+    """One side of each fix's `(replaced, written)` pairs, back into its file."""
+    for doc, changed in fixed:
+        values = {key: pair[side] for key, pair in changed.items()}
+        try:
+            safewrite.edit(doc, lambda data, values=values: _put_all(data, values))
+        except safewrite.StaleError:
+            _reread(app, doc)
+        except Exception as exc:  # one document's failure must not stop the rest
+            app.log_line(f"[red]{', '.join(values)} on {doc.get('ref', '')} failed:[/] {exc}")
+    _resort(app)
 
 
 @command("doctor.fix", "fix doctor findings")
@@ -2628,18 +2663,24 @@ def doctor_fix(app: Any, checks: str = "", current: bool = False) -> None:
     here. `doctor.fix_pick` is the one-finding path. `checks` narrows it to
     named checks — `:doctor.fix field-type` is one check across the library,
     where `! a` is everything at once.
+
+    Fixes on more than one document confirm first, and the run is one undo step.
     """
     found = _findings(app, current, checks)
+    if not found:
+        app.log_line("doctor: nothing to fix")
+        return
     fixable = [(doc, f) for doc, f in found if f.fix_action]
-    fixed = sum(_apply_one(app, doc, finding) for doc, finding in fixable)
     skipped = len(found) - len(fixable)
-    app.log_line(
-        f"doctor: fixed {fixed} of {len(fixable)}, {skipped} with no automatic fix"
-        if found
-        else "doctor: nothing to fix"
-    )
-    if skipped:
-        app.query_one("#log-pane").display = True
+
+    def run() -> None:
+        fixed = _fix(app, fixable)
+        app.log_line(f"doctor: fixed {fixed} of {len(fixable)}, {skipped} with no automatic fix")
+        if skipped:
+            app.query_one("#log-pane").display = True
+
+    docs = len({library.doc_id(doc) for doc, _ in fixable})
+    _confirm_batch(app, docs, f"fix {len(fixable)} finding(s)", run)
 
 
 # ── delete and undo ─────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ read-only, and a fix is applied one finding at a time through `safewrite`.
 from __future__ import annotations
 
 import copy
+from typing import Any
 
 import papis.doctor as _doctor
 import papis.document
@@ -179,8 +180,10 @@ def scan_library(docs: list[Document], checks: list[str] | None = None) -> list[
     ]
 
 
-def fix(doc: Document, finding: Finding) -> list[str]:
-    """Apply one finding's own fix and persist it. Returns the keys that changed.
+def fix(doc: Document, finding: Finding) -> dict[str, tuple[Any, Any]]:
+    """Apply one finding's own fix and persist it. Returns each key that changed
+    with what the write replaced and what it wrote, `None` for no key — the two
+    sides of its undo step.
 
     The check's `fix_action` mutates the in-memory document, so the keys it
     touched are diffed out and written through `safewrite` — which re-checks the
@@ -189,25 +192,28 @@ def fix(doc: Document, finding: Finding) -> list[str]:
     never reached the file.
     """
     if finding.fix_action is None:
-        return []
+        return {}
     # deep: papis's fixes edit lists and author dicts in place (`files`, initials),
     # and a shallow copy shares them, so the diff saw no change and wrote nothing
     before = copy.deepcopy(dict(doc))
     finding.fix_action()
-    changed = {key: value for key, value in doc.items() if before.get(key) != value}
-    dropped = [key for key in before if key not in doc]
-    if not changed and not dropped:
-        return []
+    written = {key: safewrite.plain(value) for key, value in doc.items() if before.get(key) != value}
+    written |= {key: None for key in before if key not in doc}
+    if not written:
+        return {}
+    replaced: dict[str, Any] = {}
 
-    def mutate(data: object) -> None:
-        for key, value in changed.items():
-            safewrite.put(data, key, value)
-        for key in dropped:
-            safewrite.drop(data, key)
+    def mutate(data: Any) -> None:
+        for key, value in written.items():
+            replaced[key] = safewrite.plain(data.get(key))  # from the file, as undo restores it
+            if value is None:
+                safewrite.drop(data, key)
+            else:
+                safewrite.put(data, key, value)
 
     try:
         safewrite.edit(doc, mutate)
     except BaseException:
         doc.load()  # the in-memory fix never landed; do not keep pretending it did
         raise
-    return sorted([*changed, *dropped])
+    return {key: (replaced[key], written[key]) for key in sorted(written)}

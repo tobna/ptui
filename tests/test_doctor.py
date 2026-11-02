@@ -1,4 +1,5 @@
 import os
+import re
 
 import papis.document
 import pytest
@@ -192,7 +193,7 @@ def test_fix_persists_only_what_the_check_changed(tmp_path, papis_lib):
     refs = next(f for f in doctor.findings(doc, ["refs"]) if f.fix_action)
     changed = doctor.fix(doc, refs)
 
-    assert changed == ["ref"]
+    assert changed == {"ref": ("bad ref!", "badref!")}  # what it replaced, what it wrote
     text = info.read_text()
     assert "ref: badref!" in text
     assert "# a comment that must survive" in text  # round-trip invariant
@@ -204,7 +205,7 @@ def test_fix_without_a_fix_action_writes_nothing(tmp_path, papis_lib):
     doc, info = broken_doc(tmp_path)
     before = info.read_text()
     unfixable = doctor.Finding("made-up", str(info), "ref", "no fix here", None, doc)
-    assert doctor.fix(doc, unfixable) == []
+    assert doctor.fix(doc, unfixable) == {}
     assert info.read_text() == before
 
 
@@ -296,6 +297,81 @@ async def test_fix_pick_applies_the_selected_fix(app, tmp_path):
         # and the pane no longer claims a finding that has been fixed
         assert "refs" not in str(app.query_one("#info").render())
 
+        await press(pilot, "u")  # one finding, one step (TODO H.66)
+        assert "ref: bad ref!" in info.read_text()
+
+
+async def test_undoing_a_fix_puts_the_field_back_and_redo_fixes_it_again(app, tmp_path):
+    """`! f` pushed no undo step, so `u` right after it undid the step before
+    and the fixed field stayed fixed (TODO H.66)."""
+    from conftest import press
+
+    from ptui import actions
+
+    _doc, info = broken_doc(tmp_path)
+    before = info.read_text()
+    async with app.run_test() as pilot:
+        only_refs(app)
+        actions.reload(app)
+        await press(pilot, "!", "!")  # narrows onto the broken document
+        await press(pilot, "!", "f")  # one document: no question
+        assert "ref: badref!" in info.read_text()
+
+        await press(pilot, "u")
+        assert info.read_text() == before  # the comment and the quoted year too
+
+        await press(pilot, "ctrl+r")
+        assert "ref: badref!" in info.read_text()
+
+
+async def test_a_fix_that_renames_a_key_undoes_to_the_old_key_alone(app, papis_lib):
+    """`biblatex-key-alias` writes `institution` and drops `school`: undo has to
+    remove the key it added as well as restore the one it took away."""
+    from ptui import actions
+
+    path = papis_lib / "lib" / "doc0" / "info.yaml"
+    path.write_text(path.read_text() + "school: S\n")
+    before = path.read_text()
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
+        actions.cmdline_run(app, "doctor.fix", "biblatex-key-alias true")
+        assert "institution: S" in path.read_text() and "school" not in path.read_text()
+        actions.app_undo(app)
+        assert path.read_text() == before
+
+
+async def test_fixing_a_batch_asks_first_counting_the_marks_the_narrow_hides(app, papis_lib):
+    from conftest import press, settle
+
+    from ptui import actions, ui
+
+    paths = [papis_lib / "lib" / folder / "info.yaml" for folder in ("doc0", "doc1")]
+    for path in paths:
+        path.write_text(re.sub(r"ref: \w+", "ref: bad ref!", path.read_text()))
+    before = [path.read_text() for path in paths]
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        only_refs(app)
+        app.marks = {"id0", "id1"}
+        app.apply_narrow("attention")
+        await settle(pilot)
+        assert len(app.rows) == 1
+
+        await press(pilot, "!", "a")
+        assert isinstance(app.screen, ui.SelectList)
+        assert "2 documents" in app.screen.title_text
+        await press(pilot, "escape")  # cancelled: nothing written, nothing recorded
+        assert [path.read_text() for path in paths] == before
+        assert not app.history.done
+
+        await press(pilot, "!", "a", "enter")
+        assert all("ref: badref!" in path.read_text() for path in paths)
+
+        actions.app_undo(app)  # one step for both
+        assert [path.read_text() for path in paths] == before
+        actions.app_redo(app)
+        assert all("ref: badref!" in path.read_text() for path in paths)
+
 
 async def test_a_fix_that_changes_nothing_is_not_counted_as_fixed(app):
     """papis's `keys-missing` fix cannot invent an author, so it leaves the
@@ -310,7 +386,7 @@ async def test_a_fix_that_changes_nothing_is_not_counted_as_fixed(app):
         noop = doctor.Finding(
             name="keys-missing", path="", payload="author", msg="no author", fix_action=lambda: None, doc=doc
         )
-        assert actions._apply_one(app, doc, noop) is False
+        assert actions._apply_one(app, doc, noop) == {}
         app.query_one(RichLog).display = True
         await pilot.pause(0.2)
         assert "changed nothing" in app.query_one(RichLog).lines[-1].text

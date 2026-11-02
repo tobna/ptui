@@ -346,6 +346,9 @@ at it. Findings come from each check's own `operate`.
   the name, `duplicated-values` is per-document — it looks *inside* one list.
 - Fixing is a verb, never the side effect of confirming a chooser: `doctor.fix`
   for every fixable finding on the targets, `doctor.fix_pick` to choose one.
+  Fixes on more than one document confirm first, like any batch, and a run is
+  one undo step: `u` writes back what each fix's write replaced, newest first,
+  removing a key a fix added; redo writes what the fixes wrote.
 
 ## Sorting
 
@@ -756,8 +759,8 @@ from this. Adding a command must not require touching four places.
 | `export.path`                   |                               | absolute path of main file                       |
 | `export.url`                    |                               | DOI/URL                                          |
 | `doctor.run`                    | `checks:str?`, `current:bool` | scan → log + narrow to what has findings; **never fixes** |
-| `doctor.fix`                    | `checks:str?, current:bool`   | every fixable finding on the targets, via safe-write; `checks` fixes one check across the library |
-| `doctor.fix_pick`               |                               | SelectList over this document's findings; `enter` fixes that one |
+| `doctor.fix`                    | `checks:str?, current:bool`   | every fixable finding on the targets, via safe-write; `checks` fixes one check across the library; batch confirms; one undo step |
+| `doctor.fix_pick`               |                               | SelectList over this document's findings; `enter` fixes that one, one undo step |
 | `lib.switch`                    | `name:str?`                   | SelectList over libraries                        |
 | `doc.move`                      | `to:str?`                     | `papis mv` into another library, batch confirms; not undoable |
 | `theme.picker`                  | `name:str?`                   | SelectList over the registered themes; previews the highlighted one, `esc` restores |

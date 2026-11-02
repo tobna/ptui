@@ -24,13 +24,13 @@ def _fixable(doc, check):
 
 def test_a_fix_that_renames_a_key_drops_the_old_one_and_keeps_the_comment_after_it(papis_lib):
     doc, info = _doc(papis_lib, "title: T\nschool: S\n# about ref\nref: r\npapis_id: edge\n")
-    assert doctor.fix(doc, _fixable(doc, "biblatex-key-alias")) == ["institution", "school"]
+    assert doctor.fix(doc, _fixable(doc, "biblatex-key-alias")) == {"institution": (None, "S"), "school": ("S", None)}
     assert info.read_text() == "title: T\n# about ref\nref: r\npapis_id: edge\ninstitution: S\n"
 
 
 def test_fixing_a_missing_file_removes_it_from_info_yaml(papis_lib):
     doc, info = _doc(papis_lib, "title: T\nfiles:\n- gone.pdf\npapis_id: edge\n")
-    assert doctor.fix(doc, _fixable(doc, "files")) == ["files"]
+    assert list(doctor.fix(doc, _fixable(doc, "files"))) == ["files"]
     assert "gone.pdf" not in info.read_text()
 
 

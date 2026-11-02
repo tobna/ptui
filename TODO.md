@@ -98,11 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-66. **`f r` and the doctor's fixes cannot be undone and do not confirm a
-    batch.** `files.relocate` and `doctor.fix` push no undo step, so `u`
-    undoes the step before them, and on many marked documents they act at
-    once, where SPEC says destructive batch operations confirm. One undo step
-    per run, and the batch confirm `_set_field` uses. With tests. [132 b]
 69. **Add sources for `a` in `config.toml`.** `fetch.SOURCES` is a fixed
     table, so an importer plugin ptui does not list is never offered. Let
     `config.toml` add a source with everything a row needs (the papis importer
