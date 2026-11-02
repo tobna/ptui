@@ -427,7 +427,7 @@ class PtuiApp(App[None]):
         for handler in list(papis_log.handlers):
             papis_log.removeHandler(handler)
         papis_log.addHandler(PapisToLoguru())
-        papis_log.setLevel(level)
+        papis_log.setLevel(logger.level(level).no)  # stdlib knows no TRACE or SUCCESS by name
         papis_log.propagate = False
 
     # ── key dispatch ────────────────────────────────────────────────────────

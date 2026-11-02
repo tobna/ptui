@@ -1,4 +1,7 @@
+import pytest
 from conftest import press, settle
+
+from ptui import config
 
 
 async def test_starts_and_lists_the_library(app):
@@ -524,6 +527,20 @@ async def test_a_missing_nested_key_renders_blank_without_a_papis_warning(app):
         papis.format.format(column["format"], doc, default="")  # the old call, for contrast
     assert len(seen) == 1
     assert "Could not format" in seen[0]
+
+
+@pytest.mark.parametrize("level", config.CHOICES["log.level"])
+async def test_every_allowed_log_level_starts(app, level):
+    """`trace` and `success` are loguru's names. Handed to papis's stdlib logger
+    by name, they raised "Unknown level" in `on_mount`, and ptui did not start."""
+    import logging
+
+    from loguru import logger
+
+    app.cfg.data["log"]["level"] = level
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        assert logging.getLogger("papis").level == logger.level(level.upper()).no
 
 
 async def test_papis_records_reach_the_log_pane_not_the_terminal(app):
