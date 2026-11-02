@@ -98,8 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-73. **The `f r` undo label counts every target**, including documents where
-    nothing moved. Count the ones that changed. [145 d]
 
 ## Not yet exercised
 

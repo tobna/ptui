@@ -179,6 +179,16 @@ async def test_normalize_and_backfill_ask_first_on_a_batch_counting_what_the_nar
         assert not app.history.done
 
 
+async def test_the_relocate_undo_step_counts_the_documents_whose_files_changed(app, papis_lib):
+    """It counted every target, the ones with nothing to move too (TODO H.73)."""
+    _attach(papis_lib)
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        app.marks = {"id0", "id1"}  # doc1 has no file
+        await press(pilot, "f", "r", "enter")
+        assert app.history.done[-1].label == "relocate the files of 1 document(s)"
+
+
 async def test_citekey_yank_is_batch_aware(app, monkeypatch):
     yanked = []
     monkeypatch.setattr(clip, "copy", lambda app, text: yanked.append(text) or "test")

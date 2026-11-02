@@ -1669,21 +1669,24 @@ def _relocate_apply(app: Any, docs: list[Any], rules: place.Rules, force: bool) 
     """Relocate, then push one undo step for the run. Redo runs it again on the
     same documents with the same rules, as a merge's redo does; `place()` is
     idempotent, so what it moved the first time lands where it did."""
-    back = [_relocate_run(app, docs, rules, force)]
-    if back[0] is None:
+    run = _relocate_run(app, docs, rules, force)
+    if run is None:
         return
+    changed, first = run
+    back = [first]
 
     def redo() -> None:
         again = _relocate_run(app, docs, rules, force)
         if again is None:
             raise RuntimeError("the relocate moved nothing this time; see the log")
-        back[0] = again  # the new run is what the next undo reverses
+        back[0] = again[1]  # the new run is what the next undo reverses
 
-    app.history.push(undo.Step(f"relocate the files of {len(docs)} document(s)", lambda: back[0](), redo))
+    app.history.push(undo.Step(f"relocate the files of {changed} document(s)", lambda: back[0](), redo))
 
 
-def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) -> Callable[[], None] | None:
-    """Do the relocate. Returns its undo, or None when no `files` entry changed."""
+def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) -> tuple[int, Callable[[], None]] | None:
+    """Do the relocate. Returns how many documents' `files` it changed, and its
+    undo; None when it changed none."""
     tally: dict[str, int] = {}
     landed: list[tuple[Any, Any, list[tuple[str, place.PlaceResult]]]] = []
     for doc in docs:
@@ -1743,7 +1746,7 @@ def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) ->
         landed[:] = [item for item in landed if any(item[0] is doc for doc in stale)]
         _raise_stale(app, stale)
 
-    return back
+    return len(landed), back
 
 
 def _file_entry(app: Any, index: int | None) -> tuple[Any, list[str], int] | None:
