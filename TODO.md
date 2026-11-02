@@ -98,6 +98,36 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
+63. **A Crossref request that fails reads as "found nothing".**
+    `papis.crossref.get_data` catches every error, logs "Error getting works
+    from Crossref." and returns `[]`; `fetch.crossref` turns `[]` into
+    "Crossref found nothing for …". Offline, `c u` and the `crossref` add
+    source say the paper does not exist. Tell a failed request from an empty
+    answer and say Crossref could not be reached. With a test. [129 a]
+64. **`safewrite.read` keeps a record of every file it parsed.** The shared
+    ruamel `YAML` instance appends a `DocInfo` to `_yaml.doc_infos` on every
+    load (measured: 2000 reads, 2003 entries, ~160 B each) and nothing clears
+    it, so it grows for the whole session. Load through a fresh instance, as
+    `_dumper()` already does for dumps. [129 c]
+65. **"press E again" names the wrong key.** When `$EDITOR` leaves
+    `info.yaml` unparsable, `doc.edit_raw` says "press E again", but with the
+    shipped `edit.mode = "editor"` the editor is `e` and `E` opens the form.
+    Name the key the keymap binds to the editor. [132 a]
+66. **`f r` and the doctor's fixes cannot be undone and do not confirm a
+    batch.** `files.relocate` and `doctor.fix` push no undo step, so `u`
+    undoes the step before them, and on many marked documents they act at
+    once, where SPEC says destructive batch operations confirm. One undo step
+    per run, and the batch confirm `_set_field` uses. With tests. [132 b]
+67. **The config folder is documented wrong.** SPEC and CLAUDE.md say
+    `$XDG_CONFIG_HOME/papis/ptui/`, but `config.config_dir()` is papis's
+    `get_config_folder()` plus `ptui`, which honours `$PAPIS_CONFIG_DIR` and
+    is elsewhere on macOS. Say "`ptui/` in papis's config folder", with the
+    usual Linux path as the example. [132 c]
+68. **Stale docs.** CLAUDE.md's Status gives a test count: drop it, it is
+    stale by the next commit. CLAUDE.md and `fetch.available()`'s docstring
+    say a new importer plugin shows up in `a` for free, but `available()`
+    offers only the names in `fetch.SOURCES`. SPEC's "Not in v0" still lists
+    the structured editor, undo and saved searches. [132 d]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 
