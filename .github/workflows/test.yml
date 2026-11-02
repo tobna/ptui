@@ -12,4 +12,37 @@ jobs:
           python-version: "3.13"  # the floor pyproject allows
           enable-cache: true
       - run: uv sync --locked
-      - run: uv run pytest -q
+      - run: uv run pytest -q --cov=ptui --cov-report=term --cov-report=json
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: coverage
+          path: coverage.json
+
+  # The README's coverage badge is shields.io reading `coverage.json` on the
+  # `badges` branch. Only this job may write, and only that branch, from main.
+  badge:
+    needs: pytest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+      - name: Push the badge to the badges branch
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          pct=$(python3 -c 'import json; print(round(json.load(open("coverage.json"))["totals"]["percent_covered"]))')
+          if [ "$pct" -ge 90 ]; then color=brightgreen; elif [ "$pct" -ge 75 ]; then color=yellow; else color=red; fi
+          mkdir badge && cd badge
+          printf '{"schemaVersion": 1, "label": "coverage", "message": "%s%%", "color": "%s"}\n' "$pct" "$color" > coverage.json
+          git init -q -b badges
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add coverage.json
+          git commit -q -m "Coverage ${pct}% at ${GITHUB_SHA::7}"
+          # one commit, replaced each time: the branch holds the badge, not a history
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges

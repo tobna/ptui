@@ -93,7 +93,8 @@ src/ptui/
   undo.py            the undo history and the trash/git/none strategies
   defaults/          shipped config.toml, keys.toml — their comments document every key
 .github/workflows/
-  test.yml           CI
+  test.yml           CI: tests with coverage; from main, the README's coverage
+                     badge as a one-commit `badges` branch
 scripts/
   keydoc.py          regenerates KEYS.md; tests/test_docs.py fails while stale
   configdoc.py       regenerates CONFIG.md from defaults/config.toml, likewise

@@ -10,3 +10,7 @@ dist/
 *.png
 *.svg
 snapshot_report.html
+
+# pytest --cov
+.coverage
+coverage.json

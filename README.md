@@ -11,6 +11,7 @@
   <img alt="Built with Textual" src="https://img.shields.io/badge/built%20with-Textual-5a5aff">
   <img alt="papis" src="https://img.shields.io/badge/papis-0.16.x-b8283c">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
+  <img alt="Coverage" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftobna%2Fptui%2Fbadges%2Fcoverage.json">
 </p>
 
 ---
@@ -295,10 +296,10 @@ uv run python scripts/keydoc.py      # regenerate KEYS.md after changing keys.to
 uv run python scripts/configdoc.py   # regenerate CONFIG.md after changing config.toml
 ```
 
-CI runs the tests on Python 3.13 for every push and pull request, and they
-fail while KEYS.md or CONFIG.md is out of date. [SPEC.md](SPEC.md) says how
-ptui is meant to behave, and [CLAUDE.md](CLAUDE.md) holds notes on the code
-for coding agents.
+CI runs the tests with coverage on Python 3.13 for every push and pull
+request, and they fail while KEYS.md or CONFIG.md is out of date.
+[SPEC.md](SPEC.md) says how ptui is meant to behave, and
+[CLAUDE.md](CLAUDE.md) holds notes on the code for coding agents.
 
 ## License
 
