@@ -103,6 +103,12 @@ finishes it. The number in brackets is the review question it came from.
     undoes the step before them, and on many marked documents they act at
     once, where SPEC says destructive batch operations confirm. One undo step
     per run, and the batch confirm `_set_field` uses. With tests. [132 b]
+69. **Add sources for `a` in `config.toml`.** `fetch.SOURCES` is a fixed
+    table, so an importer plugin ptui does not list is never offered. Let
+    `config.toml` add a source with everything a row needs (the papis importer
+    name, the label in the picker, the example in its prompt). It shows, like
+    the shipped ones, when papis registers that importer. The shipped rows
+    keep working with no config. With tests. [137.2]
 26. **A README for people**, written carefully and readably, describing the
     project as it stands once the entries above are done.
 
