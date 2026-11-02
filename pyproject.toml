@@ -3,6 +3,8 @@ name = "ptui"
 version = "0.1.0"
 description = "A Textual TUI for the papis bibliography manager"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Tobias Nauen", email = "tobias@nauen-it.de" }
 ]
