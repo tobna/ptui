@@ -98,6 +98,14 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
+74. **A redo of `f r` or a merge that meets a changed file loses its step.**
+    It reruns the whole operation, `_reread` refuses the stale document, and
+    the step is dropped, so `ctrl+r` cannot try again. Keep the step, as H.70
+    does for undo, without moving a file twice. With a test. [153 a]
+75. **A batch undo that is partly done says "undo did not happen".** When one
+    document of a batch is stale, the others are undone, but the message
+    names only the failure. Say how many were undone and which one is left
+    for `u`. [153 b]
 
 ## Not yet exercised
 
