@@ -332,3 +332,50 @@ async def test_a_merge_redo_retried_moves_each_file_once(app, papis_lib, monkeyp
 
         await press(pilot, "u")
         assert loser_file.read_bytes() == b"b.pdf" and not _pdfs(papis_lib)
+
+
+BATCH = [
+    pytest.param(
+        lambda app: actions.doc_set(app, "note", "mine"),
+        lambda lib, folder: _disk(lib, "note", folder) == "mine",
+        id="c f",
+    ),
+    pytest.param(actions.files_relocate, lambda lib, folder: not (lib / "lib" / folder / "a.pdf").exists(), id="f r"),
+]
+
+
+@pytest.mark.parametrize(("verb", "done"), BATCH)
+async def test_a_batch_undo_or_redo_partly_done_says_how_much_and_what_is_left(app, papis_lib, monkeypatch, verb, done):
+    """With one document of a batch changed on disk, the others were undone,
+    but the log said "undo did not happen" (TODO H.75)."""
+    from cover_helpers import logs
+
+    for folder in ("doc0", "doc1"):
+        attach(papis_lib, folder, "a.pdf")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        app.marks = {"id0", "id1"}
+        verb(app)
+        await press(pilot, "enter")  # the batch confirm
+        assert done(papis_lib, "doc0") and done(papis_lib, "doc1")
+        logged = logs(app, monkeypatch)
+
+        _race(monkeypatch, papis_lib, "papis_id: id0\n", "papis_id: id0\nscript: 1\n")  # doc0, the first written
+        await press(pilot, "u")
+        assert done(papis_lib, "doc0") and not done(papis_lib, "doc1")
+        said = (
+            "undo done on 1 document(s), but Vaswani2017 changed on disk; reloaded from disk; press u to undo the rest"
+        )
+        assert any(said in line for line in logged), logged
+        await press(pilot, "u")
+        assert not done(papis_lib, "doc0")
+
+        _race(monkeypatch, papis_lib, "script: 1\n", "script: 2\n")
+        await press(pilot, "ctrl+r")
+        assert done(papis_lib, "doc1") and not done(papis_lib, "doc0")
+        said = "redo done on 1 document(s), but Vaswani2017 changed on disk; reloaded from disk; press ctrl+r to redo the rest"
+        assert any(said in line for line in logged), logged
+        await press(pilot, "ctrl+r")
+        assert done(papis_lib, "doc0") and done(papis_lib, "doc1")
+        assert not any("did not happen" in line for line in logged)
+        assert _disk(papis_lib, "script") == 2

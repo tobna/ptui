@@ -211,7 +211,8 @@ write `safewrite` refuses (`StaleError`) goes to `actions._reread` at every
 call site but an undo or a redo: those write through `_rewrite` (the `c` verbs,
 the doctor) or `_write_field` with a `stale` list (`f r`; a merge's redo hands
 `_merge_run` one), end in
-`_raise_stale`, and `undo.History` keeps a step that raises it. The edit form and `c u` `load()` the document before they start, so
+`_raise_stale`, and `undo.History` keeps a step that raises it; `StaleError.done`
+counts the documents it did finish, for `actions._not_done` to say. The edit form and `c u` `load()` the document before they start, so
 the form shows the file and a value the file gained is a clash for `c u`, not a
 gap. Both editor forms end in `#form-keys`, a legend written by hand like the
 delete dialog's: the keys are Textual's and the form's own `on_key`, not

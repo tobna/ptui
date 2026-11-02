@@ -93,7 +93,9 @@ desync with an external script that appends to `files`.
    from disk at once, without the library rescan `r` pays for, and tell the
    user to do it again. Never merge silently. For an undo or a redo, "again"
    is the same key: the step stays where it is in the history, and the log
-   says the undo did not happen and what to press.
+   says the undo did not happen and what to press — or, when the rest of a
+   batch went through, on how many documents it did happen and which are
+   left for that key.
 3. Write `info.yaml.ptui.tmp` in the same directory, `fsync`,
    `os.replace()` onto the target.
 4. If git is active, stage and commit (see Undo).

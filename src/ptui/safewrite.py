@@ -39,6 +39,9 @@ def _yaml() -> YAML:
 class StaleError(Exception):
     """`info.yaml` changed under us. Reload before retrying; never merge blind."""
 
+    done = 0
+    """Raised from an undo or a redo: on how many other documents it did happen."""
+
 
 @dataclass(slots=True)
 class InfoFile:

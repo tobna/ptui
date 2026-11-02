@@ -1187,7 +1187,7 @@ def _rewrite(app: Any, fixed: list[tuple[Any, dict[str, tuple[Any, Any]]]], side
     """One side of each `(replaced, written)` pair back into its file: `0` to
     undo a step, `1` to redo it. A file changed on disk is left as it is, the
     others are written, and then `_raise_stale` names it."""
-    stale = []
+    stale, wrote = [], []
     for doc, changed in fixed:
         values = {key: pair[side] for key, pair in changed.items()}
         try:
@@ -1196,20 +1196,26 @@ def _rewrite(app: Any, fixed: list[tuple[Any, dict[str, tuple[Any, Any]]]], side
             stale.append(doc)
         except Exception as exc:  # one document's failure must not stop the rest
             app.log_line(f"[red]{', '.join(values)} on {doc.get('ref', '')} failed:[/] {exc}")
+        else:
+            wrote.append(doc)
     _resort(app)
-    _raise_stale(app, stale)
+    _raise_stale(app, stale, wrote)
 
 
-def _raise_stale(app: Any, docs: list[Any]) -> None:
+def _raise_stale(app: Any, docs: list[Any], wrote: list[Any] | None = None) -> None:
     """End an undo or a redo that met these documents' `info.yaml` changed on
-    disk: reread them, and raise `StaleError` naming them. `undo.History` then
-    keeps the step where it was, and `app_undo` says the key that tries it again
-    — `_reread`'s "do it again" read as running the verb again."""
+    disk: reread them, and raise `StaleError` naming them, and counting the
+    others it `wrote`. `undo.History` then keeps the step where it was, and
+    `_not_done` says the key that tries it again — `_reread`'s "do it again"
+    read as running the verb again."""
     for doc in docs:
         _resync(app, doc)
     if docs:
         refs = ", ".join(doc.get("ref") or "info.yaml" for doc in docs)
-        raise safewrite.StaleError(f"{refs} changed on disk; reloaded from disk")
+        error = safewrite.StaleError(f"{refs} changed on disk; reloaded from disk")
+        left = {library.doc_id(doc) for doc in docs}
+        error.done = len({library.doc_id(doc) for doc in wrote or []} - left)
+        raise error
 
 
 def tags_of(value: Any) -> list[str]:
@@ -1680,11 +1686,12 @@ def _relocate_apply(app: Any, docs: list[Any], rules: place.Rules, force: bool) 
 
     def redo() -> None:
         stale: list[Any] = []
+        tried = len(landed)
         _relocate_run(app, left or docs, rules, force, landed, stale)
         left[:] = stale
         if not landed and not stale:
             raise RuntimeError("the relocate moved nothing this time; see the log")
-        _raise_stale(app, stale)
+        _raise_stale(app, stale, [doc for doc, _, _ in landed[tried:]])
 
     label = f"relocate the files of {len(landed)} document(s)"
     app.history.push(undo.Step(label, lambda: _relocate_back(app, landed), redo))
@@ -1741,11 +1748,13 @@ def _relocate_run(
 def _relocate_back(app: Any, landed: list[tuple[Any, Any, list[tuple[str, place.PlaceResult]]]]) -> None:
     """Undo the relocate runs recorded in `landed`, and keep in it only what is left."""
     stale: list[Any] = []
+    wrote = []
     for doc, old, placed in landed:
         # `files` first, as a merge's undo does: a write refused as stale
         # leaves this document's files where its entries still say they are
         if not _write_field(app, [(doc, old)], "files", stale):
             continue
+        wrote.append(doc)
         stuck = {}
         for entry, result in placed:
             try:
@@ -1759,7 +1768,7 @@ def _relocate_back(app: Any, landed: list[tuple[Any, Any, list[tuple[str, place.
     app.refresh_rows()
     # all a retry has left to undo: a file moved back once must not move again
     landed[:] = [item for item in landed if any(item[0] is doc for doc in stale)]
-    _raise_stale(app, stale)
+    _raise_stale(app, stale, wrote)
 
 
 def _file_entry(app: Any, index: int | None) -> tuple[Any, list[str], int] | None:
@@ -3014,12 +3023,21 @@ def _press(app: Any, cmd: str) -> str:
     return f"press {keys}" if keys else f"run {cmd}"
 
 
+def _not_done(app: Any, verb: str, exc: safewrite.StaleError) -> str:
+    """What `u` or `ctrl+r` says when a file changed on disk stopped it: that it
+    did not happen, or on how many documents it did and which are left."""
+    again = _press(app, f"app.{verb}")
+    if exc.done:
+        return f"[yellow]{verb} done on {exc.done} document(s), but {exc}; {again} to {verb} the rest[/]"
+    return f"[yellow]{verb} did not happen: {exc}; {again} to try again[/]"
+
+
 @command("app.undo", "undo")
 def app_undo(app: Any) -> None:
     try:
         step = app.history.undo()
     except safewrite.StaleError as exc:  # the step is still there (`undo.History`)
-        app.log_line(f"[yellow]undo did not happen: {exc}; {_press(app, 'app.undo')} to try again[/]")
+        app.log_line(_not_done(app, "undo", exc))
         return
     if step is None:
         app.log_line("[yellow]nothing to undo[/]")
@@ -3033,7 +3051,7 @@ def app_redo(app: Any) -> None:
     try:
         step = app.history.redo()
     except safewrite.StaleError as exc:
-        app.log_line(f"[yellow]redo did not happen: {exc}; {_press(app, 'app.redo')} to try again[/]")
+        app.log_line(_not_done(app, "redo", exc))
         return
     if step is None:
         app.log_line("[yellow]nothing to redo[/]")

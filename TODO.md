@@ -98,10 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-75. **A batch undo that is partly done says "undo did not happen".** When one
-    document of a batch is stale, the others are undone, but the message
-    names only the failure. Say how many were undone and which one is left
-    for `u`. [153 b]
 
 ## Not yet exercised
 
