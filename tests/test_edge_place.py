@@ -64,6 +64,17 @@ def test_copy_keeps_the_source_and_rollback_removes_only_the_copy(doc, tmp_path)
     assert _src(doc).exists() and not result.dest.exists()
 
 
+def test_rollback_keeps_the_placed_file_when_another_has_taken_its_old_name(doc, tmp_path):
+    """`u` rolls back long after the move; deleting the placed file because a
+    source exists would lose it whenever that source is a new file."""
+    result = place.place(doc, _src(doc), _rules(tmp_path))
+    _src(doc).write_bytes(b"a new download under the old name")
+    with pytest.raises(FileExistsError):
+        place.rollback(result)
+    assert result.dest.read_bytes() == b"pdf"
+    assert _src(doc).read_bytes() == b"a new download under the old name"
+
+
 def test_hardlink_shares_the_inode(doc, tmp_path):
     result = place.place(doc, _src(doc), _rules(tmp_path, op="hardlink"))
     assert result.status == "ok"

@@ -490,6 +490,12 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
   reverts the last ptui-authored commit; the commit log is the undo history.
 - Metadata edits additionally get a session-local in-memory undo stack
   (`undo.stack_size`) regardless of strategy.
+- So does `files.relocate`, one step per run: `u` writes back each document's
+  `files` as the run found it, then moves every file back where it was. A file
+  that has taken a source's name since is never overwritten, and the placed
+  file is never deleted for it: it stays put and the log says so. A stale
+  `info.yaml` leaves that document's files where its entries say they are.
+  Redo runs the same relocate again.
 - Reverting is `git revert`, never `reset --hard`: the work tree may hold edits
   ptui knows nothing about, and rewriting history under a user who also uses
   the repo by hand is not undo. The revert is itself a `ptui: ` commit.
@@ -736,7 +742,7 @@ from this. Adding a command must not require touching four places.
 | `doc.tag` / `doc.untag`         | `tags:str`                    | batch-aware                                      |
 | `doc.status`                    | `value:str?`                  | `reading_status`                                 |
 | `doc.rating`                    | `value:int?`                  | 0–5                                              |
-| `files.relocate`                | `force:bool=false`            | `place()` over all files                         |
+| `files.relocate`                | `force:bool=false`            | `place()` over all files; batch confirms; one undo step |
 | `files.attach`                  | `path:str?`                   | `papis addto` on the cursor's document; a path or URL, none → a path prompt, then the inbox |
 | `files.detach`                  | `index:int`                   | drop from list, keep file                        |
 | `files.repoint`                 | `index:int`                   | fix broken path via SelectList                   |

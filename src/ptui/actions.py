@@ -1108,19 +1108,22 @@ def _set_field(app: Any, key: str, value_of: Callable[[Any], Any], what: str) ->
         app.log_line(f"[red]{exc}[/]")
         return
     planned = [(doc, value_of) for doc in targets]
-    if len(targets) == 1:
-        _set_apply(app, planned, key)
+    _confirm_batch(app, len(targets), f"set {what}", lambda: _set_apply(app, planned, key))
+
+
+def _confirm_batch(app: Any, count: int, doing: str, then: Callable[[], None]) -> None:
+    """Run `then` for one document, ask first for more.
+
+    SPEC: a batch confirms against the *total* count, marked documents the narrow
+    hides included — `app.targets` already holds them.
+    """
+    if count <= 1:
+        then()
         return
-    # SPEC: a batch confirms against the *total* marked count. The picker is the
-    # confirm — ponytail: no preview list, the count and the value are the whole
-    # question here, unlike a delete.
-    items = [
-        ui.Item(label=f"set {what} on {len(targets)} documents", value=True),
-        ui.Item(label="cancel", value=False),
-    ]
-    ui.pick(app, items, title=f"{what} — {len(targets)} documents?")(
-        lambda ok, _invert: _set_apply(app, planned, key) if ok else None
-    )
+    # The picker is the confirm — ponytail: no preview list, the count and the
+    # verb are the whole question here, unlike a delete.
+    items = [ui.Item(label=f"{doing} on {count} documents", value=True), ui.Item(label="cancel", value=False)]
+    ui.pick(app, items, title=f"{doing} — {count} documents?")(lambda ok, _invert: then() if ok else None)
 
 
 def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> list[tuple[Any, Any, Any]]:
@@ -1525,8 +1528,8 @@ def _add_document(
     added = next((d for d in app.docs if d.get("title") == data.get("title")), None)
     if added is not None:
         app.refresh_rows(keep=library.doc_id(added))
-        if path is not None:
-            files_relocate(app)
+        if path is not None:  # the new document only, never the marks; the add has no undo, so neither has this
+            _relocate_run(app, [added], place.Rules.from_config(app.cfg), force=False)
     where = f" (source left at {path})" if path else " (no file)"
     app.log_line(f"added {data.get('title', path.name if path else '?')}{where}")
 
@@ -1626,10 +1629,38 @@ def export_as(app: Any, fmt: str = "", target: str | None = None) -> None:
 @command("files.relocate", "relocate + rename to scheme")
 def files_relocate(app: Any, force: bool = False) -> None:
     """Run `place()` over every file of every target. Partial failure is normal:
-    the clean ones go through, the rest are reported in the log."""
+    the clean ones go through, the rest are reported in the log. A batch
+    confirms first, and the run is one undo step: the files and the `files`
+    entries go back together."""
+    docs = app.targets
+    if not docs:
+        return
     rules = place.Rules.from_config(app.cfg)
+    _confirm_batch(app, len(docs), "relocate the files", lambda: _relocate_apply(app, docs, rules, force))
+
+
+def _relocate_apply(app: Any, docs: list[Any], rules: place.Rules, force: bool) -> None:
+    """Relocate, then push one undo step for the run. Redo runs it again on the
+    same documents with the same rules, as a merge's redo does; `place()` is
+    idempotent, so what it moved the first time lands where it did."""
+    back = [_relocate_run(app, docs, rules, force)]
+    if back[0] is None:
+        return
+
+    def redo() -> None:
+        again = _relocate_run(app, docs, rules, force)
+        if again is None:
+            raise RuntimeError("the relocate moved nothing this time; see the log")
+        back[0] = again  # the new run is what the next undo reverses
+
+    app.history.push(undo.Step(f"relocate the files of {len(docs)} document(s)", lambda: back[0](), redo))
+
+
+def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) -> Callable[[], None] | None:
+    """Do the relocate. Returns its undo, or None when no `files` entry changed."""
     tally: dict[str, int] = {}
-    for doc in app.targets:
+    landed: list[tuple[Any, Any, list[place.PlaceResult]]] = []
+    for doc in docs:
         entries = place.entries(doc)
         results = []
         for entry in entries:
@@ -1644,25 +1675,40 @@ def files_relocate(app: Any, force: bool = False) -> None:
             if result.status not in ("ok", "already", "unmanaged"):
                 app.log_line(f"[yellow]{result.status}[/] {result.src.name}: {result.message}")
 
-        updated = [
-            r.entry if r.entry and r.status in ("ok", "already") else e for e, r in zip(entries, results, strict=True)
-        ]
-        if updated == entries:
+        moved = {e: r.entry for e, r in zip(entries, results, strict=True) if r.entry and r.status in ("ok", "already")}
+        if all(e == new for e, new in moved.items()):
             continue
-        try:
-            safewrite.edit(doc, lambda data, new=updated: safewrite.put(data, "files", new))
-        except Exception as exc:
-            # File first, info.yaml second — so a failed write means rolling the
-            # files back, not leaving dangling references behind.
+        # `files` as the file holds it by now, so an entry a script added stays
+        wrote = _write_field(app, [(doc, lambda old, moved=moved: [moved.get(e, e) for e in _entries(old)])], "files")
+        if wrote:
+            landed.append((doc, wrote[0][1], results))  # what the write replaced, for undo
+        else:  # file first, info.yaml second: a write that did not land takes the files back
             for result in results:
                 place.rollback(result)
-            app.log_line(f"[red]rolled back {doc.get('ref', '')}:[/] {exc}")
+            app.log_line(f"[red]rolled back {doc.get('ref', '')}[/]")
 
     app.refresh_rows()
     summary = ", ".join(f"{count} {status}" for status, count in sorted(tally.items()))
     app.log_line(f"relocate: {summary or 'nothing to do'}")
     if tally.get("conflict") or tally.get("error"):
         app.query_one("#log-pane").display = True
+    if not landed:
+        return None
+
+    def back() -> None:
+        for doc, old, results in landed:
+            # `files` first, as a merge's undo does: a write refused as stale
+            # leaves this document's files where its entries still say they are
+            if not _write_field(app, [(doc, old)], "files"):
+                continue
+            for result in results:
+                try:
+                    place.rollback(result)
+                except OSError as exc:
+                    app.log_line(f"[red]{result.dest} not moved back to {result.src}:[/] {exc}")
+        app.refresh_rows()
+
+    return back
 
 
 def _file_entry(app: Any, index: int | None) -> tuple[Any, list[str], int] | None:

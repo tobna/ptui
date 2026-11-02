@@ -301,11 +301,19 @@ def holding(doc: Document, src: Path) -> Path | None:
 
 
 def rollback(result: PlaceResult) -> None:
-    """Undo a successful `place()` — call this when the `info.yaml` write fails."""
+    """Undo a successful `place()` — when the `info.yaml` write fails, and on `u`.
+
+    A source that exists is the original of a copy or a link, and the placed
+    file is dropped — unless its bytes differ: then another file has taken the
+    name since (or the copy was annotated), and deleting the placed one would
+    lose it, so this raises and keeps it.
+    """
     if not result.moved or result.dest is None:
         return
     if not result.src.exists():
         _reserve(result.dest, result.src)
+    elif result.dest.exists() and _digest(result.src) != _digest(result.dest):
+        raise FileExistsError(f"{result.src} is another file now; {result.dest} is kept")
     result.dest.unlink(missing_ok=True)
 
 

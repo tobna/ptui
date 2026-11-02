@@ -166,6 +166,13 @@ REFUSED = [
     pytest.param(
         lambda app: actions.cmdline_run(app, "doctor.fix", "refs"), lambda lib: _disk(lib, "ref") == "badref!", id="! f"
     ),
+    pytest.param(  # the refused write takes the moved file back, too
+        actions.files_relocate,
+        lambda lib: (
+            _disk(lib, "files")[0].startswith(str(lib / "pdfs")) and not (lib / "lib" / "doc0" / "a.pdf").exists()
+        ),
+        id="f r",
+    ),
     pytest.param(
         lambda app: actions._touch_opened_at(app, app.current), lambda lib: bool(_disk(lib, "opened_at")), id="o"
     ),

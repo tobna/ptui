@@ -72,6 +72,62 @@ async def test_relocate_reports_conflicts_without_touching_anything(app, papis_l
     assert "files:" in (papis_lib / "lib" / "doc0" / "info.yaml").read_text()
 
 
+async def test_undoing_a_relocate_puts_file_and_entry_back_and_redo_moves_them_again(app, papis_lib):
+    """`f r` pushed no undo step, so `u` right after it undid the tag before it
+    and left the file in the PDF root (TODO H.66)."""
+    _attach(papis_lib)
+    info = papis_lib / "lib" / "doc0" / "info.yaml"
+    src = papis_lib / "lib" / "doc0" / "downloaded paper.pdf"
+    dest = papis_lib / "pdfs" / "2017_Vaswani_Attention_Is_All_You_Need.pdf"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        actions.doc_tag(app, "kept")
+        tagged = info.read_text()
+        await press(pilot, "f", "r")  # one document: no question
+        assert dest.read_bytes() == b"pdf" and not src.exists()
+
+        await press(pilot, "u")
+        assert src.read_bytes() == b"pdf" and not dest.exists()
+        assert info.read_text() == tagged  # the entry back, and the tag still there
+
+        await press(pilot, "ctrl+r")
+        assert dest.read_bytes() == b"pdf" and not src.exists()
+        assert app.current["files"] == [str(dest)]
+
+
+async def test_relocating_a_batch_asks_first_counting_the_marks_the_narrow_hides(app, papis_lib):
+    from cover_helpers import attach, info
+
+    from ptui import ui
+
+    attach(papis_lib, "doc0", "a.pdf")
+    attach(papis_lib, "doc1", "b.pdf")
+    before = [info(papis_lib, folder).read_text() for folder in ("doc0", "doc1")]
+    files = [papis_lib / "lib" / "doc0" / "a.pdf", papis_lib / "lib" / "doc1" / "b.pdf"]
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        app.marks = {"id0", "id1"}
+        app.apply_narrow("attention")
+        await settle(pilot)
+        assert len(app.rows) == 1
+
+        await press(pilot, "f", "r")
+        assert isinstance(app.screen, ui.SelectList)
+        assert "2 documents" in app.screen.title_text
+        await press(pilot, "escape")  # cancelled: nothing moved, nothing recorded
+        assert all(path.exists() for path in files)
+        assert not app.history.done
+
+        await press(pilot, "f", "r", "enter")
+        assert not any(path.exists() for path in files)
+        assert len(list((papis_lib / "pdfs").iterdir())) == 2
+
+        await press(pilot, "u")  # one step for both
+        assert all(path.exists() for path in files)
+        assert not list((papis_lib / "pdfs").iterdir())
+        assert [info(papis_lib, folder).read_text() for folder in ("doc0", "doc1")] == before
+
+
 async def test_citekey_yank_is_batch_aware(app, monkeypatch):
     yanked = []
     monkeypatch.setattr(clip, "copy", lambda app, text: yanked.append(text) or "test")
