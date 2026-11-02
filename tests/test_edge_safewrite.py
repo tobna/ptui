@@ -4,7 +4,6 @@ quoting and long lines, and what a failed write leaves behind."""
 import os
 
 import pytest
-from ruamel.yaml import YAML
 
 from ptui import safewrite
 
@@ -133,17 +132,7 @@ def test_a_concurrent_write_during_edit_aborts_and_keeps_the_other_writers_bytes
     assert not list(folder.glob("*.ptui.tmp"))
 
 
-def _fresh_yaml():
-    """A copy of safewrite's YAML instance, so a test that breaks one cannot
-    break every later write in the session."""
-    fresh = YAML()
-    fresh.preserve_quotes = True
-    fresh.width = 4096
-    return fresh
-
-
-def test_a_value_yaml_cannot_represent_leaves_the_file_and_no_tmp(tmp_path, monkeypatch):
-    monkeypatch.setattr(safewrite, "_yaml", _fresh_yaml())
+def test_a_value_yaml_cannot_represent_leaves_the_file_and_no_tmp(tmp_path):
     path = tmp_path / "info.yaml"
     path.write_text("title: T\nyear: 2020\n")
     info = safewrite.read(path)
@@ -154,8 +143,7 @@ def test_a_value_yaml_cannot_represent_leaves_the_file_and_no_tmp(tmp_path, monk
     assert not list(tmp_path.glob("*.ptui.tmp"))
 
 
-def test_a_failed_write_does_not_break_the_next_one(tmp_path, monkeypatch):
-    monkeypatch.setattr(safewrite, "_yaml", _fresh_yaml())
+def test_a_failed_write_does_not_break_the_next_one(tmp_path):
     path = tmp_path / "info.yaml"
     path.write_text("title: T\nyear: 2020\n")
     info = safewrite.read(path)

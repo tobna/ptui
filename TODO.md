@@ -98,11 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-64. **`safewrite.read` keeps a record of every file it parsed.** The shared
-    ruamel `YAML` instance appends a `DocInfo` to `_yaml.doc_infos` on every
-    load (measured: 2000 reads, 2003 entries, ~160 B each) and nothing clears
-    it, so it grows for the whole session. Load through a fresh instance, as
-    `_dumper()` already does for dumps. [129 c]
 65. **"press E again" names the wrong key.** When `$EDITOR` leaves
     `info.yaml` unparsable, `doc.edit_raw` says "press E again", but with the
     shipped `edit.mode = "editor"` the editor is `e` and `E` opens the form.

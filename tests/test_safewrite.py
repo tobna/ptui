@@ -1,4 +1,5 @@
 import pytest
+from ruamel.yaml import YAML
 
 from ptui import safewrite
 
@@ -54,6 +55,16 @@ def test_no_tmp_file_left_behind(tmp_path):
     safewrite.write(info)
     safewrite.write(info)  # second write uses the refreshed mtime
     assert not list(tmp_path.glob("*.ptui.tmp"))
+
+
+def test_reading_keeps_no_record_of_the_files_read(tmp_path):
+    """ruamel appends a `DocInfo` per load to the instance that loaded, and never
+    clears it: one shared instance grew for the whole session (2000 reads, 2003
+    entries)."""
+    path = _info(tmp_path)
+    for _ in range(3):
+        safewrite.read(path)
+    assert not [value for value in vars(safewrite).values() if isinstance(value, YAML) and value.doc_infos]
 
 
 TRAILING = """\

@@ -166,6 +166,8 @@ one thing it refuses: the command line prints the file and exits 1.
 - **Inside a `safewrite.edit` mutation, write with `safewrite.put` / `drop`,
   never `data[key] = …` or `pop`** — their docstrings say which comment a bare
   assignment deletes.
+- **Never keep a ruamel `YAML` instance around**: it keeps state it never
+  clears. Build one per load or dump, as `safewrite._yaml()` does and says why.
 - **Read `files` through `place.entries(doc)`, never `doc.get("files")`**, and
   write entries from `place.normal` paths, **never `Path.resolve()`**:
   resolving turned a library reached through a symlink into `../../../../data/…`

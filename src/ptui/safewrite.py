@@ -23,19 +23,16 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.error import CommentMark
 from ruamel.yaml.tokens import CommentToken
 
-_yaml = YAML()  # round-trip mode: preserves comments, order and quoting
-_yaml.preserve_quotes = True
-_yaml.width = 4096  # papis writes long lines; rewrapping them is a noisy diff
 
-
-def _dumper() -> YAML:
-    """A fresh instance per dump, configured like `_yaml`. ruamel keeps a dump's
-    output and context on the instance and does not clear them when the dump
-    raises, so after one failed write the shared one sent every later dump to the
-    closed tmp file — "I/O operation on closed file" until a restart."""
-    yaml = YAML()
-    yaml.preserve_quotes = _yaml.preserve_quotes
-    yaml.width = _yaml.width
+def _yaml() -> YAML:
+    """A fresh instance per load and per dump: ruamel keeps state on the instance
+    and clears none of it. A dump raising left its output and context there, so
+    a shared one sent every later dump to the closed tmp file ("I/O operation on
+    closed file" until a restart); and every load appends a `DocInfo` to
+    `doc_infos`, which grew for the whole session."""
+    yaml = YAML()  # round-trip mode: preserves comments, order and quoting
+    yaml.preserve_quotes = True
+    yaml.width = 4096  # papis writes long lines; rewrapping them is a noisy diff
     return yaml
 
 
@@ -53,7 +50,7 @@ class InfoFile:
 
 def read(path: Path) -> InfoFile:
     mtime_ns = path.stat().st_mtime_ns
-    return InfoFile(path, _yaml.load(path) or {}, mtime_ns)
+    return InfoFile(path, _yaml().load(path) or {}, mtime_ns)
 
 
 def write(info: InfoFile) -> None:
@@ -64,7 +61,7 @@ def write(info: InfoFile) -> None:
     tmp = info.path.with_name(f"{info.path.name}.ptui.tmp")
     try:
         with tmp.open("w", encoding="utf-8") as fd:
-            _dumper().dump(info.data, fd)
+            _yaml().dump(info.data, fd)
             fd.flush()
             os.fsync(fd.fileno())
         os.replace(tmp, info.path)
