@@ -56,7 +56,7 @@ def test_from_url_refuses_anything_that_is_not_http(tmp_path):
 
 
 def test_fetch_reports_a_uri_the_importer_will_not_take():
-    with pytest.raises(ValueError, match="does not match"):
+    with pytest.raises(ValueError, match="arxiv could not import 'definitely not an arxiv id'"):
         fetch.fetch("arxiv", "definitely not an arxiv id")
 
 

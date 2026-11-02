@@ -57,7 +57,7 @@ def fetch(name: str, uri: str) -> tuple[dict[str, Any], list[Path]]:
 
     importer = papis.importer.get_importer_by_name(name).match(uri.strip())
     if importer is None:
-        raise ValueError(f"{name} does not match {uri!r}")
+        raise ValueError(f"{name} could not import {uri!r}")
     importer.fetch()
     data = dict(importer.ctx.data or {})
     if not data:
