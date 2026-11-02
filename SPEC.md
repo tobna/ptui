@@ -21,8 +21,10 @@ on keychain hints and search aliases.
   writes desync it.
 - **Documents are identified by `papis_id`**, never folder path. Paths change
   under `papis rename`.
-- **Config lives in `$XDG_CONFIG_HOME/papis/ptui/`** (`config.toml`,
-  `keys.toml`). TOML rather than papis's own INI file
+- **Config lives in `ptui/` in papis's config folder** (`config.toml`,
+  `keys.toml`): papis's `get_config_folder()`, which honours
+  `$PAPIS_CONFIG_DIR` and differs by platform — on Linux usually
+  `~/.config/papis/ptui/`. TOML rather than papis's own INI file
   because the attach rules are an ordered list of tables, which configparser
   cannot express. Values papis already owns — library paths, `editor`,
   `opentool`, `use-git`, `add-file-name` — are read from papis config and not

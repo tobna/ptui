@@ -118,11 +118,6 @@ finishes it. The number in brackets is the review question it came from.
     undoes the step before them, and on many marked documents they act at
     once, where SPEC says destructive batch operations confirm. One undo step
     per run, and the batch confirm `_set_field` uses. With tests. [132 b]
-67. **The config folder is documented wrong.** SPEC and CLAUDE.md say
-    `$XDG_CONFIG_HOME/papis/ptui/`, but `config.config_dir()` is papis's
-    `get_config_folder()` plus `ptui`, which honours `$PAPIS_CONFIG_DIR` and
-    is elsewhere on macOS. Say "`ptui/` in papis's config folder", with the
-    usual Linux path as the example. [132 c]
 68. **Stale docs.** CLAUDE.md's Status gives a test count: drop it, it is
     stale by the next commit. CLAUDE.md and `fetch.available()`'s docstring
     say a new importer plugin shows up in `a` for free, but `available()`

@@ -127,7 +127,9 @@ through it. Every worker (`@work`, `run_worker`) is started with
 then keeps. An exception that escapes a Textual handler or a worker ends the
 app, so a new entry point needs the same guard, and a new worker the flag.
 
-User config lives in `$XDG_CONFIG_HOME/papis/ptui/` and mirrors
+User config lives in `ptui/` in papis's config folder (`config.config_dir()`:
+papis's `get_config_folder()`, which honours `$PAPIS_CONFIG_DIR`; on Linux
+usually `~/.config/papis/ptui/`) and mirrors
 `src/ptui/defaults/`. `config.load` repairs what cannot work — a value outside
 `config.CHOICES` (one inside it in the wrong case is folded: the code compares
 exactly), a table given as a scalar (`ui = "dark"`), a split ratio off the screen, a column with no `format` or

@@ -13,7 +13,8 @@ DEFAULTS_DIR = Path(__file__).parent / "defaults"
 
 
 def config_dir() -> Path:
-    """User config dir, `$PAPIS_CONFIG_DIR/ptui` (usually `~/.config/papis/ptui`)."""
+    """User config dir: `ptui/` in papis's config folder, which honours
+    `$PAPIS_CONFIG_DIR` (on Linux usually `~/.config/papis/ptui`)."""
     return Path(papis.config.get_config_folder()) / "ptui"
 
 

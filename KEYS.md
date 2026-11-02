@@ -2,7 +2,8 @@
 
 Every binding ptui ships with, generated from `src/ptui/defaults/keys.toml`
 and the command registry — run `uv run python scripts/keydoc.py` after changing
-either. Your `$XDG_CONFIG_HOME/papis/ptui/keys.toml` holds only your changes,
+either. Your own `keys.toml`, in `ptui/` in papis's config folder (on Linux
+usually `~/.config/papis/ptui/`), holds only your changes,
 laid over these key by key. Each of your bindings adds: it drops only the shipped
 ones it collides with in the modes it reaches — the same key, or a chord either
 is a prefix of — so swapping two keys takes two lines, and a command you bind to
