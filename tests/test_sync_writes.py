@@ -237,8 +237,10 @@ async def test_an_undo_that_meets_a_changed_file_stays_for_u_to_try_again(app, p
         assert _disk(papis_lib, "year") == 2018  # the script's edit survives the undo
 
 
-@pytest.mark.parametrize(("verb", "done"), UNDONE[:3])  # f r's redo relocates afresh
+@pytest.mark.parametrize(("verb", "done"), [*UNDONE, REFUSED[5]])  # and m m
 async def test_a_redo_that_meets_a_changed_file_stays_for_ctrl_r_to_try_again(app, papis_lib, monkeypatch, verb, done):
+    """`f r` and `m m` rerun on redo, and a refused write ended the rerun in a
+    RuntimeError: the step was dropped, so `ctrl+r` could not try again (TODO H.74)."""
     from cover_helpers import logs
 
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
@@ -257,3 +259,76 @@ async def test_a_redo_that_meets_a_changed_file_stays_for_ctrl_r_to_try_again(ap
 
         await press(pilot, "ctrl+r")
         assert done(papis_lib)
+
+
+def _pdfs(papis_lib) -> dict[str, bytes]:
+    """The PDF root as it is on disk: each file's name and bytes."""
+    root = papis_lib / "pdfs"
+    return {path.name: path.read_bytes() for path in root.iterdir()} if root.exists() else {}
+
+
+async def test_a_relocate_redo_retried_moves_only_what_the_refused_try_left(app, papis_lib, monkeypatch):
+    """The retry relocates the document that was refused, and leaves alone the
+    one the first try relocated; one `u` then puts both back (TODO H.74)."""
+    attach(papis_lib, "doc0", "a.pdf")
+    attach(papis_lib, "doc1", "b.pdf")
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        app.marks = {"id0", "id1"}
+        await press(pilot, "f", "r", "enter")
+        relocated = _pdfs(papis_lib)
+        assert sorted(relocated.values()) == [b"a.pdf", b"b.pdf"]
+        await press(pilot, "u")
+        assert not _pdfs(papis_lib)
+
+        _race(monkeypatch, papis_lib, "tags: [test]", "tags: [test, from-script]")  # doc0, the first written
+        await press(pilot, "ctrl+r")
+        assert (papis_lib / "lib" / "doc0" / "a.pdf").exists()  # refused: its file went back
+        assert list(_pdfs(papis_lib).values()) == [b"b.pdf"]  # doc1's went ahead
+        placed = next((papis_lib / "pdfs").iterdir())
+        first = placed.stat()
+
+        await press(pilot, "ctrl+r")
+        assert _pdfs(papis_lib) == relocated
+        assert not (papis_lib / "lib" / "doc0" / "a.pdf").exists()
+        assert not (papis_lib / "lib" / "doc1" / "b.pdf").exists()
+        again = placed.stat()
+        assert (again.st_ino, again.st_ctime_ns) == (first.st_ino, first.st_ctime_ns)  # not moved again
+        assert [_disk(papis_lib, "files", folder) for folder in ("doc0", "doc1")] == [
+            [str(papis_lib / "pdfs" / name)] for name in sorted(relocated, key=relocated.get)
+        ]
+
+        await press(pilot, "u")  # one step, both tries
+        assert not _pdfs(papis_lib)
+        assert (papis_lib / "lib" / "doc0" / "a.pdf").read_bytes() == b"a.pdf"
+        assert (papis_lib / "lib" / "doc1" / "b.pdf").read_bytes() == b"b.pdf"
+        assert [_disk(papis_lib, "files", folder) for folder in ("doc0", "doc1")] == [["a.pdf"], ["b.pdf"]]
+        assert _disk(papis_lib, "tags") == ["test", "from-script"]  # the script's edit survives
+
+
+async def test_a_merge_redo_retried_moves_each_file_once(app, papis_lib, monkeypatch):
+    """A refused survivor write takes the files back, so the retry starts from
+    where the undo left things and places each of them once (TODO H.74)."""
+    attach(papis_lib, "doc1", "b.pdf")
+    loser_file = papis_lib / "lib" / "doc1" / "b.pdf"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        actions._merge_apply(app, merge.plan(_doc(app, "id0"), [_doc(app, "id1")]), {})
+        merged = _pdfs(papis_lib)
+        assert list(merged.values()) == [b"b.pdf"]
+        await press(pilot, "u")
+        assert loser_file.exists() and not _pdfs(papis_lib)
+
+        _race(monkeypatch, papis_lib, "tags: [test]", "tags: [test, from-script]")
+        await press(pilot, "ctrl+r")
+        assert loser_file.read_bytes() == b"b.pdf"  # back where it was, and nothing left in the root
+        assert not _pdfs(papis_lib)
+
+        await press(pilot, "ctrl+r")
+        assert _pdfs(papis_lib) == merged  # one copy, under the one name
+        assert not (papis_lib / "lib" / "doc1").exists()
+        assert _disk(papis_lib, "files") == [str(papis_lib / "pdfs" / name) for name in merged]
+        assert _disk(papis_lib, "tags") == ["test", "from-script"]
+
+        await press(pilot, "u")
+        assert loser_file.read_bytes() == b"b.pdf" and not _pdfs(papis_lib)

@@ -1555,7 +1555,7 @@ def _add_document(
     if added is not None:
         app.refresh_rows(keep=library.doc_id(added))
         if path is not None:  # the new document only, never the marks; the add has no undo, so neither has this
-            _relocate_run(app, [added], place.Rules.from_config(app.cfg), force=False)
+            _relocate_run(app, [added], place.Rules.from_config(app.cfg), False, [])
     where = f" (source left at {path})" if path else " (no file)"
     app.log_line(f"added {data.get('title', path.name if path else '?')}{where}")
 
@@ -1668,27 +1668,40 @@ def files_relocate(app: Any, force: bool = False) -> None:
 def _relocate_apply(app: Any, docs: list[Any], rules: place.Rules, force: bool) -> None:
     """Relocate, then push one undo step for the run. Redo runs it again on the
     same documents with the same rules, as a merge's redo does; `place()` is
-    idempotent, so what it moved the first time lands where it did."""
-    run = _relocate_run(app, docs, rules, force)
-    if run is None:
+    idempotent, so what it moved the first time lands where it did. A redo that
+    meets a changed `info.yaml` keeps the step, and the next `ctrl+r` relocates
+    only the documents it left: the documents a try relocated are never moved
+    again, and one undo reverses every try, since all of them add to `landed`."""
+    landed: list[tuple[Any, Any, list[tuple[str, place.PlaceResult]]]] = []
+    _relocate_run(app, docs, rules, force, landed)
+    if not landed:
         return
-    changed, first = run
-    back = [first]
+    left: list[Any] = []  # what a redo met changed on disk: all its next try relocates
 
     def redo() -> None:
-        again = _relocate_run(app, docs, rules, force)
-        if again is None:
+        stale: list[Any] = []
+        _relocate_run(app, left or docs, rules, force, landed, stale)
+        left[:] = stale
+        if not landed and not stale:
             raise RuntimeError("the relocate moved nothing this time; see the log")
-        back[0] = again[1]  # the new run is what the next undo reverses
+        _raise_stale(app, stale)
 
-    app.history.push(undo.Step(f"relocate the files of {changed} document(s)", lambda: back[0](), redo))
+    label = f"relocate the files of {len(landed)} document(s)"
+    app.history.push(undo.Step(label, lambda: _relocate_back(app, landed), redo))
 
 
-def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) -> tuple[int, Callable[[], None]] | None:
-    """Do the relocate. Returns how many documents' `files` it changed, and its
-    undo; None when it changed none."""
+def _relocate_run(
+    app: Any,
+    docs: list[Any],
+    rules: place.Rules,
+    force: bool,
+    landed: list[tuple[Any, Any, list[tuple[str, place.PlaceResult]]]],
+    stale: list[Any] | None = None,
+) -> None:
+    """Do the relocate, adding to `landed` each document whose `files` it
+    changed, for `_relocate_back`. A document whose `info.yaml` changed on disk
+    gets its files back, and goes to `_reread`, or into `stale` as in `_write_field`."""
     tally: dict[str, int] = {}
-    landed: list[tuple[Any, Any, list[tuple[str, place.PlaceResult]]]] = []
     for doc in docs:
         entries = place.entries(doc)
         results = []
@@ -1708,7 +1721,9 @@ def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) ->
         if all(e == new for e, new in moved.items()):
             continue
         # `files` as the file holds it by now, so an entry a script added stays
-        wrote = _write_field(app, [(doc, lambda old, moved=moved: [moved.get(e, e) for e in _entries(old)])], "files")
+        wrote = _write_field(
+            app, [(doc, lambda old, moved=moved: [moved.get(e, e) for e in _entries(old)])], "files", stale
+        )
         if wrote:  # for undo: what the write replaced, and each moved file with the entry it had
             landed.append((doc, wrote[0][1], [(e, r) for e, r in zip(entries, results, strict=True) if r.moved]))
         else:  # file first, info.yaml second: a write that did not land takes the files back
@@ -1721,32 +1736,30 @@ def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) ->
     app.log_line(f"relocate: {summary or 'nothing to do'}")
     if tally.get("conflict") or tally.get("error"):
         app.query_one("#log-pane").display = True
-    if not landed:
-        return None
 
-    def back() -> None:
-        stale: list[Any] = []
-        for doc, old, placed in landed:
-            # `files` first, as a merge's undo does: a write refused as stale
-            # leaves this document's files where its entries still say they are
-            if not _write_field(app, [(doc, old)], "files", stale):
-                continue
-            stuck = {}
-            for entry, result in placed:
-                try:
-                    place.rollback(result)
-                except OSError as exc:
-                    app.log_line(f"[red]{result.dest} not moved back to {result.src}:[/] {exc}")
-                    stuck[entry] = result.entry
-            if stuck:  # the entry names where the file still is, not the path it could not go back to
-                again = [(doc, lambda files, stuck=stuck: [stuck.get(e, e) for e in _entries(files)])]
-                _write_field(app, again, "files", stale)
-        app.refresh_rows()
-        # all a retry has left to undo: a file moved back once must not move again
-        landed[:] = [item for item in landed if any(item[0] is doc for doc in stale)]
-        _raise_stale(app, stale)
 
-    return len(landed), back
+def _relocate_back(app: Any, landed: list[tuple[Any, Any, list[tuple[str, place.PlaceResult]]]]) -> None:
+    """Undo the relocate runs recorded in `landed`, and keep in it only what is left."""
+    stale: list[Any] = []
+    for doc, old, placed in landed:
+        # `files` first, as a merge's undo does: a write refused as stale
+        # leaves this document's files where its entries still say they are
+        if not _write_field(app, [(doc, old)], "files", stale):
+            continue
+        stuck = {}
+        for entry, result in placed:
+            try:
+                place.rollback(result)
+            except OSError as exc:
+                app.log_line(f"[red]{result.dest} not moved back to {result.src}:[/] {exc}")
+                stuck[entry] = result.entry
+        if stuck:  # the entry names where the file still is, not the path it could not go back to
+            again = [(doc, lambda files, stuck=stuck: [stuck.get(e, e) for e in _entries(files)])]
+            _write_field(app, again, "files", stale)
+    app.refresh_rows()
+    # all a retry has left to undo: a file moved back once must not move again
+    landed[:] = [item for item in landed if any(item[0] is doc for doc in stale)]
+    _raise_stale(app, stale)
 
 
 def _file_entry(app: Any, index: int | None) -> tuple[Any, list[str], int] | None:
@@ -2418,8 +2431,9 @@ def _refresh_merge(app: Any, doc: Any, source: str, data: dict[str, Any]) -> Non
 def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
     """Merge, then push one undo step for all of it — the folded-in folders, the
     survivor's fields and every file that moved. Redo repeats this merge, with
-    the same answers, rather than asking again. `undo.strategy = "none"`
-    records nothing and clears the stack, as a delete does."""
+    the same answers, rather than asking again; one that meets the survivor's
+    `info.yaml` changed on disk keeps the step for `ctrl+r`. `undo.strategy =
+    "none"` records nothing and clears the stack, as a delete does."""
     back = _merge_run(app, plan, resolved)
     if back is None:
         return
@@ -2429,7 +2443,9 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
     undos = [back]
 
     def redo() -> None:
-        again = _merge_run(app, plan, resolved)
+        stale: list[Any] = []
+        again = _merge_run(app, plan, resolved, stale)
+        _raise_stale(app, stale)  # its files went back with the refused write, so the next try starts over
         if again is None:
             raise RuntimeError("the merge could not be repeated; see the log")
         undos[0] = again  # the new run is what the next undo reverses
@@ -2438,8 +2454,11 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
     app.history.push(undo.Step(label, lambda: undos[0](), redo))
 
 
-def _merge_run(app: Any, plan: Any, resolved: dict[str, Any]) -> Callable[[], None] | None:
-    """Do the merge. Returns its undo, or None when nothing was changed."""
+def _merge_run(
+    app: Any, plan: Any, resolved: dict[str, Any], stale: list[Any] | None = None
+) -> Callable[[], None] | None:
+    """Do the merge. Returns its undo, or None when nothing was changed. A
+    survivor changed on disk goes to `_reread`, or into `stale` as in `_write_field`."""
     data = merge.resolve(plan, resolved)
     rules = place.Rules.from_config(app.cfg)
     trash_dir = app.cfg.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
@@ -2493,10 +2512,12 @@ def _merge_run(app: Any, plan: Any, resolved: dict[str, Any]) -> Callable[[], No
         safewrite.edit(plan.survivor, lambda info: _put_all(info, data))
     except Exception as exc:
         files_back()  # file first, info.yaml second: a write that did not land takes the files back
-        if isinstance(exc, safewrite.StaleError):
+        if not isinstance(exc, safewrite.StaleError):
+            app.log_line(f"[red]merge failed:[/] {exc}")
+        elif stale is None:
             _reread(app, plan.survivor)
         else:
-            app.log_line(f"[red]merge failed:[/] {exc}")
+            stale.append(plan.survivor)
         return None
 
     # Moving the folder is not enough: papis keeps its own index, and a document

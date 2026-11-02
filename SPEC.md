@@ -283,7 +283,8 @@ genuinely disagree.
 - **A merge is one undo step.** `u` puts back the survivor's previous fields and
   `files`, brings the folded-in folders back from the trash (and into papis's
   index), and moves every file the merge moved back where it was; redo repeats
-  the same merge with the same answers. The folders go through the trash under
+  the same merge with the same answers; a survivor changed on disk takes the
+  files back and keeps the step for `ctrl+r`. The folders go through the trash under
   every strategy, git included, and `undo.strategy = "none"` records nothing,
   as for a delete.
 - Finding duplicates is a **separate job** from merging them; ptui merges what
@@ -505,7 +506,9 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
   keeps a file from moving back, its entry goes on naming where it is. A stale
   `info.yaml` leaves that document's files where its entries say they are,
   and the next `u` tries that document again.
-  Redo runs the same relocate again.
+  Redo runs the same relocate again. A stale `info.yaml` there keeps the step
+  for `ctrl+r`, which relocates only the documents it left, so no file moves
+  twice and one `u` puts back what both tries moved.
 - Reverting is `git revert`, never `reset --hard`: the work tree may hold edits
   ptui knows nothing about, and rewriting history under a user who also uses
   the repo by hand is not undo. The revert is itself a `ptui: ` commit.

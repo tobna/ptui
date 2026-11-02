@@ -209,7 +209,8 @@ fixes; the last three count only the documents they would change): the picker, w
 ponytail'd down to the count, which is the whole question for a field set. A
 write `safewrite` refuses (`StaleError`) goes to `actions._reread` at every
 call site but an undo or a redo: those write through `_rewrite` (the `c` verbs,
-the doctor) or `_write_field` with a `stale` list (`f r`), end in
+the doctor) or `_write_field` with a `stale` list (`f r`; a merge's redo hands
+`_merge_run` one), end in
 `_raise_stale`, and `undo.History` keeps a step that raises it. The edit form and `c u` `load()` the document before they start, so
 the form shows the file and a value the file gained is a clash for `c u`, not a
 gap. Both editor forms end in `#form-keys`, a legend written by hand like the
@@ -230,9 +231,11 @@ a plain folder, where `_delete_run` refuses before it trashes a single file.
 The delete dialog's "also in" check is `place.same_file` over papis's
 `get_all_documents`. `merge.py` decides and writes nothing; `actions._merge_apply`
 and `_merge_run` write, and their comments give the order of each step.
-`files.relocate` is the same shape: `_relocate_apply` pushes the undo
-`_relocate_run` returns for exactly its run; the add flow calls
-`_relocate_run` on the new document alone and records nothing. A doctor
+`files.relocate` is the same shape: `_relocate_run` adds what it changed to
+the step's `landed` list and `_relocate_back` undoes that list, so a redo
+retried after a stale file adds its second try to the same list; the add
+flow calls `_relocate_run` on the new document alone, with a list nobody
+keeps. A doctor
 run is one step through `actions._fix`. The
 trash index is `place.trashed_at`; `lib.empty_trash` and
 `actions.auto_empty_trash` share `_old_trash` and `_purge`.
