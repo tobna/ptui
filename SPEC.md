@@ -91,7 +91,9 @@ desync with an external script that appends to `files`.
 1. Record `st_mtime_ns` of `info.yaml` at read time.
 2. Before writing, re-stat. If changed → abort, re-read that one document
    from disk at once, without the library rescan `r` pays for, and tell the
-   user to do it again. Never merge silently.
+   user to do it again. Never merge silently. For an undo or a redo, "again"
+   is the same key: the step stays where it is in the history, and the log
+   says the undo did not happen and what to press.
 3. Write `info.yaml.ptui.tmp` in the same directory, `fsync`,
    `os.replace()` onto the target.
 4. If git is active, stage and commit (see Undo).
@@ -500,7 +502,8 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
   `files` as the run found it, then moves every file back where it was. A file
   that has taken a source's name since is never overwritten, and the placed
   file is never deleted for it: it stays put and the log says so. A stale
-  `info.yaml` leaves that document's files where its entries say they are.
+  `info.yaml` leaves that document's files where its entries say they are,
+  and the next `u` tries that document again.
   Redo runs the same relocate again.
 - Reverting is `git revert`, never `reset --hard`: the work tree may hold edits
   ptui knows nothing about, and rewriting history under a user who also uses

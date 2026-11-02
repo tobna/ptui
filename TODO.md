@@ -98,11 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-70. **An undo that finds `info.yaml` changed says "do it again".** When `u`
-    on a `c` verb, `f r` or a doctor fix meets a file changed outside ptui, the
-    message is `_reread`'s "reloaded from disk; do it again", which after an
-    undo reads as "run the verb again". Say that the undo did not happen and
-    that `u` will try it again. [145 a]
 71. **One batch confirm.** `f n` and `:lib.backfill_dates` still have their own
     copy of the confirm; use `actions._confirm_batch`. [145 b]
 72. **A failed move back during undo leaves `files` pointing at the wrong

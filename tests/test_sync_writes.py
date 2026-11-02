@@ -204,3 +204,56 @@ async def test_a_refused_write_rereads_the_file_so_doing_it_again_works(app, pap
         verb(app)
         assert done(papis_lib)
         assert _disk(papis_lib, "tags") == ["test", "from-script"]
+
+
+UNDONE = REFUSED[:4]  # c f, x, ! f, f r: the verbs with an undo step
+
+
+@pytest.mark.parametrize(("verb", "done"), UNDONE)
+async def test_an_undo_that_meets_a_changed_file_stays_for_u_to_try_again(app, papis_lib, monkeypatch, verb, done):
+    """It said `_reread`'s "do it again", which after `u` reads as running the
+    verb again, and the step had gone to the redo stack: `u` again undid the
+    step before it (TODO H.70)."""
+    from cover_helpers import logs
+
+    attach(papis_lib, "doc0", "a.pdf", "b.pdf")
+    path = info(papis_lib)
+    path.write_text(path.read_text().replace("ref: Vaswani2017", "ref: bad ref!"))  # for `! f`
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        actions.doc_tag(app, "earlier")  # the step a wrong `u` undoes
+        verb(app)
+        assert done(papis_lib)
+        logged = logs(app, monkeypatch)
+        _race(monkeypatch, papis_lib, "year: 2017", "year: 2018")
+        await press(pilot, "u")
+        assert done(papis_lib)  # not undone, files and entries alike
+        assert any("undo did not happen" in line and "press u to try again" in line for line in logged)
+        assert not any("do it again" in line for line in logged)
+
+        await press(pilot, "u")
+        assert not done(papis_lib)
+        assert "earlier" in _disk(papis_lib, "tags")
+        assert _disk(papis_lib, "year") == 2018  # the script's edit survives the undo
+
+
+@pytest.mark.parametrize(("verb", "done"), UNDONE[:3])  # f r's redo relocates afresh
+async def test_a_redo_that_meets_a_changed_file_stays_for_ctrl_r_to_try_again(app, papis_lib, monkeypatch, verb, done):
+    from cover_helpers import logs
+
+    attach(papis_lib, "doc0", "a.pdf", "b.pdf")
+    path = info(papis_lib)
+    path.write_text(path.read_text().replace("ref: Vaswani2017", "ref: bad ref!"))
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        verb(app)
+        await press(pilot, "u")
+        assert not done(papis_lib)
+        logged = logs(app, monkeypatch)
+        _race(monkeypatch, papis_lib, "year: 2017", "year: 2018")
+        await press(pilot, "ctrl+r")
+        assert not done(papis_lib)
+        assert any("redo did not happen" in line and "press ctrl+r to try again" in line for line in logged)
+
+        await press(pilot, "ctrl+r")
+        assert done(papis_lib)

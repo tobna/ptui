@@ -1173,19 +1173,41 @@ def _set_apply(app: Any, planned: list[tuple[Any, Any]], key: str) -> None:
     a script added, or the key's absence — and redo writes what the edit wrote.
     """
     landed = _write_field(app, planned, key)
-
-    def restore() -> None:
-        _write_field(app, [(doc, old) for doc, old, _ in landed], key)
-        _resort(app)
-
-    def again() -> None:
-        _write_field(app, [(doc, new) for doc, _, new in landed], key)
-        _resort(app)
-
+    pairs = [(doc, {key: (old, new)}) for doc, old, new in landed]
     if landed:
-        app.history.push(undo.Step(f"set {key} on {len(landed)} document(s)", restore, again))
+        label = f"set {key} on {len(landed)} document(s)"
+        app.history.push(undo.Step(label, lambda: _rewrite(app, pairs, 0), lambda: _rewrite(app, pairs, 1)))
     _resort(app)
     app.log_line(f"set {key} on {len(landed)}/{len(planned)} document(s)")
+
+
+def _rewrite(app: Any, fixed: list[tuple[Any, dict[str, tuple[Any, Any]]]], side: int) -> None:
+    """One side of each `(replaced, written)` pair back into its file: `0` to
+    undo a step, `1` to redo it. A file changed on disk is left as it is, the
+    others are written, and then `_raise_stale` names it."""
+    stale = []
+    for doc, changed in fixed:
+        values = {key: pair[side] for key, pair in changed.items()}
+        try:
+            safewrite.edit(doc, lambda data, values=values: _put_all(data, values))
+        except safewrite.StaleError:
+            stale.append(doc)
+        except Exception as exc:  # one document's failure must not stop the rest
+            app.log_line(f"[red]{', '.join(values)} on {doc.get('ref', '')} failed:[/] {exc}")
+    _resort(app)
+    _raise_stale(app, stale)
+
+
+def _raise_stale(app: Any, docs: list[Any]) -> None:
+    """End an undo or a redo that met these documents' `info.yaml` changed on
+    disk: reread them, and raise `StaleError` naming them. `undo.History` then
+    keeps the step where it was, and `app_undo` says the key that tries it again
+    — `_reread`'s "do it again" read as running the verb again."""
+    for doc in docs:
+        _resync(app, doc)
+    if docs:
+        refs = ", ".join(doc.get("ref") or "info.yaml" for doc in docs)
+        raise safewrite.StaleError(f"{refs} changed on disk; reloaded from disk")
 
 
 def tags_of(value: Any) -> list[str]:
@@ -1698,10 +1720,18 @@ def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) ->
         return None
 
     def back() -> None:
-        for doc, old, results in landed:
+        stale = []
+        for item in landed:
+            doc, old, results = item
             # `files` first, as a merge's undo does: a write refused as stale
             # leaves this document's files where its entries still say they are
-            if not _write_field(app, [(doc, old)], "files"):
+            try:
+                safewrite.edit(doc, lambda data, old=old: _put_all(data, {"files": old}))
+            except safewrite.StaleError:
+                stale.append(item)
+                continue
+            except Exception as exc:
+                app.log_line(f"[red]files on {doc.get('ref', '')} failed:[/] {exc}")
                 continue
             for result in results:
                 try:
@@ -1709,6 +1739,8 @@ def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) ->
                 except OSError as exc:
                     app.log_line(f"[red]{result.dest} not moved back to {result.src}:[/] {exc}")
         app.refresh_rows()
+        landed[:] = stale  # all a retry has left to undo: the files moved back once must not move again
+        _raise_stale(app, [doc for doc, _, _ in stale])
 
     return back
 
@@ -2643,19 +2675,6 @@ def _fix(app: Any, found: list[tuple[Any, doctor.Finding]]) -> int:
     return len(fixed)
 
 
-def _rewrite(app: Any, fixed: list[tuple[Any, dict[str, tuple[Any, Any]]]], side: int) -> None:
-    """One side of each fix's `(replaced, written)` pairs, back into its file."""
-    for doc, changed in fixed:
-        values = {key: pair[side] for key, pair in changed.items()}
-        try:
-            safewrite.edit(doc, lambda data, values=values: _put_all(data, values))
-        except safewrite.StaleError:
-            _reread(app, doc)
-        except Exception as exc:  # one document's failure must not stop the rest
-            app.log_line(f"[red]{', '.join(values)} on {doc.get('ref', '')} failed:[/] {exc}")
-    _resort(app)
-
-
 @command("doctor.fix", "fix doctor findings")
 def doctor_fix(app: Any, checks: str = "", current: bool = False) -> None:
     """Apply every fixable finding over the target set.
@@ -2972,9 +2991,19 @@ def _undo_trash(app: Any, moved: list[tuple[Path, Path]]) -> None:
     app.log_line(f"restored {len(restored)} path(s) from the trash")
 
 
+def _press(app: Any, cmd: str) -> str:
+    """How to run `cmd` from here: press its keys, or, with none bound, run it by name."""
+    keys = app.km.for_command(app.mode, cmd) or app.km.for_command("list", cmd)
+    return f"press {keys}" if keys else f"run {cmd}"
+
+
 @command("app.undo", "undo")
 def app_undo(app: Any) -> None:
-    step = app.history.undo()
+    try:
+        step = app.history.undo()
+    except safewrite.StaleError as exc:  # the step is still there (`undo.History`)
+        app.log_line(f"[yellow]undo did not happen: {exc}; {_press(app, 'app.undo')} to try again[/]")
+        return
     if step is None:
         app.log_line("[yellow]nothing to undo[/]")
         return
@@ -2984,7 +3013,11 @@ def app_undo(app: Any) -> None:
 
 @command("app.redo", "redo")
 def app_redo(app: Any) -> None:
-    step = app.history.redo()
+    try:
+        step = app.history.redo()
+    except safewrite.StaleError as exc:
+        app.log_line(f"[yellow]redo did not happen: {exc}; {_press(app, 'app.redo')} to try again[/]")
+        return
     if step is None:
         app.log_line("[yellow]nothing to redo[/]")
         return

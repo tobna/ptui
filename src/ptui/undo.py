@@ -26,6 +26,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ptui.safewrite import StaleError
+
 COMMIT_PREFIX = "ptui: "
 """What marks a commit as ours. `app.undo` reverts the last commit carrying it
 and refuses anything else — reverting a commit the user wrote by hand would be
@@ -43,7 +45,13 @@ class Step:
 
 @dataclass(slots=True)
 class History:
-    """Bounded undo/redo stacks. One operation, not one document, is a step."""
+    """Bounded undo/redo stacks. One operation, not one document, is a step.
+
+    A step whose undo or redo raises `StaleError` stays where it was: an
+    `info.yaml` changed on disk under it, and such a step leaves alone what it
+    could not write (`actions._raise_stale`), so the same key tries it again.
+    Moved on, the next `u` would undo the step before it while this one holds.
+    """
 
     size: int = 50
     done: list[Step] = field(default_factory=list)
@@ -64,7 +72,11 @@ class History:
         if not self.done:
             return None
         step = self.done.pop()
-        step.undo()
+        try:
+            step.undo()
+        except StaleError:
+            self.done.append(step)
+            raise
         self.undone.append(step)
         return step
 
@@ -72,7 +84,11 @@ class History:
         if not self.undone:
             return None
         step = self.undone.pop()
-        step.redo()
+        try:
+            step.redo()
+        except StaleError:
+            self.undone.append(step)
+            raise
         self.done.append(step)
         return step
 
