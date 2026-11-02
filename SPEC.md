@@ -230,7 +230,8 @@ Rules learned by measuring the papis API, all load-bearing:
   accepts no typed text at all, and its fetch keeps the first hit whatever it
   is. The `crossref` source calls `papis.crossref.get_data` and lists the hits
   (title; year, first author, venue; "none of these"), and the one picked
-  opens the form.
+  opens the form. A request that fails says Crossref could not be reached;
+  "found nothing" means Crossref answered with no hits.
 - Importers fetch **files** as well as metadata: `ctx.files` is a PDF papis has
   already downloaded. `place()` then files it by the normal rules.
 - A fetched record carries keys the form does not show (abstract, eprint, venue,

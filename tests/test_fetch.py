@@ -54,6 +54,21 @@ def test_fetch_reports_a_uri_the_importer_will_not_take():
         fetch.fetch("arxiv", "definitely not an arxiv id")
 
 
+def test_crossref_tells_a_failed_request_from_an_empty_answer(monkeypatch):
+    """papis returns [] for both and only logs the failure: offline, `c u` and
+    the `crossref` add source said the paper did not exist."""
+
+    def offline(**_):
+        raise OSError("Name or service not known")
+
+    monkeypatch.setattr("papis.crossref._get_crossref_works", offline)
+    with pytest.raises(ConnectionError, match="could not be reached"):
+        fetch.crossref("attention")
+    monkeypatch.setattr("papis.crossref._get_crossref_works", lambda **_: {"message": {"items": []}})
+    with pytest.raises(ValueError, match="found nothing"):
+        fetch.crossref("attention")
+
+
 def test_fetch_maps_files_to_paths(monkeypatch):
     class FakeCtx:
         def __init__(self):

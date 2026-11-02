@@ -21,6 +21,8 @@ Everything here except `available`, `downloaders`, `refetchers` and
 
 from __future__ import annotations
 
+import logging.handlers
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -131,11 +133,25 @@ CROSSREF_HITS = 10
 def crossref(query: str) -> list[dict[str, Any]]:
     """Every hit of a Crossref search, best first. papis's `crossref` importer
     keeps only the first ("Picking the first one!") and its `match()` accepts no
-    text at all, so neither `c u` nor the add flow could choose. Network."""
+    text at all, so neither `c u` nor the add flow could choose. Network.
+
+    A failed request also returns `[]`: papis catches it and logs an error, and
+    that record is the one thing telling it from an answer with no hits."""
     import papis.crossref
 
-    hits = papis.crossref.get_data(query=query.strip(), max_results=CROSSREF_HITS)
-    if not hits:  # papis logs a failed request itself and returns []
+    failed = logging.handlers.BufferingHandler(capacity=8)  # keeps what it hears in `.buffer`
+    failed.setLevel(logging.ERROR)
+    failed.addFilter(lambda record: record.thread == threading.get_ident())  # not another worker's request
+    papis.crossref.logger.addHandler(failed)
+    try:
+        hits = papis.crossref.get_data(query=query.strip(), max_results=CROSSREF_HITS)
+    finally:
+        papis.crossref.logger.removeHandler(failed)
+    if failed.buffer:
+        # ponytail: at `log.level = "critical"` papis drops the record before any
+        # handler sees it, so there a failure still reads as no hits
+        raise ConnectionError("Crossref could not be reached; see the papis log above")
+    if not hits:
         raise ValueError(f"Crossref found nothing for {query!r}")
     return [dict(hit) for hit in hits]
 

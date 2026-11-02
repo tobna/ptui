@@ -270,7 +270,9 @@ traps of matching are in SPEC § Adding and commented in `fetch.py`. `c u` is
 `_refresh_merge`: `merge.plan` with the fetched record as the other document,
 and `_ask_clashes`, the loop `doc.merge` uses, into `_fields_apply`. A test of
 ptui's own filtering stubs papis (`papis.importer.fetch_importers`,
-`papis.crossref.get_data`), not `fetch.refetch`, or the filtering never runs.
+`papis.crossref.get_data`), not `fetch.refetch`, or the filtering never runs;
+a test of a failed Crossref request stubs `papis.crossref._get_crossref_works`,
+so papis's own catch-and-log runs.
 Adding is `add_form(app, path, fetched)` (`path=None` for a metadata-only
 document) into `_add_document`, which asks about a duplicate first
 (`_duplicate`), stamps `time-added`, and turns papis's own duplicate check off

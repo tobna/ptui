@@ -98,12 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-63. **A Crossref request that fails reads as "found nothing".**
-    `papis.crossref.get_data` catches every error, logs "Error getting works
-    from Crossref." and returns `[]`; `fetch.crossref` turns `[]` into
-    "Crossref found nothing for …". Offline, `c u` and the `crossref` add
-    source say the paper does not exist. Tell a failed request from an empty
-    answer and say Crossref could not be reached. With a test. [129 a]
 64. **`safewrite.read` keeps a record of every file it parsed.** The shared
     ruamel `YAML` instance appends a `DocInfo` to `_yaml.doc_infos` on every
     load (measured: 2000 reads, 2003 entries, ~160 B each) and nothing clears
