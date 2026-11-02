@@ -16,6 +16,8 @@
 
 ---
 
+![`ptui` screenshot](img/screenshot.png)
+
 papis keeps your library as plain folders, one `info.yaml` per paper, and its
 command line is good for scripts. ptui is for working in that library by hand:
 find a paper in a few keystrokes, read the abstract, open the PDF, tag it, copy
