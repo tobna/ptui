@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from ptui import fetch
+from ptui import config, fetch
 
 BIB = (
     "@inproceedings{he2016deep, title={Deep Residual Learning}, "
@@ -15,14 +15,20 @@ BIB = (
 def test_sources_are_curated_and_available_is_a_subset(monkeypatch):
     """`fallback` and `get` must never appear: they exist for URL dispatch and
     would try to HTTP-GET whatever the user typed."""
-    assert "fallback" not in fetch.SOURCES
-    assert "get" not in fetch.SOURCES
-    assert set(fetch.available()) <= set(fetch.SOURCES)
-    assert "arxiv" in fetch.available()
-    assert "doi" in fetch.available()
+    shipped = config.load(config.DEFAULTS_DIR / "nonexistent.toml").get("add.sources")
+    assert "fallback" not in shipped
+    assert "get" not in shipped
+    # the rows and their order from before they moved into config.toml
+    assert list(shipped) == [
+        *("arxiv", "doi", "isbn", "pmid", "dblp", "zenodo", "crossref"),
+        *("bibtex", "yaml", "folder", "lib", "pdf2doi", "pdf2arxivid"),
+    ]
+    assert set(fetch.available(shipped)) <= set(shipped)
+    assert "arxiv" in fetch.available(shipped)
+    assert "doi" in fetch.available(shipped)
     # an importer papis drops is skipped, not crashed on
     monkeypatch.setattr("papis.importer.get_available_importers", lambda: ["arxiv"])
-    assert fetch.available() == ["arxiv"]
+    assert fetch.available(shipped) == ["arxiv"]
 
 
 def test_bib_entries_returns_every_entry(tmp_path):

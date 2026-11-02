@@ -29,14 +29,19 @@ def _merge(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+USER_TABLES = ("query.aliases", "query.saved", "files.kind_patterns", "add.sources")
+"""Tables whose keys the user names: a key the shipped table lacks is not unknown."""
+
+
 def _unknown(base: dict[str, Any], over: dict[str, Any], prefix: str = "") -> list[str]:
-    """Dotted keys present in `over` but not in `base`. Does not descend into lists."""
+    """Dotted keys present in `over` but not in `base`. Does not descend into
+    lists or `USER_TABLES`."""
     bad = []
     for key, value in over.items():
         dotted = f"{prefix}{key}"
         if key not in base:
             bad.append(dotted)
-        elif isinstance(value, dict) and isinstance(base[key], dict):
+        elif isinstance(value, dict) and isinstance(base[key], dict) and dotted not in USER_TABLES:
             bad += _unknown(base[key], value, f"{dotted}.")
     return bad
 
@@ -155,6 +160,20 @@ def repair(data: dict[str, Any]) -> list[str]:
         problems.append("list.columns is empty; using the shipped columns")
         columns = defaults["list"]["columns"]
     data["list"]["columns"] = columns
+
+    sources = data["add"]["sources"]
+    for name, source in list(sources.items()):
+        if isinstance(source, dict) and all(isinstance(source.get(field), str) for field in ("label", "example")):
+            continue
+        shipped = defaults["add"]["sources"].get(name)
+        problems.append(
+            f"add.sources.{name} = {source!r} needs a label and an example; "
+            + ("using the shipped one" if shipped else "left out")
+        )
+        if shipped:
+            sources[name] = shipped
+        else:
+            del sources[name]
     return problems
 
 

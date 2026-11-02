@@ -98,12 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-69. **Add sources for `a` in `config.toml`.** `fetch.SOURCES` is a fixed
-    table, so an importer plugin ptui does not list is never offered. Let
-    `config.toml` add a source with everything a row needs (the papis importer
-    name, the label in the picker, the example in its prompt). It shows, like
-    the shipped ones, when papis registers that importer. The shipped rows
-    keep working with no config. With tests. [137.2]
 70. **An undo that finds `info.yaml` changed says "do it again".** When `u`
     on a `c` verb, `f r` or a doctor fix meets a file changed outside ptui, the
     message is `_reread`'s "reloaded from disk; do it again", which after an

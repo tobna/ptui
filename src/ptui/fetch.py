@@ -26,38 +26,18 @@ import threading
 from pathlib import Path
 from typing import Any
 
-SOURCES: dict[str, tuple[str, str]] = {
-    # importer name: (what to call it, what to ask for)
-    "arxiv": ("an arXiv id or URL", "2509.26092, arXiv:2509.26092 or an abs/pdf URL"),
-    "doi": ("a DOI", "10.1109/CVPR52688.2022.01167"),
-    "isbn": ("an ISBN", "978-0262035613"),
-    "pmid": ("a PubMed id", "31452104"),
-    "dblp": ("a DBLP key or URL", "conf/cvpr/HeZRS16"),
-    "zenodo": ("a Zenodo id or URL", "record id or URL"),
-    "crossref": ("a Crossref search", "title, author, anything"),
-    "bibtex": ("a .bib file", "path to a .bib"),
-    "yaml": ("a papis .yaml file", "path to an info.yaml"),
-    "folder": ("an existing papis folder", "path to a document folder"),
-    "lib": ("another papis library", "a query in that library"),
-    "pdf2doi": ("a PDF, read its DOI", "path to a PDF"),
-    "pdf2arxivid": ("a PDF, read its arXiv id", "path to a PDF"),
-}
-"""Importers worth offering, in the order they should appear.
 
-Deliberately a curated table rather than the raw plugin list: `fallback` and
-`get` exist to serve URL dispatch and mean nothing as a menu entry, and an
-importer nobody can describe is not a source a user can choose. An importer papis
-does not have is skipped, so this degrades rather than breaking.
-"""
+def available(sources: dict[str, dict[str, str]]) -> list[str]:
+    """The `[add.sources]` papis actually registers, in their order.
 
-
-def available() -> list[str]:
-    """The `SOURCES` papis actually registers. A missing plugin is skipped; a new
-    one is not offered until it has a row in `SOURCES`."""
+    A curated table rather than the raw plugin list: an importer nobody has
+    described is not a source a user can choose. A missing plugin is skipped,
+    so this degrades rather than breaking; a new one is offered once the
+    config gives it a row."""
     import papis.importer
 
     known = set(papis.importer.get_available_importers())
-    return [name for name in SOURCES if name in known]
+    return [name for name in sources if name in known]
 
 
 def downloaders() -> list[str]:
@@ -77,7 +57,7 @@ def fetch(name: str, uri: str) -> tuple[dict[str, Any], list[Path]]:
 
     importer = papis.importer.get_importer_by_name(name).match(uri.strip())
     if importer is None:
-        raise ValueError(f"{SOURCES.get(name, (name,))[0]} does not match {uri!r}")
+        raise ValueError(f"{name} does not match {uri!r}")
     importer.fetch()
     data = dict(importer.ctx.data or {})
     if not data:

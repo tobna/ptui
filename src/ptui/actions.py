@@ -1273,21 +1273,22 @@ def doc_add(app: Any, source: str | None = None, uri: str | None = None) -> None
     """Pick where the document comes from, confirm the metadata, then add it.
 
     With no `source` this lists every source papis can serve — a file, the inbox,
-    a URL, and each registered importer — so a new papis plugin appears without a
-    change here. `source` names one directly, which is how `i` reaches the inbox,
-    and `uri` skips its prompt too: `:doc.add arxiv 2607.00687` is the
-    paste-a-number path.
+    a URL, and each registered importer with a row in `[add.sources]` — so a new
+    papis plugin needs a config row, not a change here. `source` names one
+    directly, which is how `i` reaches the inbox, and `uri` skips its prompt
+    too: `:doc.add arxiv 2607.00687` is the paste-a-number path.
     """
+    sources = app.cfg.get("add.sources")
     if source is None:
         _add_source_picker(app)
-    elif uri is not None and (source in ("url", "bib") or source in fetch.SOURCES):
+    elif uri is not None and (source in ("url", "bib") or source in sources):
         _import(app, source, uri)
     elif source == "url":
         app.open_prompt("import:url", "a publisher URL")
     elif source == "bib":
         app.open_prompt("import:bib", "path to a .bib")
-    elif source in fetch.SOURCES:
-        app.open_prompt(f"import:{source}", fetch.SOURCES[source][1])
+    elif source in sources:
+        app.open_prompt(f"import:{source}", sources[source]["example"])
     else:
         _add_from_file(app, source)
 
@@ -1300,9 +1301,10 @@ def _add_source_picker(app: Any) -> None:
         ui.Item(label="a URL from any publisher…", value="url", hint=f"{len(fetch.downloaders())} downloaders"),
         ui.Item(label="a .bib file…", value="bib", hint="choose an entry"),
     ]
+    sources = app.cfg.get("add.sources")
     items += [
-        ui.Item(label=f"{fetch.SOURCES[name][0]}…", value=name, hint=name)
-        for name in fetch.available()
+        ui.Item(label=f"{sources[name]['label']}…", value=name, hint=name)
+        for name in fetch.available(sources)
         if name != "bibtex"  # the .bib row above lists entries instead of taking the first
     ]
     ui.pick(app, items, title="Add from")(lambda source, _i: doc_add(app, source or "prompt"))

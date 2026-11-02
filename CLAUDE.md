@@ -126,7 +126,9 @@ The user's config is `config.config_dir()` (SPEC § Architecture decisions) and
 mirrors `src/ptui/defaults/`. `config.load` puts a value that cannot work back
 to the shipped default and records a sentence in `Config.invalid`, logged at
 startup and by `\ c`. A TOML syntax error, or a binding with no `cmd`, is the
-one thing it refuses: the command line prints the file and exits 1.
+one thing it refuses: the command line prints the file and exits 1. A table
+whose keys the user names (`[query.aliases]`, `[add.sources]`) belongs in
+`config.USER_TABLES`, or every key the user adds is reported as unknown.
 
 ## papis and Textual gotchas (learned the hard way)
 
@@ -276,9 +278,9 @@ the first `reload`, and `save_state`, from `PtuiApp.on_unmount`. Visual mode is
 `app.visual` (the anchor, the direction, the marks from before) and
 `actions._visual_extend`, which recomputes the marks on every move.
 
-**Fetching and adding.** `fetch.SOURCES` is what the `a` picker offers; the
-traps of matching are in SPEC § Adding and commented in `fetch.py`. `c u` is
-`fetch.refetchers` (no network), then `fetch.refetch` in a thread worker — or
+**Fetching and adding.** `[add.sources]` in the shipped `config.toml`, through
+`fetch.available`, is what the `a` picker offers; the traps of matching are in
+SPEC § Adding and commented in `fetch.py`. `c u` is `fetch.refetchers` (no network), then `fetch.refetch` in a thread worker — or
 `fetch.crossref` for a title — then `actions._refresh_found` and
 `_refresh_merge`: `merge.plan` with the fetched record as the other document,
 and `_ask_clashes`, the loop `doc.merge` uses, into `_fields_apply`. A test of

@@ -237,8 +237,35 @@ async def test_the_source_picker_offers_files_urls_bib_and_each_importer_once(ap
         assert values[:4] == ["", "inbox", "url", "bib"]
         assert "arxiv" in values and "doi" in values
         assert "bibtex" not in values  # the .bib row lists entries instead
+        assert app.screen.items[values.index("arxiv")].label == "an arXiv id or URL…"
         await press(pilot, "enter")  # "a file on disk…"
         assert app.prompt_kind == "add"
+
+
+async def test_a_configured_source_is_offered_when_papis_registers_its_importer(papis_lib, monkeypatch):
+    """`[add.sources]` offers an importer plugin ptui ships no row for, after
+    the shipped rows; one papis does not register is left out."""
+    import papis.importer
+    from textual.widgets import Input
+
+    registered = papis.importer.get_available_importers()
+    monkeypatch.setattr(papis.importer, "get_available_importers", lambda: [*registered, "myplug"])
+    app = build_app(
+        papis_lib,
+        '[add.sources]\nmyplug = { label = "my plugin", example = "a plugin id" }\n'
+        'ghost = { label = "not installed", example = "anything" }\n',
+    )
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "a")
+        items = {item.value: item for item in app.screen.items}
+        assert list(items)[-1] == "myplug"
+        assert items["myplug"].label == "my plugin…"
+        assert "ghost" not in items
+        await press(pilot, "escape")
+        actions.doc_add(app, "myplug")
+        assert app.prompt_kind == "import:myplug"
+        assert app.query_one(Input).placeholder == "a plugin id"
 
 
 @pytest.mark.parametrize(("source", "kind"), [("url", "import:url"), ("bib", "import:bib"), ("doi", "import:doi")])

@@ -210,11 +210,14 @@ the remembered one; the sort and cursor still come back.
 ## Adding — sources come from papis
 
 `doc.add` with no argument lists every source: a file, the inbox, a publisher
-URL, a `.bib`, and one row per **papis importer** that ptui has a label for
-(`fetch.SOURCES`) and papis registers (`get_available_importers()`). An
-importer papis lacks is left out; a new plugin is not offered until it has a
-label. The publisher-URL row hands the URL to whatever importers and
-downloaders papis matches, so a new downloader plugin needs no change here.
+URL, a `.bib`, and one row per **papis importer** that `[add.sources]` gives a
+label and an example and papis registers (`get_available_importers()`). An
+importer papis lacks is left out. The shipped rows are the defaults in that
+table, so a user adds a plugin with one row in `config.toml`, after the shipped
+ones; a row under a shipped name changes only the fields it sets, and a row
+missing a field is left out with a line in the log. The publisher-URL row
+hands the URL to whatever importers and downloaders papis matches, so a new
+downloader plugin needs no change here.
 
 Rules learned by measuring the papis API, all load-bearing:
 

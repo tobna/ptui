@@ -210,6 +210,26 @@ path_style = "keep"
 | --- | --- | --- |
 | `auto_doctor` | `true` | run papis doctor on the new document |
 
+## `[add.sources]`
+
+What `a` offers after a file, the inbox, a URL and a .bib: one row per papis importer, under the name papis registers it by, with the label the picker shows and the example its prompt shows. A row appears only when papis has that importer, in this order, and your own rows come after. Yours merge per key: a new name adds a source, and a shipped name changes that row, so `arxiv = { label = "arXiv" }` relabels it and keeps its example.
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `arxiv` | `{ label = "an arXiv id or URL", example = "2509.26092, arXiv:2509.26092 or an abs/pdf URL" }` |  |
+| `doi` | `{ label = "a DOI", example = "10.1109/CVPR52688.2022.01167" }` |  |
+| `isbn` | `{ label = "an ISBN", example = "978-0262035613" }` |  |
+| `pmid` | `{ label = "a PubMed id", example = "31452104" }` |  |
+| `dblp` | `{ label = "a DBLP key or URL", example = "conf/cvpr/HeZRS16" }` |  |
+| `zenodo` | `{ label = "a Zenodo id or URL", example = "record id or URL" }` |  |
+| `crossref` | `{ label = "a Crossref search", example = "title, author, anything" }` |  |
+| `bibtex` | `{ label = "a .bib file", example = "path to a .bib" }` | `:doc.add bibtex` only; the picker's .bib row lists every entry |
+| `yaml` | `{ label = "a papis .yaml file", example = "path to an info.yaml" }` |  |
+| `folder` | `{ label = "an existing papis folder", example = "path to a document folder" }` |  |
+| `lib` | `{ label = "another papis library", example = "a query in that library" }` |  |
+| `pdf2doi` | `{ label = "a PDF, read its DOI", example = "path to a PDF" }` |  |
+| `pdf2arxivid` | `{ label = "a PDF, read its arXiv id", example = "path to a PDF" }` |  |
+
 ## `[doctor]`
 
 papis doctor. ptui only ever *reports* unless you ask for a fix.

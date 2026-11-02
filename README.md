@@ -143,7 +143,8 @@ The sources are a file, your inbox (`~/Downloads` unless you set
 a DBLP key, a Zenodo record, a Crossref search, a PDF to read a DOI or arXiv id
 from, or an existing papis folder or library. `i` goes straight to the inbox,
 and `:doc.add arxiv 2607.00687` skips both questions. An arXiv import brings
-the PDF along.
+the PDF along. A papis importer plugin ptui does not list joins them with one
+line under `[add.sources]` in `config.toml` ([CONFIG.md](CONFIG.md)).
 
 ptui counts a paper as already there when the DOI, ISBN, arXiv id, URL or
 title matches, and asks whether to go to it, add it anyway or cancel.

@@ -88,6 +88,36 @@ def test_a_value_that_cannot_work_falls_back_to_the_default_and_says_so(tmp_path
     assert any("ui.layout = 'diagonal'" in problem for problem in cfg.invalid)
 
 
+def test_a_users_source_joins_the_shipped_ones_and_a_broken_one_is_left_out(tmp_path):
+    """`[add.sources]` merges per key: the shipped rows keep their order, a
+    shipped name changes only what it sets, and a row missing a field is
+    reported rather than crashing the `a` picker."""
+    (tmp_path / "config.toml").write_text(
+        "[add.sources]\n"
+        'arxiv = { label = "arXiv" }\n'
+        'mine = { label = "my plugin", example = "a plugin id" }\n'
+        'half = { label = "no example" }\n'
+        'flat = "just text"\n'
+        "doi = { label = 3 }\n"
+        '[query.aliases]\nzz = "tags:"\n'
+    )
+    cfg = config.load(tmp_path / "config.toml")
+    sources = cfg.get("add.sources")
+    assert list(sources)[:2] == ["arxiv", "doi"]
+    assert list(sources)[-1] == "mine"
+    assert sources["arxiv"]["label"] == "arXiv"
+    assert sources["arxiv"]["example"].startswith("2509.26092")
+    assert sources["mine"] == {"label": "my plugin", "example": "a plugin id"}
+    assert "half" not in sources and "flat" not in sources
+    assert sources["doi"]["label"] == "a DOI"  # a broken shipped row falls back to itself
+    assert sorted(problem.split(" = ")[0] for problem in cfg.invalid) == [
+        "add.sources.doi",
+        "add.sources.flat",
+        "add.sources.half",
+    ]
+    assert cfg.unknown == ()  # keys the user names are not typos
+
+
 def test_an_empty_column_list_gets_the_shipped_columns(tmp_path):
     (tmp_path / "config.toml").write_text("[list]\ncolumns = []\n")
     cfg = config.load(tmp_path / "config.toml")
@@ -120,7 +150,7 @@ def test_every_shipped_key_is_read_somewhere():
     def leaves(node, prefix=""):
         for key, value in node.items():
             # tables of user data, read whole
-            if isinstance(value, dict) and key not in ("aliases", "saved", "kind_patterns", "default"):
+            if isinstance(value, dict) and key not in ("aliases", "saved", "kind_patterns", "default", "sources"):
                 yield from leaves(value, f"{prefix}{key}.")
             else:
                 yield f"{prefix}{key}"
