@@ -50,7 +50,8 @@ does not have is skipped, so this degrades rather than breaking.
 
 
 def available() -> list[str]:
-    """The `SOURCES` papis actually registers, so a new plugin appears for free."""
+    """The `SOURCES` papis actually registers. A missing plugin is skipped; a new
+    one is not offered until it has a row in `SOURCES`."""
     import papis.importer
 
     known = set(papis.importer.get_available_importers())

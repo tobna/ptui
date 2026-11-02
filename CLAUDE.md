@@ -59,7 +59,7 @@ uv run python scripts/glyphs.py    # print ui.GLYPHS + icon candidates in your o
 
 # look at the UI without a terminal — writes a PNG you can open
 uv run python scripts/shot.py /tmp/shot.png --size 160x30 slash n a u e n
-uv run python scripts/shot.py --text --icons          # same, with nerd-font glyphs
+uv run python scripts/shot.py --text --icons          # print the screen as text instead, nerd-font glyphs on
 ```
 
 **Look at the screenshot before claiming a visual bug is fixed.** Pilot presses
@@ -184,7 +184,7 @@ per key.
 ## Status
 
 **v0 is feature-complete** against `SPEC.md` § "v0 scope", and `TODO.md` § A is
-empty. 212 tests, `uv run pytest`.
+empty.
 
 Built:
 
@@ -250,9 +250,9 @@ Built:
   then `_refresh_found` (a Crossref hit is picked first) and `_refresh_merge`:
   `merge.plan` with the fetched dict as the other record and
   `actions._ask_clashes` — the loop `doc.merge` uses too — into
-  `_fields_apply`. Tests stub `papis.importer.fetch_importers` or
-  `papis.crossref.get_data`, not `fetch.refetch`, so ptui's own filtering
-  still runs
+  `_fields_apply`. A test of ptui's own filtering stubs papis
+  (`papis.importer.fetch_importers`, `papis.crossref.get_data`), not
+  `fetch.refetch`, or the filtering never runs
 - **Crossref is `fetch.crossref`**, `papis.crossref.get_data(query=…,
   max_results=fetch.CROSSREF_HITS)`, for `c u` and the `crossref` add source
   alike: papis's `CrossrefImporter.match` returns `None` for any text and its
@@ -472,9 +472,11 @@ one `--basetemp` reproduce it.
 `$XDG_CONFIG_HOME/papis` as a deprecated location and *copies* it into a
 `PAPIS_CONFIG_DIR` that does not exist yet — the developer's real config.
 
-`fetch.py` fronts papis's importer plugins, listed by `fetch.available()` from
-`get_available_importers()` and `fetch.downloaders()`, so a new plugin shows up
-in the `a` picker for free. Three traps, all measured, all commented in
+`fetch.py` fronts papis's importer plugins. The `a` picker offers only the
+importers in the curated `fetch.SOURCES` that papis registers
+(`fetch.available()`), so a new importer plugin needs a row there; its URL entry
+hands an http(s) URL to whatever importers and downloaders papis matches, so a
+new downloader plugin is used with no change here. Three traps, all measured, all commented in
 the module: **matching hits the network** (the `doi` importer's `match()` GETs
 doi.org for any string that is not an existing path, so never call
 `get_matching_importers_by_uri` on arbitrary input — pick by name); the
@@ -605,7 +607,7 @@ own) is not Textual's `tokyo-night`, which is the night variant. The old
 hand-rolled a palette Textual already had, and half of it styled widgets that
 never existed (`#cmdline`, `ConfirmDialog`, `#help-overlay`).
 
-Three things about the chrome that cost time to find:
+Things about the chrome that cost time to find:
 
 - **`ui.literal`, never an escape helper, for a value inside Textual markup.**
   Textual *drops* `[Extended]` from a title, and neither `rich.markup.escape`
@@ -751,8 +753,8 @@ document before they start, so the form shows the file and a value the file
 gained is a clash for `c u` rather than a gap; a gap is still only filled if it
 is one when written. A write `safewrite` refuses (`StaleError`: the file
 changed between its read and its write) goes to `actions._reread` at every
-call site, which `load()`s that one document and says "reloaded from disk; do
-it again" — `r` only re-asks papis's cache, which never saw the change.
+call site, which `load()`s that one document at once, without the library
+rescan `r` pays for, and says "reloaded from disk; do it again".
 `author_list` is edited as papis's `author` string and written back as both;
 `actions._authors_from` keeps the whole entry of every author whose family and
 given name are unchanged, so an edited line does not strip ORCIDs.

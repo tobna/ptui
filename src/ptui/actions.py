@@ -916,9 +916,9 @@ def _resync(app: Any, doc: Any) -> None:
 
 
 def _reread(app: Any, doc: Any) -> None:
-    """A write `safewrite` refused because `info.yaml` changed under it. `r`
-    only re-asks papis's cache, which never saw that change, so this one
-    document is read from disk right here, and running the verb again works."""
+    """A write `safewrite` refused because `info.yaml` changed under it. This one
+    document is read from disk right here, at once and without the library rescan
+    `r` pays for, so running the verb again works."""
     _resync(app, doc)
     app.log_line(f"[yellow]{doc.get('ref') or 'info.yaml'} changed on disk; reloaded from disk; do it again[/]")
 

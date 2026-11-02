@@ -89,9 +89,9 @@ desync with an external script that appends to `files`.
 ### Safe write (required for every mutation)
 
 1. Record `st_mtime_ns` of `info.yaml` at read time.
-2. Before writing, re-stat. If changed → abort, re-read that document from
-   disk, and tell the user to do it again. Never merge silently. Not `r`:
-   that re-asks papis's cache, which never saw the outside change.
+2. Before writing, re-stat. If changed → abort, re-read that one document
+   from disk at once, without the library rescan `r` pays for, and tell the
+   user to do it again. Never merge silently.
 3. Write `info.yaml.ptui.tmp` in the same directory, `fsync`,
    `os.replace()` onto the target.
 4. If git is active, stage and commit (see Undo).
@@ -210,9 +210,11 @@ the remembered one; the sort and cursor still come back.
 ## Adding — sources come from papis
 
 `doc.add` with no argument lists every source: a file, the inbox, a publisher
-URL, a `.bib`, and one row per **papis importer** that ptui has a label for.
-The list is built from `papis.importer.get_available_importers()`, so a new papis
-plugin appears without a change here.
+URL, a `.bib`, and one row per **papis importer** that ptui has a label for
+(`fetch.SOURCES`) and papis registers (`get_available_importers()`). An
+importer papis lacks is left out; a new plugin is not offered until it has a
+label. The publisher-URL row hands the URL to whatever importers and
+downloaders papis matches, so a new downloader plugin needs no change here.
 
 Rules learned by measuring the papis API, all load-bearing:
 
@@ -820,9 +822,8 @@ Two panes; scope query + narrow filter; vim navigation; `doc.open`,
 add flow with destination preview; `files.relocate`; safe-write; log pane;
 `keymap.check`; which-key + hint bar.
 
-**Not in v0**: structured editor, undo, explore/import mode, picker entry
-point, saved searches, PDF preview. (Doctor integration, themes, reading
-status and ratings have since landed.)
+**Not in v0, and not built since**: explore/import mode, the `papis.picker`
+entry point, PDF preview.
 
 Ship it, use it daily for two weeks, then extend.
 
