@@ -125,7 +125,7 @@ def _refresh(app, monkeypatch):
 
     from ptui import fetch
 
-    monkeypatch.setattr(fetch, "refetch", lambda _importer: {})
+    monkeypatch.setattr(fetch, "refetch", lambda _importer: [{}])
     monkeypatch.setattr(actions, "_refresh_merge", _boom)
     actions._refresh_fetch(app, app.current, SimpleNamespace(name="doi"))
 
