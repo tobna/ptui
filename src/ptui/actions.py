@@ -678,7 +678,8 @@ def lib_backfill_dates(app: Any) -> None:
     documents stamped by it and hundreds without — and "recently added"
     sorts the whole silent majority into one undifferentiated tail. The mtime
     is approximate (a later edit moves it) but it is the only ordering on disk,
-    and it is monotone enough for a library nobody has bulk-rewritten.
+    and it is monotone enough for a library nobody has bulk-rewritten. More
+    than one document confirms first, as any batch does.
     """
     planned = [
         # a stamp the file gained while the question was open is kept
@@ -689,13 +690,7 @@ def lib_backfill_dates(app: Any) -> None:
     if not planned:
         app.log_line("every document in scope already has time-added")
         return
-    items = [
-        ui.Item(label=f"stamp {len(planned)} documents from their file dates", value=True),
-        ui.Item(label="cancel", value=False),
-    ]
-    ui.pick(app, items, title=f"backfill time-added — {len(planned)} documents?")(
-        lambda ok, _invert: _set_apply(app, planned, library.TIME_ADDED) if ok else None
-    )
+    _confirm_batch(app, len(planned), "backfill time-added", lambda: _set_apply(app, planned, library.TIME_ADDED))
 
 
 # ── marks ───────────────────────────────────────────────────────────────────
@@ -1921,7 +1916,8 @@ def files_normalize(app: Any) -> None:
     """Rewrite every `files` entry of the targets in the style its placement rule
     asks for — under `keep`, relative inside the document folder and absolute
     outside it — and drop entries that point at the same file twice. Explicit
-    only: nothing else in ptui changes a path's style. One undo step."""
+    only: nothing else in ptui changes a path's style. A batch confirms first,
+    counting the documents that change, and the run is one undo step."""
     rules = place.Rules.from_config(app.cfg)
 
     def normalized(doc: Any, entries: Any) -> list[str]:
@@ -1948,16 +1944,7 @@ def files_normalize(app: Any) -> None:
     if not planned:
         app.log_line("every path is already in its style")
         return
-    if len(planned) == 1:
-        _set_apply(app, planned, "files")
-        return
-    items = [
-        ui.Item(label=f"rewrite the files of {len(planned)} documents", value=True),
-        ui.Item(label="cancel", value=False),
-    ]
-    ui.pick(app, items, title=f"normalize paths — {len(planned)} documents?")(
-        lambda ok, _invert: _set_apply(app, planned, "files") if ok else None
-    )
+    _confirm_batch(app, len(planned), "normalize paths", lambda: _set_apply(app, planned, "files"))
 
 
 @command("files.attach", "attach file")

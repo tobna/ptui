@@ -93,9 +93,9 @@ press `v` or `escape` again, like vim's visual mode, and `V` unmarks the same
 way. `m a` marks the filtered list, `m q` marks by a query without changing
 the view, `m i` inverts, `m c` clears, and `g m` shows only the marked papers.
 
-Field edits, deletes, moves, `f r` and doctor fixes ask first when they would
-change more than one paper, and the count includes marked papers the filter
-hides.
+Field edits, deletes, moves, `f r`, `f n`, `:lib.backfill_dates` and doctor
+fixes ask first when they would change more than one paper, and the count
+includes marked papers the filter hides.
 
 </details>
 

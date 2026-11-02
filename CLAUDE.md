@@ -204,8 +204,8 @@ Both take a value as a function of what the file holds as it is rewritten, and
 both push one undo step under every strategy. The old value handed to that
 function is `safewrite.plain`, so `library.typed` tests the stored type with
 `isinstance`: ruamel reads a float as `ScalarFloat`. A batch confirms through
-`_confirm_batch` (shared with `f r` and the doctor's fixes, which count only the documents
-with something to fix): the picker, with the count alone — SPEC § Marks asks for a preview list,
+`_confirm_batch` (shared with `f r`, `f n`, `:lib.backfill_dates` and the doctor's
+fixes; the last three count only the documents they would change): the picker, with the count alone — SPEC § Marks asks for a preview list,
 ponytail'd down to the count, which is the whole question for a field set. A
 write `safewrite` refuses (`StaleError`) goes to `actions._reread` at every
 call site but an undo or a redo: those write through `_rewrite` (the `c` verbs,

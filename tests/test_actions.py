@@ -128,6 +128,34 @@ async def test_relocating_a_batch_asks_first_counting_the_marks_the_narrow_hides
         assert [info(papis_lib, folder).read_text() for folder in ("doc0", "doc1")] == before
 
 
+async def test_normalize_and_backfill_ask_first_on_a_batch_counting_what_the_narrow_hides(app, papis_lib):
+    """Both had their own copy of the batch confirm (TODO H.71)."""
+    from cover_helpers import info
+
+    from ptui import ui
+
+    for folder in ("doc0", "doc1"):
+        path = info(papis_lib, folder)
+        (path.parent / "a.djvu").write_bytes(b"x")  # not a PDF: the fixture's rules keep the style
+        lines = path.read_text().splitlines(True)
+        path.write_text("".join(line for line in lines if "time-added" not in line) + "files:\n- ./a.djvu\n")
+    before = [info(papis_lib, folder).read_text() for folder in ("doc0", "doc1")]
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        app.marks = {"id0", "id1"}
+        app.apply_narrow("attention")
+        await settle(pilot)
+        assert len(app.rows) == 1
+
+        for verb in (actions.files_normalize, actions.lib_backfill_dates):
+            verb(app)
+            assert isinstance(app.screen, ui.SelectList)
+            assert "2 documents" in app.screen.title_text
+            await press(pilot, "escape")  # cancelled: nothing written, nothing recorded
+        assert [info(papis_lib, folder).read_text() for folder in ("doc0", "doc1")] == before
+        assert not app.history.done
+
+
 async def test_citekey_yank_is_batch_aware(app, monkeypatch):
     yanked = []
     monkeypatch.setattr(clip, "copy", lambda app, text: yanked.append(text) or "test")
@@ -430,10 +458,8 @@ async def test_backfill_stamps_only_the_documents_that_lack_time_added(app, papi
 
         mtime = info.stat().st_mtime  # the write moves it, so read it first
         actions.lib_backfill_dates(app)
-        await pilot.pause()
-        assert isinstance(app.screen, ui.SelectList)  # it confirms
-        await press(pilot, "enter")
         await settle(pilot)
+        assert not isinstance(app.screen, ui.SelectList)  # one document: no question, as for any verb
 
         stamped = {d["ref"]: d[library.TIME_ADDED] for d in app.docs}
         assert stamped["Vaswani2017"] == library.stamp(mtime)

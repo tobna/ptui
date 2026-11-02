@@ -98,8 +98,6 @@ finishes it. The number in brackets is the review question it came from.
 11. **Open, needs a decision before building:** an option to write a
     `:config.set` change into `config.toml`. Keeping the user's comments needs
     `tomlkit`, a new dependency.
-71. **One batch confirm.** `f n` and `:lib.backfill_dates` still have their own
-    copy of the confirm; use `actions._confirm_batch`. [145 b]
 72. **A failed move back during undo leaves `files` pointing at the wrong
     path.** Undoing `f r` writes `files` back first and then moves each file
     back. If a move fails, the entry names the old path while the file is still
