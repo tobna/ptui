@@ -1121,10 +1121,14 @@ def _confirm_batch(app: Any, count: int, doing: str, then: Callable[[], None]) -
     ui.pick(app, items, title=f"{doing} — {count} documents?")(lambda ok, _invert: then() if ok else None)
 
 
-def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> list[tuple[Any, Any, Any]]:
+def _write_field(
+    app: Any, planned: list[tuple[Any, Any]], key: str, stale: list[Any] | None = None
+) -> list[tuple[Any, Any, Any]]:
     """Write one key across documents: each planned value, or what a planned
     function makes of the value in the file as it is read for the write.
     Returns `(doc, old, new)` for every write that landed, `old` as the file had it.
+    A document whose file changed on disk goes to `_reread` — or, inside an undo
+    or a redo, into `stale`, for it to end in `_raise_stale`.
     """
     landed = []
     for doc, new in planned:
@@ -1142,7 +1146,10 @@ def _write_field(app: Any, planned: list[tuple[Any, Any]], key: str) -> list[tup
         try:
             safewrite.edit(doc, write)
         except safewrite.StaleError:
-            _reread(app, doc)
+            if stale is None:
+                _reread(app, doc)
+            else:
+                stale.append(doc)
         except Exception as exc:
             app.log_line(f"[red]{key} on {doc.get('ref', '')} failed:[/] {exc}")
         else:
@@ -1678,7 +1685,7 @@ def _relocate_apply(app: Any, docs: list[Any], rules: place.Rules, force: bool) 
 def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) -> Callable[[], None] | None:
     """Do the relocate. Returns its undo, or None when no `files` entry changed."""
     tally: dict[str, int] = {}
-    landed: list[tuple[Any, Any, list[place.PlaceResult]]] = []
+    landed: list[tuple[Any, Any, list[tuple[str, place.PlaceResult]]]] = []
     for doc in docs:
         entries = place.entries(doc)
         results = []
@@ -1699,8 +1706,8 @@ def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) ->
             continue
         # `files` as the file holds it by now, so an entry a script added stays
         wrote = _write_field(app, [(doc, lambda old, moved=moved: [moved.get(e, e) for e in _entries(old)])], "files")
-        if wrote:
-            landed.append((doc, wrote[0][1], results))  # what the write replaced, for undo
+        if wrote:  # for undo: what the write replaced, and each moved file with the entry it had
+            landed.append((doc, wrote[0][1], [(e, r) for e, r in zip(entries, results, strict=True) if r.moved]))
         else:  # file first, info.yaml second: a write that did not land takes the files back
             for result in results:
                 place.rollback(result)
@@ -1715,27 +1722,26 @@ def _relocate_run(app: Any, docs: list[Any], rules: place.Rules, force: bool) ->
         return None
 
     def back() -> None:
-        stale = []
-        for item in landed:
-            doc, old, results = item
+        stale: list[Any] = []
+        for doc, old, placed in landed:
             # `files` first, as a merge's undo does: a write refused as stale
             # leaves this document's files where its entries still say they are
-            try:
-                safewrite.edit(doc, lambda data, old=old: _put_all(data, {"files": old}))
-            except safewrite.StaleError:
-                stale.append(item)
+            if not _write_field(app, [(doc, old)], "files", stale):
                 continue
-            except Exception as exc:
-                app.log_line(f"[red]files on {doc.get('ref', '')} failed:[/] {exc}")
-                continue
-            for result in results:
+            stuck = {}
+            for entry, result in placed:
                 try:
                     place.rollback(result)
                 except OSError as exc:
                     app.log_line(f"[red]{result.dest} not moved back to {result.src}:[/] {exc}")
+                    stuck[entry] = result.entry
+            if stuck:  # the entry names where the file still is, not the path it could not go back to
+                again = [(doc, lambda files, stuck=stuck: [stuck.get(e, e) for e in _entries(files)])]
+                _write_field(app, again, "files", stale)
         app.refresh_rows()
-        landed[:] = stale  # all a retry has left to undo: the files moved back once must not move again
-        _raise_stale(app, [doc for doc, _, _ in stale])
+        # all a retry has left to undo: a file moved back once must not move again
+        landed[:] = [item for item in landed if any(item[0] is doc for doc in stale)]
+        _raise_stale(app, stale)
 
     return back
 

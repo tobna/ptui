@@ -501,7 +501,8 @@ Strategies `trash | git | none`. **It is a hybrid, not a toggle**:
 - So does `files.relocate`, one step per run: `u` writes back each document's
   `files` as the run found it, then moves every file back where it was. A file
   that has taken a source's name since is never overwritten, and the placed
-  file is never deleted for it: it stays put and the log says so. A stale
+  file is never deleted for it: it stays put and the log says so. Whatever
+  keeps a file from moving back, its entry goes on naming where it is. A stale
   `info.yaml` leaves that document's files where its entries say they are,
   and the next `u` tries that document again.
   Redo runs the same relocate again.

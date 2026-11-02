@@ -209,8 +209,8 @@ fixes; the last three count only the documents they would change): the picker, w
 ponytail'd down to the count, which is the whole question for a field set. A
 write `safewrite` refuses (`StaleError`) goes to `actions._reread` at every
 call site but an undo or a redo: those write through `_rewrite` (the `c` verbs,
-the doctor) or `f r`'s own undo, which end in `_raise_stale`, and
-`undo.History` keeps a step that raises it. The edit form and `c u` `load()` the document before they start, so
+the doctor) or `_write_field` with a `stale` list (`f r`), end in
+`_raise_stale`, and `undo.History` keeps a step that raises it. The edit form and `c u` `load()` the document before they start, so
 the form shows the file and a value the file gained is a clash for `c u`, not a
 gap. Both editor forms end in `#form-keys`, a legend written by hand like the
 delete dialog's: the keys are Textual's and the form's own `on_key`, not

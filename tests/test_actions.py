@@ -95,6 +95,29 @@ async def test_undoing_a_relocate_puts_file_and_entry_back_and_redo_moves_them_a
         assert app.current["files"] == [str(dest)]
 
 
+async def test_a_file_that_cannot_move_back_on_undo_keeps_its_entry_where_it_is(app, papis_lib):
+    """Undoing `f r` wrote `files` back, then moved each file: one that could
+    not move stayed in the PDF root while its entry named the old path — here
+    another file, downloaded since under that name (TODO H.72)."""
+    import yaml
+    from cover_helpers import attach, info
+
+    attach(papis_lib, "doc0", "a.pdf", "b.pdf")
+    folder = papis_lib / "lib" / "doc0"
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        await press(pilot, "f", "r")
+        placed = Path(app.current["files"][0])
+        assert placed.parent == papis_lib / "pdfs"
+        (folder / "a.pdf").write_bytes(b"a new download under the old name")
+
+        await press(pilot, "u")
+        assert placed.read_bytes() == b"a.pdf"  # kept, and
+        assert yaml.safe_load(info(papis_lib).read_text())["files"] == [str(placed), "b.pdf"]  # named where it is
+        assert (folder / "a.pdf").read_bytes() == b"a new download under the old name"
+        assert (folder / "b.pdf").read_bytes() == b"b.pdf"  # the other one moved back
+
+
 async def test_relocating_a_batch_asks_first_counting_the_marks_the_narrow_hides(app, papis_lib):
     from cover_helpers import attach, info
 
