@@ -1,5 +1,8 @@
-"""Edges of command dispatch: the `:` line's argument parsing, and the guards
-that keep a failing command, prompt, picker or worker from ending the session."""
+"""Edges of command dispatch.
+
+The `:` line's argument parsing, and the guards that keep a failing command, prompt, picker or
+worker from ending the session.
+"""
 
 import pytest
 
@@ -20,6 +23,13 @@ from ptui import actions, commands
     ],
 )
 def test_parse_args(name, text, want):
+    """`commands.parse_args` handles quoting, coercion and negative numbers.
+
+    Args:
+        name: Parametrized dotted command name.
+        text: Parametrized argument line.
+        want: Parametrized expected table.
+    """
     assert commands.parse_args(name, text) == want
 
 
@@ -33,11 +43,19 @@ def test_parse_args(name, text, want):
     ],
 )
 def test_a_bad_line_raises_value_error(name, text, match):
+    """A bad line raises value error.
+
+    Args:
+        name: Parametrized, such as `'doc.tag'`.
+        text: Parametrized, such as `'ml cv'`.
+        match: Parametrized, such as `'at most 1'`.
+    """
     with pytest.raises(ValueError, match=match):
         commands.parse_args(name, text)
 
 
 def test_signature_shows_each_arguments_type_and_default():
+    """Signature shows each arguments type and default."""
     assert commands.signature("config.set") == "<key: str> <value: str>"
     assert commands.signature("files.reorder") == "[index: int] [to: int = 1]"
     assert commands.signature("mark.all_filtered") == "[unmark: bool = false]"
@@ -46,6 +64,12 @@ def test_signature_shows_each_arguments_type_and_default():
 
 
 def test_an_unregistered_command_still_logs_not_implemented(app, monkeypatch):
+    """An unregistered command still logs not implemented.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     logged = []
     monkeypatch.setattr(app, "log_line", logged.append)
     app.run_command("no.such")
@@ -53,10 +77,25 @@ def test_an_unregistered_command_still_logs_not_implemented(app, monkeypatch):
 
 
 async def test_a_command_that_fails_from_a_prompt_does_not_end_the_session(app, monkeypatch):
-    """Keys go through run_command, which guards; a submitted prompt did not."""
+    """Keys go through run_command, which guards; a submitted prompt did not.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from conftest import press, settle
 
     def broken(_app, kind, value):
+        """Fail, as a broken prompt handler would.
+
+        Args:
+            _app: The app; unused.
+            kind: The prompt's kind.
+            value: The text submitted.
+
+        Raises:
+            ValueError: Always.
+        """
         raise ValueError(f"{kind}: {value}")
 
     async with app.run_test() as pilot:
@@ -67,12 +106,25 @@ async def test_a_command_that_fails_from_a_prompt_does_not_end_the_session(app, 
 
 
 async def test_a_picker_answer_that_raises_does_not_end_the_session(app):
-    """What runs after `enter` in a picker is a screen callback, which no prompt guard covers."""
+    """What runs after `enter` in a picker is a screen callback, which no prompt guard covers.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from conftest import press, settle
 
     from ptui import ui
 
     def broken(value, _invert):
+        """Fail, as a broken picker answer would.
+
+        Args:
+            value: The picked value.
+            _invert: The `shift+enter` flag; unused.
+
+        Raises:
+            ValueError: Always.
+        """
         raise ValueError(value)
 
     async with app.run_test() as pilot:
@@ -85,8 +137,13 @@ async def test_a_picker_answer_that_raises_does_not_end_the_session(app):
 
 
 def _errors() -> list[str]:
-    """loguru's ERROR records from here on. Added after the app mounts: its
-    logging setup removes every sink there is."""
+    """Collect the ERROR records loguru gets from here on.
+
+    Added after the app mounts: its logging setup removes every sink there is.
+
+    Returns:
+        A list that fills up with each record's message.
+    """
     from loguru import logger
 
     lines: list[str] = []
@@ -95,10 +152,25 @@ def _errors() -> list[str]:
 
 
 def _boom(*_args, **_kwargs):
+    """Fail whatever it is called with.
+
+    Args:
+        *_args: Ignored.
+        **_kwargs: Ignored.
+
+    Raises:
+        ValueError: Always.
+    """
     raise ValueError("boom")
 
 
 def _doctor_scan(app, monkeypatch):
+    """Run a startup scan whose check raises.
+
+    Args:
+        app: The running `PtuiApp`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import doctor
 
     monkeypatch.setattr(doctor, "scan", _boom)
@@ -106,6 +178,12 @@ def _doctor_scan(app, monkeypatch):
 
 
 def _doctor_recheck(app, monkeypatch):
+    """Run a recheck that raises.
+
+    Args:
+        app: The running `PtuiApp`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import doctor
 
     monkeypatch.setattr(doctor, "recheck", _boom)
@@ -113,6 +191,12 @@ def _doctor_recheck(app, monkeypatch):
 
 
 def _fetch(app, monkeypatch):
+    """Run an import whose callback raises.
+
+    Args:
+        app: The running `PtuiApp`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import fetch
 
     monkeypatch.setattr(fetch, "fetch", lambda _source, _uri: ({}, []))
@@ -121,6 +205,12 @@ def _fetch(app, monkeypatch):
 
 
 def _refresh(app, monkeypatch):
+    """Run a refresh whose callback raises.
+
+    Args:
+        app: The running `PtuiApp`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from types import SimpleNamespace
 
     from ptui import fetch
@@ -131,6 +221,12 @@ def _refresh(app, monkeypatch):
 
 
 def _download(app, monkeypatch):
+    """Run a download whose callback raises.
+
+    Args:
+        app: The running `PtuiApp`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     import papis.paths
 
     monkeypatch.setattr(papis.paths, "download_remote_files", lambda urls: ["/nonexistent/paper.pdf"])
@@ -140,7 +236,13 @@ def _download(app, monkeypatch):
 
 @pytest.mark.parametrize("start", [_doctor_scan, _doctor_recheck, _fetch, _refresh, _download])
 async def test_a_worker_that_raises_is_logged_and_the_session_stays_up(app, monkeypatch, start):
-    """A Textual worker that raises ends the app unless told otherwise."""
+    """A Textual worker that raises ends the app unless told otherwise.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+        start: Parametrized, such as `_doctor_scan`.
+    """
     from contextlib import suppress
 
     from conftest import settle
@@ -158,7 +260,11 @@ async def test_a_worker_that_raises_is_logged_and_the_session_stays_up(app, monk
 
 
 async def test_a_picker_preview_that_raises_is_logged_and_the_session_stays_up(app):
-    """The preview runs on every highlight — the theme picker's live theme."""
+    """The preview runs on every highlight — the theme picker's live theme.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from conftest import press, settle
 
     from ptui import ui

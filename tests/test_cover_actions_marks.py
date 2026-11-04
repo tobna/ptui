@@ -1,5 +1,8 @@
-"""Marks: toggling at the edges, inverting and clearing around a narrow, the
-marked-only view, marks across a scope change, and visual mode feeding a verb."""
+"""Marks, at the edges and around a narrow.
+
+Toggling at the edges, inverting and clearing around a narrow, the marked-only view, marks across a
+scope change, and visual mode feeding a verb.
+"""
 
 import pytest
 from conftest import build_app, press, settle
@@ -9,10 +12,23 @@ from ptui import actions, library, ui
 
 
 def _row(app) -> str:
+    """Name the document under the cursor.
+
+    Args:
+        app: The running `PtuiApp`.
+
+    Returns:
+        Its `papis_id`.
+    """
     return library.doc_id(app.current)
 
 
 async def test_space_marks_and_moves_on_and_on_the_last_row_toggles_in_place(app):
+    """Space marks and moves on and on the last row toggles in place.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "space")
@@ -26,6 +42,11 @@ async def test_space_marks_and_moves_on_and_on_the_last_row_toggles_in_place(app
 
 
 async def test_without_advance_the_cursor_stays_on_the_marked_row(papis_lib):
+    """Without advance the cursor stays on the marked row.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = build_app(papis_lib, "[marks]\nadvance = false\n")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -34,6 +55,11 @@ async def test_without_advance_the_cursor_stays_on_the_marked_row(papis_lib):
 
 
 async def test_inverting_inside_a_narrow_leaves_the_hidden_marks_alone(app):
+    """Inverting inside a narrow leaves the hidden marks alone.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.marks = {"id0", "id2"}
@@ -46,6 +72,11 @@ async def test_inverting_inside_a_narrow_leaves_the_hidden_marks_alone(app):
 
 
 async def test_clearing_marks_clears_the_hidden_ones_too(app):
+    """Clearing marks clears the hidden ones too.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.marks = {"id0", "id2"}
@@ -56,6 +87,11 @@ async def test_clearing_marks_clears_the_hidden_ones_too(app):
 
 
 async def test_marked_only_shows_the_marks_and_toggles_back(app):
+    """Marked only shows the marks and toggles back.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "m", "o")
@@ -63,12 +99,17 @@ async def test_marked_only_shows_the_marks_and_toggles_back(app):
         await press(pilot, "m", "o")
         app.marks = {"id1"}
         await press(pilot, "m", "o")
-        assert [library.doc_id(d) for d in app.rows] == ["id1"]
+        assert [library.doc_id(doc) for doc in app.rows] == ["id1"]
         await press(pilot, "m", "o")
         assert len(app.rows) == 3
 
 
 async def test_marks_survive_a_scope_that_hides_them_and_come_back_with_it(app):
+    """Marks survive a scope that hides them and come back with it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "space")  # id0
@@ -82,6 +123,11 @@ async def test_marks_survive_a_scope_that_hides_them_and_come_back_with_it(app):
 
 
 async def test_a_batch_acts_on_every_mark_not_on_the_cursor(app):
+    """A batch acts on every mark not on the cursor.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.marks = {"id1", "id2"}
@@ -89,10 +135,16 @@ async def test_a_batch_acts_on_every_mark_not_on_the_cursor(app):
         actions.doc_tag(app, "batch")
         await press(pilot, "enter")
         assert "batch" not in doc(app, "id0")["tags"]
-        assert all("batch" in doc(app, i)["tags"] for i in ("id1", "id2"))
+        assert all("batch" in doc(app, papis_id)["tags"] for papis_id in ("id1", "id2"))
 
 
 async def test_mark_query_that_matches_nothing_marks_nothing_and_says_so(app, monkeypatch):
+    """Mark query that matches nothing marks nothing and says so.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -102,6 +154,11 @@ async def test_mark_query_that_matches_nothing_marks_nothing_and_says_so(app, mo
 
 
 async def test_an_empty_mark_prompt_marks_nothing(app):
+    """An empty mark prompt marks nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "m", "q", "enter")
@@ -110,6 +167,12 @@ async def test_an_empty_mark_prompt_marks_nothing(app):
 
 @pytest.mark.parametrize("keys", [("space",), ("m", "a"), ("m", "i"), ("m", "c"), ("m", "q", "x", "enter")])
 async def test_every_other_mark_command_ends_a_visual_range(app, keys):
+    """Every other mark command ends a visual range.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        keys: Parametrized, such as `('space',)`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "v")
@@ -119,7 +182,11 @@ async def test_every_other_mark_command_ends_a_visual_range(app, keys):
 
 
 async def test_a_verb_pressed_mid_range_acts_on_what_is_drawn(app):
-    """SPEC: visual marks live, so `c t` in the middle of a range tags it."""
+    """SPEC: visual marks live, so `c t` in the middle of a range tags it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "v", "j")
@@ -128,10 +195,15 @@ async def test_a_verb_pressed_mid_range_acts_on_what_is_drawn(app):
         assert isinstance(app.screen, ui.SelectList)  # two targets: a batch confirms
         await press(pilot, "enter")
         await settle(pilot)
-        assert [("range" in doc(app, i)["tags"]) for i in ("id0", "id1", "id2")] == [True, True, False]
+        assert [("range" in doc(app, papis_id)["tags"]) for papis_id in ("id0", "id1", "id2")] == [True, True, False]
 
 
 async def test_a_narrow_ends_the_range_and_keeps_what_it_marked(app):
+    """A narrow ends the range and keeps what it marked.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "v", "j")
@@ -144,6 +216,11 @@ async def test_a_narrow_ends_the_range_and_keeps_what_it_marked(app):
 
 
 async def test_a_visual_range_started_on_marks_keeps_them_when_it_shrinks(app):
+    """A visual range started on marks keeps them when it shrinks.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.marks = {"id2"}

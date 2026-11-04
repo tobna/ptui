@@ -174,7 +174,14 @@ ORDER = ["vaswani", "yamada", "devlin", "kaplan", "olshausen", "anon", "he", "lo
 
 
 def awkward_library(papis_lib: Path) -> Path:
-    """Replace the fixture's three documents with ours, add a second library."""
+    """Replace the fixture's three documents with ours, add a second library.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+
+    Returns:
+        The second library's folder.
+    """
     import papis.config
     import papis.database
 
@@ -203,46 +210,110 @@ def awkward_library(papis_lib: Path) -> Path:
 
 
 def awkward_app(papis_lib: Path, extra: str = ""):
-    """The real app over the awkward library. `persist_state` stays off, as
-    `build_app` writes it: two sessions in one test must not leak."""
+    """The real app over the awkward library.
+
+    `persist_state` stays off, as `build_app` writes it: two sessions in one test must not leak.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        extra: TOML appended to the config.
+
+    Returns:
+        An unstarted `PtuiApp`.
+    """
     awkward_library(papis_lib)
     return build_app(papis_lib, extra)
 
 
 def screen(app) -> str:
-    """The composited screen, as `scripts/shot.py --text` prints it — the truth
-    about what a person sees, where the SVG export lies about spacing."""
+    """The composited screen, as `scripts/shot.py --text` prints it.
+
+    The truth about what a person sees, where the SVG export lies about spacing.
+
+    Args:
+        app: The running `PtuiApp`.
+
+    Returns:
+        The screen, one line per row.
+    """
     return "\n".join(strip.text for strip in app.screen._compositor.render_strips())
 
 
 def lines(app) -> list[str]:
+    """Read the screen line by line.
+
+    Args:
+        app: The running `PtuiApp`.
+
+    Returns:
+        One string per row.
+    """
     return screen(app).splitlines()
 
 
 def info_text(app) -> str:
-    """The info pane's text, wrapped as drawn but without the borders around it."""
+    """The info pane's text, wrapped as drawn but without the borders around it.
+
+    Args:
+        app: The running `PtuiApp`.
+
+    Returns:
+        The pane's text.
+    """
     return str(app.query_one("#info").render())
 
 
 def status(app) -> str:
-    """The status bar: the bottom line, while no prompt is open below it."""
+    """The status bar: the bottom line, while no prompt is open below it.
+
+    Args:
+        app: The running `PtuiApp`.
+
+    Returns:
+        The bar's text.
+    """
     return lines(app)[-1]
 
 
 def hints(app) -> str:
+    """Read the hint bar: the line above the status bar.
+
+    Args:
+        app: The running `PtuiApp`.
+
+    Returns:
+        The bar's text.
+    """
     return lines(app)[-2]
 
 
 def list_lines(app) -> list[str]:
-    """The list pane alone, cropped by cells — a CJK title is two per character,
-    and side by side the info pane's lines share each screen line with a row."""
+    """The list pane alone, cropped by cells.
+
+    A CJK title is two per character, and side by side the info pane's lines share each screen line with
+    a row.
+
+    Args:
+        app: The running `PtuiApp`.
+
+    Returns:
+        One string per row of the pane.
+    """
     region = app.query_one("#list-pane").region
     strips = app.screen._compositor.render_strips()[region.y : region.bottom]
     return [strip.crop(region.x, region.right).text for strip in strips]
 
 
 def row_of(app, needle: str) -> str:
-    """The one row of the list pane holding `needle`."""
+    """The one row of the list pane holding `needle`.
+
+    Args:
+        app: The running `PtuiApp`.
+        needle: Text only that row holds.
+
+    Returns:
+        The row; the assertion fails unless exactly one row holds it.
+    """
     found = [line for line in list_lines(app) if needle in line]
     assert len(found) == 1, f"{needle!r} on {len(found)} rows:\n{screen(app)}"
     return found[0]

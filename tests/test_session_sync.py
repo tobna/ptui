@@ -1,5 +1,7 @@
-"""Sessions where the library changes on disk under a running ptui — a sync, a
-`git pull`, a script — and the person then goes on working in it."""
+"""Sessions where the library changes on disk under a running ptui.
+
+A sync, a `git pull`, a script, and the person then goes on working in it.
+"""
 
 import shutil
 
@@ -9,12 +11,24 @@ from session_lib import awkward_app, info_text, list_lines, status
 
 
 def edit_outside(papis_lib, name: str, old: str, new: str) -> None:
-    """What a script or a sync does: write `info.yaml` behind papis's back."""
+    """What a script or a sync does: write `info.yaml` behind papis's back.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        name: The document's folder name.
+        old: The text to replace.
+        new: Its replacement.
+    """
     info = papis_lib / "lib" / name / "info.yaml"
     info.write_text(info.read_text().replace(old, new))
 
 
 async def test_a_rescan_picks_up_documents_a_sync_added_and_removed(papis_lib):
+    """A rescan picks up documents a sync added and removed.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     lib = papis_lib / "lib"
     async with app.run_test(size=(120, 40)) as pilot:
@@ -36,7 +50,12 @@ async def test_a_rescan_picks_up_documents_a_sync_added_and_removed(papis_lib):
 
 async def test_a_tag_added_outside_survives_a_tag_added_inside(papis_lib):
     """A script tags the paper while ptui shows it; then the person tags it too.
-    The tags used to be worked out from the copy loaded at startup."""
+
+    The tags used to be worked out from the copy loaded at startup.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(120, 40)) as pilot:
         await settle(pilot)
@@ -48,6 +67,11 @@ async def test_a_tag_added_outside_survives_a_tag_added_inside(papis_lib):
 
 
 async def test_after_a_rescan_the_list_and_the_info_pane_agree_on_an_edited_title(papis_lib):
+    """After a rescan the list and the info pane agree on an edited title.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(120, 40)) as pilot:
         await settle(pilot)

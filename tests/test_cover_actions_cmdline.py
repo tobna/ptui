@@ -1,7 +1,9 @@
-"""The `:` line, help, prompt dispatch and the admin verbs: what the command line
-lists and runs, what a blank or unknown prompt does, the checks under `\\`,
-doctor runs that do not narrow, emptying the trash, and the add flow up to the
-form (no network: importers are stubbed)."""
+r"""The `:` line, help, prompt dispatch and the admin verbs.
+
+What the command line lists and runs, what a blank or unknown prompt does, the checks under `\`,
+doctor runs that do not narrow, emptying the trash, and the add flow up to the form (no network:
+importers are stubbed).
+"""
 
 import json
 
@@ -13,6 +15,11 @@ from ptui import actions, commands, fetch, place, ui
 
 
 async def test_the_command_line_lists_every_command_with_the_keys_of_this_pane_or_the_list(app):
+    """The command line lists every command with the keys of this pane or the list.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "3", ":")
@@ -24,6 +31,11 @@ async def test_the_command_line_lists_every_command_with_the_keys_of_this_pane_o
 
 
 async def test_the_command_line_can_keep_the_keys_to_itself(app):
+    """The command line can keep the keys to itself.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.keymap.options["show_keys_in_cmdline"] = False
@@ -32,6 +44,11 @@ async def test_the_command_line_can_keep_the_keys_to_itself(app):
 
 
 async def test_a_command_without_arguments_runs_as_soon_as_it_is_picked(app):
+    """A command without arguments runs as soon as it is picked.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.marks = {"id0", "id1"}
@@ -41,6 +58,11 @@ async def test_a_command_without_arguments_runs_as_soon_as_it_is_picked(app):
 
 
 async def test_an_empty_argument_line_keeps_every_default(app):
+    """An empty argument line keeps every default.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, ":", *"nav.down", "enter", "enter")
@@ -49,6 +71,14 @@ async def test_an_empty_argument_line_keeps_every_default(app):
 
 @pytest.mark.parametrize(("text", "says"), [("year true extra", "at most 2"), ('"year', "quotation")])
 async def test_a_bad_argument_line_is_reported_and_runs_nothing(app, monkeypatch, text, says):
+    """A bad argument line is reported and runs nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+        text: Parametrized, such as `'year true extra'`.
+        says: Parametrized, such as `'at most 2'`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -59,6 +89,13 @@ async def test_a_bad_argument_line_is_reported_and_runs_nothing(app, monkeypatch
 
 @pytest.mark.parametrize("kind", ["attach", "save", "repoint:0", "goto", "mark", "unmark"])
 async def test_a_blank_prompt_does_nothing(app, papis_lib, kind):
+    """A blank prompt does nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        kind: Parametrized, such as `'attach'`.
+    """
     before = (papis_lib / "lib" / "doc0" / "info.yaml").read_text()
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -69,6 +106,12 @@ async def test_a_blank_prompt_does_nothing(app, papis_lib, kind):
 
 
 async def test_an_unknown_prompt_kind_is_reported(app, monkeypatch):
+    """An unknown prompt kind is reported.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -77,19 +120,31 @@ async def test_an_unknown_prompt_kind_is_reported(app, monkeypatch):
 
 
 async def test_help_spells_arguments_as_keys_toml_does_and_flags_what_is_missing(app, monkeypatch):
+    """Help spells arguments as keys toml does and flags what is missing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     monkeypatch.delitem(commands.REGISTRY, "doc.browse")
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "?")
         items = app.screen.items
-        assert any(i.value == "visual.start" and i.label.endswith("— unmark=true") for i in items)  # V
-        assert next(i for i in items if i.value == "doc.browse").label.endswith("(not implemented)")
-        assert all(i.value for i in items)  # no escape row in the list: escape has its own meaning here
+        assert any(item.value == "visual.start" and item.label.endswith("— unmark=true") for item in items)  # V
+        assert next(item for item in items if item.value == "doc.browse").label.endswith("(not implemented)")
+        assert all(item.value for item in items)  # no escape row in the list: escape has its own meaning here
         await press(pilot, "enter")
         assert app.current["papis_id"] == "id0"  # browsing only: nothing ran
 
 
 async def test_the_keymap_check_reports_into_the_log_and_shows_it(app, monkeypatch):
+    """The keymap check reports into the log and shows it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -99,6 +154,12 @@ async def test_the_keymap_check_reports_into_the_log_and_shows_it(app, monkeypat
 
 
 async def test_the_config_check_names_an_unknown_key_and_shows_the_log(papis_lib, monkeypatch):
+    """The config check names an unknown key and shows the log.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     app = build_app(papis_lib, "[nonsense]\nkey = 1\n")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -109,6 +170,12 @@ async def test_the_config_check_names_an_unknown_key_and_shows_the_log(papis_lib
 
 
 async def test_the_config_check_knows_pdf_root(app, monkeypatch):
+    """The config check knows pdf root.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -118,6 +185,13 @@ async def test_the_config_check_knows_pdf_root(app, monkeypatch):
 
 @pytest.mark.parametrize("name", ["picker.confirm", "picker.cancel"])
 async def test_the_picker_commands_outside_a_picker_only_explain(app, monkeypatch, name):
+    """The picker commands outside a picker only explain.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+        name: Parametrized, such as `'picker.confirm'`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -129,6 +203,12 @@ async def test_the_picker_commands_outside_a_picker_only_explain(app, monkeypatc
 
 
 async def test_rechecking_this_document_does_not_narrow_the_list(app, monkeypatch):
+    """Rechecking this document does not narrow the list.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -139,6 +219,12 @@ async def test_rechecking_this_document_does_not_narrow_the_list(app, monkeypatc
 
 
 async def test_doctor_over_marks_scans_only_the_marks(app, monkeypatch):
+    """Doctor over marks scans only the marks.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -149,6 +235,12 @@ async def test_doctor_over_marks_scans_only_the_marks(app, monkeypatch):
 
 
 async def test_an_unknown_check_name_is_reported(app, monkeypatch):
+    """An unknown check name is reported.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -157,6 +249,12 @@ async def test_an_unknown_check_name_is_reported(app, monkeypatch):
 
 
 async def test_fix_one_with_nothing_found_opens_no_picker(app, monkeypatch):
+    """Fix one with nothing found opens no picker.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import doctor
 
     monkeypatch.setattr(doctor, "scan", lambda doc, names: [])
@@ -172,7 +270,13 @@ async def test_fix_one_with_nothing_found_opens_no_picker(app, monkeypatch):
 
 
 def _trash(papis_lib, *names: str, days_ago: float = 40) -> None:
-    """Put a folder and a lone file in the trash, `days_ago`."""
+    """Put a folder and a lone file in the trash, `days_ago`.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        days_ago: How old the trash index says they are.
+        *names: A name ending in `.pdf` becomes a file, any other a folder.
+    """
     trash = papis_lib / "trash"
     for name in names:
         source = papis_lib / name
@@ -183,10 +287,16 @@ def _trash(papis_lib, *names: str, days_ago: float = 40) -> None:
             (source / "info.yaml").write_text("title: x\n")
         place.trash(source, trash)
     index = json.loads((trash / place.TRASH_INDEX).read_text())
-    (trash / place.TRASH_INDEX).write_text(json.dumps({k: v - days_ago * 86400 for k, v in index.items()}))
+    (trash / place.TRASH_INDEX).write_text(json.dumps({key: value - days_ago * 86400 for key, value in index.items()}))
 
 
 async def test_emptying_a_trash_that_does_not_exist_says_so(app, monkeypatch):
+    """Emptying a trash that does not exist says so.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -195,6 +305,13 @@ async def test_emptying_a_trash_that_does_not_exist_says_so(app, monkeypatch):
 
 
 async def test_nothing_old_enough_asks_nothing(app, papis_lib, monkeypatch):
+    """Nothing old enough asks nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     _trash(papis_lib, "fresh", days_ago=1)
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -206,6 +323,12 @@ async def test_nothing_old_enough_asks_nothing(app, papis_lib, monkeypatch):
 
 
 async def test_cancelling_the_purge_keeps_everything(app, papis_lib):
+    """Cancelling the purge keeps everything.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     _trash(papis_lib, "old")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -215,6 +338,12 @@ async def test_cancelling_the_purge_keeps_everything(app, papis_lib):
 
 
 async def test_purging_takes_folders_and_lone_files_and_a_day_count_overrides(app, papis_lib):
+    """Purging takes folders and lone files and a day count overrides.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     _trash(papis_lib, "old", "paper.pdf", days_ago=5)
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -222,7 +351,7 @@ async def test_purging_takes_folders_and_lone_files_and_a_day_count_overrides(ap
         assert "0.0 MB" in app.screen.items[0].label  # 1 kB of pdf plus a tiny info.yaml
         await press(pilot, "enter")
     trash = papis_lib / "trash"
-    assert sorted(p.name for p in trash.iterdir()) == [place.TRASH_INDEX]
+    assert sorted(path.name for path in trash.iterdir()) == [place.TRASH_INDEX]
     assert json.loads((trash / place.TRASH_INDEX).read_text()) == {}
 
 
@@ -230,6 +359,11 @@ async def test_purging_takes_folders_and_lone_files_and_a_day_count_overrides(ap
 
 
 async def test_the_source_picker_offers_files_urls_bib_and_each_importer_once(app):
+    """The source picker offers files urls bib and each importer once.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "a")
@@ -243,8 +377,15 @@ async def test_the_source_picker_offers_files_urls_bib_and_each_importer_once(ap
 
 
 async def test_a_configured_source_is_offered_when_papis_registers_its_importer(papis_lib, monkeypatch):
-    """`[add.sources]` offers an importer plugin ptui ships no row for, after
-    the shipped rows; one papis does not register is left out."""
+    """A configured source is offered when papis registers its importer.
+
+    `[add.sources]` offers an importer plugin ptui ships no row for, after
+    the shipped rows; one papis does not register is left out.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     import papis.importer
     from textual.widgets import Input
 
@@ -270,6 +411,13 @@ async def test_a_configured_source_is_offered_when_papis_registers_its_importer(
 
 @pytest.mark.parametrize(("source", "kind"), [("url", "import:url"), ("bib", "import:bib"), ("doi", "import:doi")])
 async def test_each_source_asks_for_what_it_needs(app, source, kind):
+    """Each source asks for what it needs.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        source: Parametrized, such as `'url'`.
+        kind: Parametrized, such as `'import:url'`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.doc_add(app, source)
@@ -277,6 +425,13 @@ async def test_each_source_asks_for_what_it_needs(app, source, kind):
 
 
 async def test_the_inbox_when_there_is_none_says_where_it_looked(app, papis_lib, monkeypatch):
+    """The inbox when there is none says where it looked.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     app.config.data["files"]["inbox"] = str(papis_lib / "no-inbox")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -287,7 +442,13 @@ async def test_the_inbox_when_there_is_none_says_where_it_looked(app, papis_lib,
 
 
 async def test_a_blank_import_fetches_nothing(app, monkeypatch):
-    monkeypatch.setattr(fetch, "fetch", lambda *a: pytest.fail("fetched"))
+    """A blank import fetches nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
+    monkeypatch.setattr(fetch, "fetch", lambda *args: pytest.fail("fetched"))
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.prompt_result(app, "import:doi", "  ")
@@ -295,7 +456,23 @@ async def test_a_blank_import_fetches_nothing(app, monkeypatch):
 
 
 async def test_a_failed_import_says_why_and_opens_no_form(app, monkeypatch):
+    """A failed import says why and opens no form.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
+
     def offline(name, uri):
+        """Fail as an importer does with no network.
+
+        Args:
+            name: The importer's name.
+            uri: What to import.
+
+        Raises:
+            ConnectionError: Always.
+        """
         raise ConnectionError("no route to host")
 
     monkeypatch.setattr(fetch, "fetch", offline)
@@ -310,6 +487,12 @@ async def test_a_failed_import_says_why_and_opens_no_form(app, monkeypatch):
 
 
 async def test_a_url_goes_to_papiss_downloaders(app, monkeypatch):
+    """A url goes to papiss downloaders.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     asked = []
     monkeypatch.setattr(fetch, "from_url", lambda url: asked.append(url) or ({"title": "From URL"}, []))
     async with app.run_test() as pilot:
@@ -322,6 +505,13 @@ async def test_a_url_goes_to_papiss_downloaders(app, monkeypatch):
 
 
 async def test_an_unreadable_bib_is_reported(app, papis_lib, monkeypatch):
+    """An unreadable bib is reported.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)

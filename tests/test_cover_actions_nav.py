@@ -1,5 +1,8 @@
-"""Moving around: the list cursor and its bounds, the files pane's own cursor,
-an empty scope, the pane commands, and the escape chain."""
+"""Moving around.
+
+The list cursor and its bounds, the files pane's own cursor, an empty scope, the pane commands, and
+the escape chain.
+"""
 
 import pytest
 from conftest import press, settle
@@ -9,6 +12,14 @@ from ptui import actions, commands, library
 
 
 def _row(app) -> str | None:
+    """Name the document under the cursor.
+
+    Args:
+        app: The running `PtuiApp`.
+
+    Returns:
+        Its `papis_id`, or `None` on an empty list.
+    """
     return library.doc_id(app.current) if app.current else None
 
 
@@ -25,6 +36,13 @@ def _row(app) -> str | None:
     ],
 )
 async def test_the_cursor_moves_and_stops_at_either_end(app, keys, at):
+    """The cursor moves and stops at either end.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        keys: Parametrized, such as `('j',)`.
+        at: Parametrized, such as `'id1'`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, *keys)
@@ -32,6 +50,11 @@ async def test_the_cursor_moves_and_stops_at_either_end(app, keys, at):
 
 
 async def test_a_count_from_the_command_line_moves_that_many_rows(app):
+    """A count from the command line moves that many rows.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.nav_down(app, 2)
@@ -41,6 +64,11 @@ async def test_a_count_from_the_command_line_moves_that_many_rows(app):
 
 
 async def test_moving_shows_the_new_document_in_the_info_pane(app):
+    """Moving shows the new document in the info pane.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "j")
@@ -87,9 +115,18 @@ async def test_moving_shows_the_new_document_in_the_info_pane(app):
     ],
 )
 async def test_every_verb_on_an_empty_scope_does_nothing_and_does_not_crash(app, papis_lib, name, args):
-    """A scope that matches nothing leaves no current document and no targets:
-    every verb must find that out before it touches anything."""
-    before = {p: p.read_text() for p in (papis_lib / "lib").rglob("info.yaml")}
+    """Every verb on an empty scope does nothing and does not crash.
+
+    A scope that matches nothing leaves no current document and no targets:
+    every verb must find that out before it touches anything.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        name: Parametrized, such as `'nav.down'`.
+        args: Parametrized, such as `{}`.
+    """
+    before = {path: path.read_text() for path in (papis_lib / "lib").rglob("info.yaml")}
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.scope(app, "title:nothing-has-this-title")
@@ -98,10 +135,15 @@ async def test_every_verb_on_an_empty_scope_does_nothing_and_does_not_crash(app,
         await settle(pilot)
         assert app.marks == set()
         assert not app.history.done
-    assert {p: p.read_text() for p in (papis_lib / "lib").rglob("info.yaml")} == before
+    assert {path: path.read_text() for path in (papis_lib / "lib").rglob("info.yaml")} == before
 
 
 async def test_an_empty_scope_says_no_document_in_the_info_pane(app):
+    """An empty scope says no document in the info pane.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import Static
 
     async with app.run_test() as pilot:
@@ -111,6 +153,12 @@ async def test_an_empty_scope_says_no_document_in_the_info_pane(app):
 
 
 async def test_in_the_files_pane_j_and_k_move_the_file_cursor_not_the_list(app, papis_lib):
+    """In the files pane j and k move the file cursor not the list.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -124,6 +172,12 @@ async def test_in_the_files_pane_j_and_k_move_the_file_cursor_not_the_list(app, 
 
 
 async def test_the_list_pane_cannot_be_hidden(app, monkeypatch):
+    """The list pane cannot be hidden.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -133,6 +187,11 @@ async def test_the_list_pane_cannot_be_hidden(app, monkeypatch):
 
 
 async def test_hiding_the_focused_info_pane_hands_the_keyboard_back_to_the_list(app):
+    """Hiding the focused info pane hands the keyboard back to the list.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         info = app.query_one("#info-pane")
@@ -147,6 +206,11 @@ async def test_hiding_the_focused_info_pane_hands_the_keyboard_back_to_the_list(
 
 
 async def test_toggling_the_files_pane_focuses_it_and_toggling_again_leaves(app):
+    """Toggling the files pane focuses it and toggling again leaves.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "z", "f")
@@ -159,6 +223,13 @@ async def test_toggling_the_files_pane_focuses_it_and_toggling_again_leaves(app)
 
 @pytest.mark.parametrize("command", [actions.pane_toggle, actions.pane_focus])
 async def test_an_unknown_pane_is_reported_and_changes_nothing(app, monkeypatch, command):
+    """An unknown pane is reported and changes nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+        command: Parametrized, such as `actions.pane_toggle`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -168,6 +239,11 @@ async def test_an_unknown_pane_is_reported_and_changes_nothing(app, monkeypatch,
 
 
 async def test_the_split_stays_on_screen_however_far_it_is_pushed(app):
+    """The split stays on screen however far it is pushed.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         for _ in range(20):
@@ -179,6 +255,11 @@ async def test_the_split_stays_on_screen_however_far_it_is_pushed(app):
 
 
 async def test_an_explicit_layout_survives_a_resize(app):
+    """An explicit layout survives a resize.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test(size=(200, 30)) as pilot:
         await settle(pilot)
         assert app.side_by_side  # wide: auto puts them side by side
@@ -192,6 +273,13 @@ async def test_an_explicit_layout_survives_a_resize(app):
 
 @pytest.mark.parametrize(("back", "order"), [(False, ["info", "files", "log", "list"]), (True, ["log", "files"])])
 async def test_cycling_walks_the_panes_and_wraps(app, back, order):
+    """Cycling walks the panes and wraps.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        back: Parametrized, such as `False`.
+        order: Parametrized, such as `['info', 'files', 'log', 'list']`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         seen = []
@@ -202,6 +290,11 @@ async def test_cycling_walks_the_panes_and_wraps(app, back, order):
 
 
 async def test_escape_ends_a_range_first_then_drops_the_narrow_and_never_the_marks(app):
+    """Escape ends a range first then drops the narrow and never the marks.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "/", *"e", "enter")  # every title has an e
@@ -222,6 +315,11 @@ async def test_escape_ends_a_range_first_then_drops_the_narrow_and_never_the_mar
 
 
 async def test_escape_drops_the_doctor_view_like_a_narrow(app):
+    """Escape drops the doctor view like a narrow.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.doctor_only = True
@@ -232,6 +330,11 @@ async def test_escape_drops_the_doctor_view_like_a_narrow(app):
 
 
 async def test_escape_with_a_prompt_open_closes_the_prompt_and_keeps_the_narrow(app):
+    """Escape with a prompt open closes the prompt and keeps the narrow.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.query_narrow(app, "neural")
@@ -243,6 +346,11 @@ async def test_escape_with_a_prompt_open_closes_the_prompt_and_keeps_the_narrow(
 
 
 async def test_escape_with_nothing_to_drop_clears_a_pending_chord(app):
+    """Escape with nothing to drop clears a pending chord.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.pending = ("g",)
@@ -271,7 +379,14 @@ async def test_escape_with_nothing_to_drop_clears_a_pending_chord(app):
     ],
 )
 async def test_escaping_out_of_any_picker_or_prompt_changes_nothing(app, papis_lib, keys):
-    before = {p: p.read_text() for p in (papis_lib / "lib").rglob("info.yaml")}
+    """Escaping out of any picker or prompt changes nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        keys: Parametrized, such as `('c', 'f')`.
+    """
+    before = {path: path.read_text() for path in (papis_lib / "lib").rglob("info.yaml")}
     async with app.run_test() as pilot:
         await settle(pilot)
         state = (app.scope_query, app.sort_key, app.sort_reverse, set(app.marks))
@@ -282,5 +397,5 @@ async def test_escaping_out_of_any_picker_or_prompt_changes_nothing(app, papis_l
         assert app.prompt_kind == ""
         assert (app.scope_query, app.sort_key, app.sort_reverse, set(app.marks)) == state
         assert not app.history.done
-    assert {p: p.read_text() for p in (papis_lib / "lib").rglob("info.yaml")} == before
+    assert {path: path.read_text() for path in (papis_lib / "lib").rglob("info.yaml")} == before
     assert not (papis_lib / "saved.json").exists()

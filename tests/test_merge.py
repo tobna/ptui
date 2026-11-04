@@ -1,10 +1,20 @@
+"""Merging: what is a gap, what is a clash, and what lands on disk."""
+
 import papis.document
 
 from ptui import merge
 
 
 def docs(*data):
-    return [papis.document.from_data(d) for d in data]
+    """Build documents in memory.
+
+    Args:
+        *data: One dict of keys per document.
+
+    Returns:
+        The documents, in order.
+    """
+    return [papis.document.from_data(record) for record in data]
 
 
 PUBLISHED = {
@@ -32,6 +42,7 @@ PREPRINT = {
 
 
 def test_survivor_choices_are_the_distinct_refs():
+    """Survivor choices are the distinct refs."""
     published, preprint = docs(PUBLISHED, PREPRINT)
     choices = merge.survivor_choices([published, preprint])
     assert [ref for ref, _ in choices] == ["he2016deep", "he2015arxiv"]
@@ -44,6 +55,7 @@ def test_survivor_choices_are_the_distinct_refs():
 
 
 def test_plan_separates_gaps_from_real_clashes():
+    """Plan separates gaps from real clashes."""
     published, preprint = docs(PUBLISHED, PREPRINT)
     plan = merge.plan(published, [preprint])
 
@@ -61,6 +73,7 @@ def test_plan_separates_gaps_from_real_clashes():
 
 
 def test_resolve_keeps_the_survivor_where_nothing_was_answered():
+    """Resolve keeps the survivor where nothing was answered."""
     published, preprint = docs(PUBLISHED, PREPRINT)
     plan = merge.plan(published, [preprint])
 
@@ -75,32 +88,42 @@ def test_resolve_keeps_the_survivor_where_nothing_was_answered():
 
 
 def test_files_are_never_a_clash_and_carry_their_document():
-    a, b = docs({**PUBLISHED, "files": ["paper.pdf"]}, {**PREPRINT, "files": ["arxiv.pdf"]})
-    plan = merge.plan(a, [b])
+    """Files are never a clash and carry their document."""
+    first, second = docs({**PUBLISHED, "files": ["paper.pdf"]}, {**PREPRINT, "files": ["arxiv.pdf"]})
+    plan = merge.plan(first, [second])
     assert "files" not in plan.clashes and "files" not in plan.gaps
     # the document comes along because the entry may be relative to its own folder
-    assert merge.file_entries([a, b]) == [(a, "paper.pdf"), (b, "arxiv.pdf")]
+    assert merge.file_entries([first, second]) == [(first, "paper.pdf"), (second, "arxiv.pdf")]
 
 
 def test_a_blank_value_is_not_a_clash():
-    a, b = docs({"ref": "a", "title": "T", "doi": "10.1/x"}, {"ref": "b", "title": "T", "doi": ""})
-    plan = merge.plan(a, [b])
+    """A blank value is not a clash."""
+    first, second = docs({"ref": "a", "title": "T", "doi": "10.1/x"}, {"ref": "b", "title": "T", "doi": ""})
+    plan = merge.plan(first, [second])
     assert plan.clashes == {}
     assert plan.gaps == {}
 
 
 def test_three_documents_offer_every_distinct_value():
-    a, b, c = docs(
+    """Three documents offer every distinct value."""
+    first, second, third = docs(
         {"ref": "a", "title": "T", "year": 2016},
         {"ref": "b", "title": "T", "year": 2015},
         {"ref": "c", "title": "T", "year": 2014},
     )
-    plan = merge.plan(a, [b, c])
+    plan = merge.plan(first, [second, third])
     assert plan.clashes["year"] == [2016, 2015, 2014]
 
 
 def two_copies(tmp_path):
-    """A published record and its arXiv preprint, both inside the fixture library."""
+    """A published record and its arXiv preprint, both inside the fixture library.
+
+    Args:
+        tmp_path: pytest's per-test temporary folder.
+
+    Returns:
+        The published and the preprint record, as documents loaded from disk.
+    """
     lib = tmp_path / "lib"
     for name, data, pdf in (
         ("published", PUBLISHED, "paper.pdf"),
@@ -109,7 +132,11 @@ def two_copies(tmp_path):
         folder = lib / name
         folder.mkdir()
         (folder / pdf).write_bytes(b"%PDF-1.7\n" + name.encode())
-        lines = [f"{k}: {v!r}" if isinstance(v, str) else f"{k}: {v}" for k, v in data.items() if k != "author_list"]
+        lines = [
+            f"{key}: {value!r}" if isinstance(value, str) else f"{key}: {value}"
+            for key, value in data.items()
+            if key != "author_list"
+        ]
         lines.append("author_list:\n- family: He\n  given: Kaiming")
         (folder / "info.yaml").write_text("# keep me\n" + "\n".join(lines) + f"\nfiles:\n- {pdf}\n")
     import papis.database
@@ -119,6 +146,12 @@ def two_copies(tmp_path):
 
 
 async def test_merge_folds_marks_into_the_chosen_ref(app, tmp_path):
+    """Merge folds marks into the chosen ref.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        tmp_path: pytest's per-test temporary folder.
+    """
     from conftest import press, settle
 
     from ptui import actions, library, ui
@@ -129,14 +162,14 @@ async def test_merge_folds_marks_into_the_chosen_ref(app, tmp_path):
         await settle(pilot)
         # by ref: the fixture library already ships a "Deep Residual Learning"
         ours = {"he2016deep", "he2015arxiv"}
-        copies = [d for d in app.docs if d.get("ref") in ours]
+        copies = [doc for doc in app.docs if doc.get("ref") in ours]
         assert len(copies) == 2
-        app.marks = {library.doc_id(d) for d in copies}
+        app.marks = {library.doc_id(doc) for doc in copies}
 
         await press(pilot, "m", "m")
         assert isinstance(app.screen, ui.SelectList)
         # keep the published one: its ref decides who survives
-        index = next(i for i, it in enumerate(app.screen.items) if it.label == "he2016deep")
+        index = next(position for position, it in enumerate(app.screen.items) if it.label == "he2016deep")
         app.screen.query_one("OptionList").highlighted = index
         await press(pilot, "enter")
 
@@ -146,7 +179,7 @@ async def test_merge_folds_marks_into_the_chosen_ref(app, tmp_path):
             await press(pilot, "enter")
         await settle(pilot)
 
-        survivors = [d for d in app.docs if d.get("ref") in ours]
+        survivors = [doc for doc in app.docs if doc.get("ref") in ours]
         assert len(survivors) == 1
         kept = survivors[0]
         assert kept["ref"] == "he2016deep"
@@ -178,6 +211,11 @@ async def test_merge_folds_marks_into_the_chosen_ref(app, tmp_path):
 
 
 async def test_merge_needs_two_marks(app):
+    """Merge needs two marks.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from conftest import press, settle
 
     async with app.run_test() as pilot:
@@ -190,23 +228,32 @@ async def test_merge_needs_two_marks(app):
 
 
 def test_author_follows_author_list_and_a_year_as_text_is_no_question():
-    """A refetch stores `author` *and* `author_list`: asking both is one question
-    twice. A YAML `'2016'` against a fetched `2016` is not a disagreement."""
+    """A refetch stores `author` *and* `author_list`: asking both is one question twice.
+
+    A YAML `'2016'` against a fetched `2016` is not a disagreement.
+    """
     stored = dict(PUBLISHED, author="He, K.", year="2016")
     fetched = {
         "author_list": [{"family": "He", "given": "Kaiming"}, {"family": "Zhang", "given": "X."}],
         "author": "He, Kaiming and Zhang, X.",
         "year": 2016,
     }
-    p = merge.plan(*docs(stored), [fetched])
-    assert set(p.clashes) == {"author_list"}
-    data = merge.resolve(p, {"author_list": fetched["author_list"]})
+    plan = merge.plan(*docs(stored), [fetched])
+    assert set(plan.clashes) == {"author_list"}
+    data = merge.resolve(plan, {"author_list": fetched["author_list"]})
     assert data["author"] == "He, Kaiming and Zhang, X."
 
 
 async def test_a_losers_file_outside_its_folder_stays_put_and_stays_attached(app, papis_lib):
-    """An in-place rule leaves a file where it is: one in the loser's folder moves
-    with the survivor (test_edge_merge), one elsewhere is only referenced."""
+    """A losers file outside its folder stays put and stays attached.
+
+    An in-place rule leaves a file where it is: one in the loser's folder moves
+    with the survivor (test_edge_merge), one elsewhere is only referenced.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from conftest import settle
 
     from ptui import actions, place
@@ -219,17 +266,20 @@ async def test_a_losers_file_outside_its_folder_stays_put_and_stays_attached(app
     async with app.run_test() as pilot:
         actions.reload(app, rescan=True)
         await settle(pilot)
-        survivor, loser = (next(d for d in app.docs if d["papis_id"] == i) for i in ("id0", "id1"))
+        survivor, loser = (next(doc for doc in app.docs if doc["papis_id"] == papis_id) for papis_id in ("id0", "id1"))
         actions._merge_apply(app, merge.plan(survivor, [loser]), {})
         await settle(pilot)
-        kept = next(d for d in app.docs if d["papis_id"] == "id0")
+        kept = next(doc for doc in app.docs if doc["papis_id"] == "id0")
         assert [place.resolve(kept, entry) for entry in kept["files"]] == [elsewhere]
         assert elsewhere.read_bytes() == b"djvu"
 
 
 def test_a_bare_author_string_is_a_side_when_the_lists_disagree_and_agrees_otherwise():
-    """A survivor holding only `author` used to take the other record's
-    `author_list` as a silent gap, and `resolve` rewrote its `author` from it."""
+    """A bare author string is a side when the lists disagree and agrees otherwise.
+
+    A survivor holding only `author` used to take the other record's
+    `author_list` as a silent gap, and `resolve` rewrote its `author` from it.
+    """
     smith = papis.document.from_data({"author": "Smith, J."})
     jones = papis.document.from_data({"author_list": [{"family": "Jones", "given": "X"}], "author": "Jones, X"})
     plan = merge.plan(smith, [jones])

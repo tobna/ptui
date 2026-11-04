@@ -1,6 +1,7 @@
-"""Verbs run after `info.yaml` changed on disk since ptui loaded the document — a
-script, a sync, `papis` on the command line. Each must build what it writes from
-the file, not from the copy in memory, and undo must put back what the file held.
+"""Verbs run after `info.yaml` changed on disk since ptui loaded the document.
+
+A script, a sync, `papis` on the command line. Each must build what it writes from the file, not
+from the copy in memory, and undo must put back what the file held.
 
 The outside edit lands right before the verb, with no redraw in between: a
 redraw re-reads a document it finds stale, which would hide the bug.
@@ -20,7 +21,14 @@ SCHEME = "{doc[year]}-{doc[author_list][0][family]}"
 
 
 def _outside(papis_lib, old: str, new: str, folder: str = "doc0") -> None:
-    """What a script does: rewrite the file behind ptui's back, with a distinct mtime."""
+    """What a script does: rewrite the file behind ptui's back, with a distinct mtime.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        old: The text to replace; it has to be there.
+        new: Its replacement.
+        folder: The document's folder name.
+    """
     path = info(papis_lib, folder)
     text = path.read_text()
     assert old in text
@@ -30,15 +38,38 @@ def _outside(papis_lib, old: str, new: str, folder: str = "doc0") -> None:
 
 
 def _disk(papis_lib, key: str, folder: str = "doc0"):
+    """Read one key of a document's file, past papis and ptui.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        key: The key.
+        folder: The document's folder name.
+
+    Returns:
+        The value, or `None` without the key.
+    """
     return yaml.safe_load(info(papis_lib, folder).read_text()).get(key)
 
 
 def _script_attaches(papis_lib, after: str, name: str = "c.pdf") -> None:
+    """Add a file the way a script would: on disk, behind ptui's back.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        after: The entry the new one follows.
+        name: The new file's name.
+    """
     (papis_lib / "lib" / "doc0" / name).write_bytes(name.encode())
     _outside(papis_lib, f"- {after}\n", f"- {after}\n- {name}\n")
 
 
 async def test_detach_keeps_a_file_a_script_attached(app, papis_lib):
+    """Detach keeps a file a script attached.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -50,6 +81,12 @@ async def test_detach_keeps_a_file_a_script_attached(app, papis_lib):
 
 
 async def test_reorder_keeps_a_file_a_script_attached(app, papis_lib):
+    """Reorder keeps a file a script attached.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -61,6 +98,12 @@ async def test_reorder_keeps_a_file_a_script_attached(app, papis_lib):
 
 
 async def test_repoint_keeps_a_file_a_script_attached(app, papis_lib):
+    """Repoint keeps a file a script attached.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     other = papis_lib / "lib" / "doc0" / "other.pdf"
     other.write_bytes(b"other")
@@ -74,6 +117,12 @@ async def test_repoint_keeps_a_file_a_script_attached(app, papis_lib):
 
 
 async def test_rename_keeps_a_file_a_script_attached(app, papis_lib):
+    """Rename keeps a file a script attached.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "paper.pdf", "b.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -86,6 +135,12 @@ async def test_rename_keeps_a_file_a_script_attached(app, papis_lib):
 
 
 async def test_normalize_keeps_a_file_a_script_attached(app, papis_lib):
+    """Normalize keeps a file a script attached.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "a.txt")  # not a PDF: the fixture's catch-all rule keeps the style
     absolute = str(papis_lib / "lib" / "doc0" / "a.txt")
     path = info(papis_lib)
@@ -100,6 +155,12 @@ async def test_normalize_keeps_a_file_a_script_attached(app, papis_lib):
 
 
 async def test_the_edit_form_starts_from_the_file_and_undo_puts_the_file_back(app, papis_lib):
+    """The edit form starts from the file and undo puts the file back.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     async with app.run_test(size=(100, 40)) as pilot:
         await settle(pilot)
         _outside(papis_lib, "tags: [test]", "tags: [test, from-script]")
@@ -119,8 +180,15 @@ async def test_the_edit_form_starts_from_the_file_and_undo_puts_the_file_back(ap
 
 
 async def test_refresh_asks_before_replacing_a_value_a_script_wrote(app, papis_lib):
-    """The fetched DOI fills a gap only while there is one: a DOI the file gained
-    since loading is a disagreement, and a disagreement is a question."""
+    """Refresh asks before replacing a value a script wrote.
+
+    The fetched DOI fills a gap only while there is one: a DOI the file gained
+    since loading is a disagreement, and a disagreement is a question.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     fetched = {"title": "Attention Is All You Need", "year": 2017, "doi": "10.1/fetched"}
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -132,6 +200,12 @@ async def test_refresh_asks_before_replacing_a_value_a_script_wrote(app, papis_l
 
 
 async def test_backfill_keeps_a_date_a_script_wrote_while_it_asked(app, papis_lib):
+    """Backfill keeps a date a script wrote while it asked.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     for folder in ("doc0", "doc1"):
         path = info(papis_lib, folder)
         path.write_text("".join(line for line in path.read_text().splitlines(True) if "time-added" not in line))
@@ -145,10 +219,22 @@ async def test_backfill_keeps_a_date_a_script_wrote_while_it_asked(app, papis_li
 
 
 def _race(monkeypatch, papis_lib, old: str, new: str) -> None:
-    """A script writes between safewrite's read and its write — once."""
+    """A script writes between safewrite's read and its write — once.
+
+    Args:
+        monkeypatch: pytest's monkeypatch fixture.
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        old: The text the script replaces.
+        new: Its replacement.
+    """
     real = safewrite.write
 
     def write(info_file) -> None:
+        """Run the script's edit once, then the real write.
+
+        Args:
+            info_file: The `InfoFile` being written.
+        """
         monkeypatch.setattr(safewrite, "write", real)
         _outside(papis_lib, old, new)
         real(info_file)
@@ -157,7 +243,16 @@ def _race(monkeypatch, papis_lib, old: str, new: str) -> None:
 
 
 def _doc(app, papis_id: str):
-    return next(d for d in app.docs if library.doc_id(d) == papis_id)
+    """Find a document of the scoped set.
+
+    Args:
+        app: The running `PtuiApp`.
+        papis_id: The document's id.
+
+    Returns:
+        The document.
+    """
+    return next(doc for doc in app.docs if library.doc_id(doc) == papis_id)
 
 
 REFUSED = [
@@ -186,8 +281,18 @@ REFUSED = [
 
 @pytest.mark.parametrize(("verb", "done"), REFUSED)
 async def test_a_refused_write_rereads_the_file_so_doing_it_again_works(app, papis_lib, monkeypatch, verb, done):
-    """A refused write used to send you to `r`, which only re-asked papis's
-    cache and so never saw the outside edit."""
+    """A refused write rereads the file so doing it again works.
+
+    A refused write used to send you to `r`, which only re-asked papis's
+    cache and so never saw the outside edit.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+        verb: Parametrized case.
+        done: Parametrized case.
+    """
     from cover_helpers import logs
 
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
@@ -212,9 +317,19 @@ UNDONE = REFUSED[:4]  # c f, x, ! f, f r: the verbs with an undo step
 
 @pytest.mark.parametrize(("verb", "done"), UNDONE)
 async def test_an_undo_that_meets_a_changed_file_stays_for_u_to_try_again(app, papis_lib, monkeypatch, verb, done):
-    """It said `_reread`'s "do it again", which after `u` reads as running the
+    """An undo that meets a changed file stays for u to try again.
+
+    It said `_reread`'s "do it again", which after `u` reads as running the
     verb again, and the step had gone to the redo stack: `u` again undid the
-    step before it."""
+    step before it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+        verb: Parametrized case.
+        done: Parametrized case.
+    """
     from cover_helpers import logs
 
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
@@ -240,8 +355,18 @@ async def test_an_undo_that_meets_a_changed_file_stays_for_u_to_try_again(app, p
 
 @pytest.mark.parametrize(("verb", "done"), [*UNDONE, REFUSED[5]])  # and m m
 async def test_a_redo_that_meets_a_changed_file_stays_for_ctrl_r_to_try_again(app, papis_lib, monkeypatch, verb, done):
-    """`f r` and `m m` rerun on redo, and a refused write ended the rerun in a
-    RuntimeError: the step was dropped, so `ctrl+r` could not try again."""
+    """A redo that meets a changed file stays for ctrl r to try again.
+
+    `f r` and `m m` rerun on redo, and a refused write ended the rerun in a
+    RuntimeError: the step was dropped, so `ctrl+r` could not try again.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+        verb: Parametrized case.
+        done: Parametrized case.
+    """
     from cover_helpers import logs
 
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
@@ -263,14 +388,29 @@ async def test_a_redo_that_meets_a_changed_file_stays_for_ctrl_r_to_try_again(ap
 
 
 def _pdfs(papis_lib) -> dict[str, bytes]:
-    """The PDF root as it is on disk: each file's name and bytes."""
+    """The PDF root as it is on disk: each file's name and bytes.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+
+    Returns:
+        File name to its bytes; empty without the folder.
+    """
     root = papis_lib / "pdfs"
     return {path.name: path.read_bytes() for path in root.iterdir()} if root.exists() else {}
 
 
 async def test_a_relocate_redo_retried_moves_only_what_the_refused_try_left(app, papis_lib, monkeypatch):
-    """The retry relocates the document that was refused, and leaves alone the
-    one the first try relocated; one `u` then puts both back."""
+    """A relocate redo retried moves only what the refused try left.
+
+    The retry relocates the document that was refused, and leaves alone the
+    one the first try relocated; one `u` then puts both back.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     attach(papis_lib, "doc0", "a.pdf")
     attach(papis_lib, "doc1", "b.pdf")
     async with app.run_test() as pilot:
@@ -308,8 +448,16 @@ async def test_a_relocate_redo_retried_moves_only_what_the_refused_try_left(app,
 
 
 async def test_a_merge_redo_retried_moves_each_file_once(app, papis_lib, monkeypatch):
-    """A refused survivor write takes the files back, so the retry starts from
-    where the undo left things and places each of them once."""
+    """A merge redo retried moves each file once.
+
+    A refused survivor write takes the files back, so the retry starts from
+    where the undo left things and places each of them once.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     attach(papis_lib, "doc1", "b.pdf")
     loser_file = papis_lib / "lib" / "doc1" / "b.pdf"
     async with app.run_test() as pilot:
@@ -347,8 +495,18 @@ BATCH = [
 
 @pytest.mark.parametrize(("verb", "done"), BATCH)
 async def test_a_batch_undo_or_redo_partly_done_says_how_much_and_what_is_left(app, papis_lib, monkeypatch, verb, done):
-    """With one document of a batch changed on disk, the others were undone,
-    but the log said "undo did not happen"."""
+    """A batch undo or redo partly done says how much and what is left.
+
+    With one document of a batch changed on disk, the others were undone,
+    but the log said "undo did not happen".
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+        verb: Parametrized case.
+        done: Parametrized case.
+    """
     from cover_helpers import logs
 
     for folder in ("doc0", "doc1"):

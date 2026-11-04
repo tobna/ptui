@@ -31,6 +31,14 @@ de-braced per `list.strip_latex`), everything else verbatim."""
 async def test_every_awkward_title_is_on_screen_whole_or_cut_with_an_ellipsis(
     papis_lib, size, side_by_side, tags_column
 ):
+    """Every awkward title is on screen whole or cut with an ellipsis.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        size: Parametrized, such as `(80, 24)`.
+        side_by_side: Parametrized, such as `False`.
+        tags_column: Parametrized, such as `False`.
+    """
     from ptui import ui
 
     app = awkward_app(papis_lib)
@@ -66,7 +74,11 @@ async def test_every_awkward_title_is_on_screen_whole_or_cut_with_an_ellipsis(
 
 
 async def test_walking_the_list_shows_each_awkward_document_in_the_info_pane(papis_lib):
-    """j through the whole library, reading the info pane as you go."""
+    """Press `j` through the whole library, reading the info pane as you go.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from ptui import ui
 
     app = awkward_app(papis_lib)
@@ -108,6 +120,11 @@ async def test_walking_the_list_shows_each_awkward_document_in_the_info_pane(pap
 
 
 async def test_a_terminal_resized_mid_session_keeps_the_cursor_and_the_whole_status_bar(papis_lib):
+    """A terminal resized mid session keeps the cursor and the whole status bar.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(200, 50)) as pilot:
         await settle(pilot)
@@ -125,8 +142,13 @@ async def test_a_terminal_resized_mid_session_keeps_the_cursor_and_the_whole_sta
 
 
 async def test_the_counts_stay_on_the_status_bar_at_80_columns(papis_lib):
-    """SPEC: the bar shows scope and narrow, and the counts. Short values, a
-    common terminal: the right-hand group simply runs off the edge."""
+    """SPEC: the bar shows scope and narrow, and the counts.
+
+    Short values, a common terminal: the right-hand group simply runs off the edge.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(80, 24)) as pilot:
         await settle(pilot)
@@ -137,8 +159,14 @@ async def test_the_counts_stay_on_the_status_bar_at_80_columns(papis_lib):
 
 
 async def test_a_crowded_status_bar_gives_up_the_sort_then_cuts_the_longer_query(papis_lib):
-    """What yields, in order, so the counts never do: the sort block, then the
-    queries with an ellipsis (the longer first), then the left group."""
+    """A crowded status bar gives up the sort then cuts the longer query.
+
+    What yields, in order, so the counts never do: the sort block, then the
+    queries with an ellipsis (the longer first), then the left group.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(80, 24)) as pilot:
         await settle(pilot)

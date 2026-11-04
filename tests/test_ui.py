@@ -1,3 +1,5 @@
+"""The modal screens: pickers and the forms."""
+
 from conftest import press, settle
 from textual.widgets import OptionList
 
@@ -5,6 +7,7 @@ from ptui import ui
 
 
 def test_item_filtering_ands_substrings_over_label_and_hint():
+    """Item filtering ands substrings over label and hint."""
     item = ui.Item(label="First author", value="author_list.0.family", hint="author_list.0.family")
     assert item.matches("")
     assert item.matches("0.fam")
@@ -15,6 +18,7 @@ def test_item_filtering_ands_substrings_over_label_and_hint():
 
 
 def test_item_filtering_no_longer_matches_any_needle_in_a_long_filename():
+    """Item filtering no longer matches any needle in a long filename."""
     # `note` once matched this by subsequence — Atte(n)ding visi(o)n (T)ransform(e)r
     pdf = ui.Item(label="Locality-Attending Vision Transformer.pdf", value=1)
     note = ui.Item(label="Locality-Attending Vision Transformer_note.pdf", value=2)
@@ -23,6 +27,7 @@ def test_item_filtering_no_longer_matches_any_needle_in_a_long_filename():
 
 
 def test_glyphs_switch_with_the_setting_and_stay_one_cell():
+    """Glyphs switch with the setting and stay one cell."""
     from rich.cells import cell_len
 
     try:
@@ -37,6 +42,11 @@ def test_glyphs_switch_with_the_setting_and_stay_one_cell():
 
 
 async def test_icons_setting_reaches_the_list_and_the_status_bar(app):
+    """Icons setting reaches the list and the status bar.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import Static
 
     app.config.data["ui"]["icons"] = True
@@ -50,6 +60,11 @@ async def test_icons_setting_reaches_the_list_and_the_status_bar(app):
 
 
 async def test_sort_picker_applies_the_keys_own_direction(app):
+    """Sort picker applies the keys own direction.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "S")
@@ -61,10 +76,15 @@ async def test_sort_picker_applies_the_keys_own_direction(app):
         await press(pilot, "enter")
         await settle(pilot)
         assert (app.sort_key, app.sort_reverse) == ("year", True)  # the key's own default
-        assert [d["year"] for d in app.rows] == [2017, 2016, 2003]
+        assert [doc["year"] for doc in app.rows] == [2017, 2016, 2003]
 
 
 async def test_sort_picker_escape_changes_nothing(app):
+    """Sort picker escape changes nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         before = (app.sort_key, app.sort_reverse)
@@ -76,6 +96,11 @@ async def test_sort_picker_escape_changes_nothing(app):
 
 
 async def test_picker_marks_the_current_value(app):
+    """Picker marks the current value.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "S")
@@ -90,6 +115,7 @@ async def test_picker_marks_the_current_value(app):
 
 
 def test_literal_survives_everything_textual_would_eat():
+    """Literal survives everything textual would eat."""
     from ptui import ui
 
     # Textual drops `[Extended]` and reads `[bold]` as a tag; neither
@@ -101,8 +127,13 @@ def test_literal_survives_everything_textual_would_eat():
 
 
 async def test_a_picker_shows_brackets_in_labels_hints_and_titles(app):
-    """Inbox file names, titles and refs went through markup: `other [weird]
-    name.pdf` was listed as `other  name.pdf`."""
+    """Inbox file names, titles and refs went through markup.
+
+    `other [weird] name.pdf` was listed as `other  name.pdf`.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.content import Content
     from textual.widgets import Static
 
@@ -118,6 +149,11 @@ async def test_a_picker_shows_brackets_in_labels_hints_and_titles(app):
 
 
 async def test_the_filter_box_is_one_row(app):
+    """The filter box is one row.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "S")
@@ -125,7 +161,11 @@ async def test_the_filter_box_is_one_row(app):
 
 
 async def test_the_add_and_edit_forms_show_their_keys_on_an_80x24_screen(app):
-    """Nothing on either form said how to move between fields, save or leave."""
+    """Nothing on either form said how to move between fields, save or leave.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from pathlib import Path
 
     from textual.widgets import Input, Static

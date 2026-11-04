@@ -1,5 +1,7 @@
-"""Sessions in the files pane and with whole documents: open, detach, delete —
-each checked on disk and taken back with `u`."""
+"""Sessions in the files pane and with whole documents.
+
+Open, detach, delete: each checked on disk and taken back with `u`.
+"""
 
 import yaml
 from conftest import press, settle
@@ -7,17 +9,39 @@ from session_lib import awkward_app, info_text, lines, list_lines, screen, statu
 
 
 def pane_lines(app, pane: str) -> list[str]:
-    """The text inside one pane's border, cropped by cells."""
+    """The text inside one pane's border, cropped by cells.
+
+    Args:
+        app: The running `PtuiApp`.
+        pane: The pane's id.
+
+    Returns:
+        One stripped string per row.
+    """
     region = app.query_one(f"#{pane}").region
     strips = app.screen._compositor.render_strips()[region.y + 1 : region.bottom - 1]
     return [strip.crop(region.x + 1, region.right - 1).text.strip() for strip in strips]
 
 
 def files_on_disk(papis_lib, name: str) -> list[str]:
+    """Read a document's `files`, past papis and ptui.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        name: The document's folder name.
+
+    Returns:
+        The entries as stored, empty without the key.
+    """
     return yaml.safe_load((papis_lib / "lib" / name / "info.yaml").read_text()).get("files", [])
 
 
 async def test_detach_the_supplement_undo_and_quit_from_the_files_pane(papis_lib):
+    """Detach the supplement undo and quit from the files pane.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from ptui import ui
 
     app = awkward_app(papis_lib)
@@ -51,6 +75,12 @@ async def test_detach_the_supplement_undo_and_quit_from_the_files_pane(papis_lib
 
 
 async def test_open_a_bracketed_file_and_a_missing_one(papis_lib, monkeypatch):
+    """Open a bracketed file and a missing one.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     import papis.utils
 
     from ptui import ui
@@ -76,8 +106,14 @@ async def test_open_a_bracketed_file_and_a_missing_one(papis_lib, monkeypatch):
 
 
 async def test_delete_a_document_and_bring_it_back(papis_lib):
-    """`d d enter` on the bracketed one, then `u`. Only what any version of the
-    dialog must give: gone from screen and disk, then back, file and all."""
+    """`d d enter` on the bracketed one, then `u`.
+
+    Only what any version of the dialog must give: gone from screen and disk, then back, file
+    and all.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     folder = papis_lib / "lib" / "kaplan"
     before = (folder / "info.yaml").read_text()

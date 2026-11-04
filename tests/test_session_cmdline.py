@@ -6,10 +6,23 @@ from session_lib import awkward_app, info_text, lines, list_lines, row_of, statu
 
 
 def on_disk(folder) -> dict:
+    """Read a document's file, past papis and ptui.
+
+    Args:
+        folder: The document's folder.
+
+    Returns:
+        The parsed `info.yaml`.
+    """
     return yaml.safe_load((folder / "info.yaml").read_text())
 
 
 async def test_cmdline_sorts_sets_a_bracketed_value_and_refuses_a_bad_number(papis_lib):
+    """Cmdline sorts sets a bracketed value and refuses a bad number.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     folder = papis_lib / "lib" / "olshausen"
     async with app.run_test(size=(120, 40)) as pilot:
@@ -39,7 +52,11 @@ async def test_cmdline_sorts_sets_a_bracketed_value_and_refuses_a_bad_number(pap
 
 
 async def test_move_a_document_to_the_second_library_and_back(papis_lib):
-    """`:doc.move second` has no key; it is the `:` line or nothing."""
+    """`:doc.move second` has no key; it is the `:` line or nothing.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     here, there = papis_lib / "lib" / "anon", papis_lib / "second" / "anon"
     before = (here / "info.yaml").read_text()

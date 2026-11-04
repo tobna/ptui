@@ -1,3 +1,5 @@
+"""The generated documents match what generates them."""
+
 import sys
 from pathlib import Path
 

@@ -1,5 +1,8 @@
-"""Sessions that move around: sorting, jumping, scopes, saved searches,
-libraries and the log — reading the screen after every step."""
+"""Sessions that move around.
+
+Sorting, jumping, scopes, saved searches, libraries and the log, reading the screen after every
+step.
+"""
 
 import json
 
@@ -8,15 +11,27 @@ from session_lib import awkward_app, info_text, lines, list_lines, row_of, scree
 
 
 def titles(app) -> list[str]:
-    """The list's rows top to bottom, by the first words of each title."""
+    """The list's rows top to bottom, by the first words of each title.
+
+    Args:
+        app: The running `PtuiApp`.
+
+    Returns:
+        The known title starts found, in row order.
+    """
     known = ("Attention", "深層学習", "BERT", "Scaling", "Sparse", "Benchmark", "Deep Residual", "A Paper", "Denoising")
-    out = []
+    found = []
     for line in list_lines(app):
-        out += [word for word in (*known, "A Neural") if word in line]
-    return out
+        found += [word for word in (*known, "A Neural") if word in line]
+    return found
 
 
 async def test_narrow_sort_reverse_and_jump_by_citekey(papis_lib):
+    """Narrow sort reverse and jump by citekey.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(120, 40)) as pilot:
         await settle(pilot)
@@ -57,7 +72,11 @@ async def test_narrow_sort_reverse_and_jump_by_citekey(papis_lib):
 
 
 async def test_a_forgotten_chord_is_found_by_waiting_on_its_prefix(papis_lib):
-    """`g`, then wait: which-key lists what follows; `r` finishes the chord."""
+    """`g`, then wait: which-key lists what follows; `r` finishes the chord.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(80, 24)) as pilot:
         await settle(pilot)
@@ -73,6 +92,11 @@ async def test_a_forgotten_chord_is_found_by_waiting_on_its_prefix(papis_lib):
 
 
 async def test_scope_save_it_wander_off_and_load_it_back(papis_lib):
+    """Scope save it wander off and load it back.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     saved = papis_lib / "saved.json"
     async with app.run_test(size=(120, 40)) as pilot:
@@ -112,6 +136,11 @@ async def test_scope_save_it_wander_off_and_load_it_back(papis_lib):
 
 
 async def test_switch_to_the_second_library_and_back(papis_lib):
+    """Switch to the second library and back.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(120, 40)) as pilot:
         await settle(pilot)
@@ -137,6 +166,11 @@ async def test_switch_to_the_second_library_and_back(papis_lib):
 
 
 async def test_open_the_log_scroll_it_close_it_and_quit_from_it(papis_lib):
+    """Open the log scroll it close it and quit from it.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(100, 30)) as pilot:
         await settle(pilot)
@@ -169,9 +203,14 @@ async def test_open_the_log_scroll_it_close_it_and_quit_from_it(papis_lib):
 
 
 async def test_a_line_logged_while_the_log_is_closed_reads_as_one_line(papis_lib):
-    """Open the log, close it, do something that logs, open it again. The pane
-    is hidden when the line is written, and a hidden widget has no width: this
-    once came out one character per row."""
+    """Open the log, close it, do something that logs, open it again.
+
+    The pane is hidden when the line is written, and a hidden widget has no width: this once
+    came out one character per row.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = awkward_app(papis_lib)
     async with app.run_test(size=(120, 30)) as pilot:
         await settle(pilot)

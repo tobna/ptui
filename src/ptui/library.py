@@ -107,7 +107,7 @@ def use(name: str) -> None:
     try:
         papis.config.set_lib_from_name(name)
     except papis.exceptions.InvalidLibraryError as error:  # its args are two sentences, printed as a tuple
-        raise ValueError(" ".join(str(arg).strip() for arg in error.args)) from error
+        raise ValueError(" ".join(str(argument).strip() for argument in error.args)) from error
     os.environ["PAPIS_LIB"] = name
 
 

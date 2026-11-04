@@ -1,3 +1,5 @@
+"""The add flow: sources, the form, duplicates, and moving between libraries."""
+
 import pytest
 from conftest import press, settle
 from textual.widgets import Input, Static
@@ -6,6 +8,12 @@ from ptui import ui
 
 
 async def test_add_from_inbox_previews_then_writes(app, papis_lib):
+    """Add from inbox previews then writes.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     inbox = papis_lib / "inbox"
     inbox.mkdir()
     (inbox / "some paper.pdf").write_bytes(b"pdf")
@@ -31,13 +39,19 @@ async def test_add_from_inbox_previews_then_writes(app, papis_lib):
         await press(pilot, "enter")
         await settle(pilot)
 
-    assert [d["title"] for d in app.docs if d["title"] == "Brand New Paper"]
+    assert [doc["title"] for doc in app.docs if doc["title"] == "Brand New Paper"]
     assert (inbox / "some paper.pdf").exists()  # the source is never deleted
     placed = list((papis_lib / "pdfs").glob("2020_*.pdf"))
     assert len(placed) == 1  # the add flow ends in place(), like files.relocate
 
 
 async def test_add_form_escape_writes_nothing(app, papis_lib):
+    """Add form escape writes nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     inbox = papis_lib / "inbox"
     inbox.mkdir()
     (inbox / "paper.pdf").write_bytes(b"pdf")
@@ -54,7 +68,12 @@ async def test_add_form_escape_writes_nothing(app, papis_lib):
 
 
 async def test_add_from_a_bib_entry_creates_a_document_with_no_file(app, tmp_path):
-    """The metadata-only path: an importer found a record but there is no PDF."""
+    """The metadata-only path: an importer found a record but there is no PDF.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        tmp_path: pytest's per-test temporary folder.
+    """
     from conftest import press
 
     from ptui import actions, library, ui
@@ -76,7 +95,7 @@ async def test_add_from_a_bib_entry_creates_a_document_with_no_file(app, tmp_pat
 
         await press(pilot, "enter")
         await pilot.pause(0.6)
-        added = next((d for d in app.docs if d["title"] == "Deep Residual Learning v2"), None)
+        added = next((doc for doc in app.docs if doc["title"] == "Deep Residual Learning v2"), None)
         assert added is not None
         assert list(added.get("files") or []) == []
         # a key the form never showed still has to survive the round trip
@@ -88,6 +107,12 @@ async def test_add_from_a_bib_entry_creates_a_document_with_no_file(app, tmp_pat
 
 
 async def test_a_bib_with_several_entries_asks_which_one(app, tmp_path):
+    """A bib with several entries asks which one.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        tmp_path: pytest's per-test temporary folder.
+    """
     from ptui import actions, ui
 
     bib = tmp_path / "many.bib"
@@ -103,8 +128,15 @@ async def test_a_bib_with_several_entries_asks_which_one(app, tmp_path):
 
 
 async def test_switching_library_sends_a_new_document_to_that_library(app, papis_lib):
-    """`papis add` writes into papis's *current* library, so switching only ptui's
-    copy of the name filed the new document in the old one."""
+    """Switching library sends a new document to that library.
+
+    `papis add` writes into papis's *current* library, so switching only ptui's
+    copy of the name filed the new document in the old one.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     import papis.config
 
     from ptui import actions
@@ -118,12 +150,18 @@ async def test_switching_library_sends_a_new_document_to_that_library(app, papis
         actions._add_document(app, None, {"title": "Lands Here"})
         await pilot.pause(0.3)
         assert papis.config.get_lib().path == str(other)
-        assert [d["title"] for d in app.docs] == ["Lands Here"]
+        assert [doc["title"] for doc in app.docs] == ["Lands Here"]
         assert any(other.glob("*/info.yaml"))
         assert len(list((papis_lib / "lib").glob("*/info.yaml"))) == 3  # the old one is untouched
 
 
 async def test_moving_documents_to_another_library_skips_a_clash_and_moves_the_rest(app, papis_lib):
+    """Moving documents to another library skips a clash and moves the rest.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     import papis.database
 
     from ptui import library
@@ -132,26 +170,44 @@ async def test_moving_documents_to_another_library_skips_a_clash_and_moves_the_r
     (other / "doc0").mkdir(parents=True)  # taken in the target: a clash, never an overwrite
     async with app.run_test() as pilot:
         await settle(pilot)
-        app.marks = {library.doc_id(d) for d in app.docs if d["papis_id"] in ("id0", "id1")}
+        app.marks = {library.doc_id(doc) for doc in app.docs if doc["papis_id"] in ("id0", "id1")}
         app.run_command("doc.move", {"to": str(other)})
         await press(pilot, "enter")  # a batch confirms first
         await settle(pilot)
-        assert sorted(d["papis_id"] for d in app.docs) == ["id0", "id2"]
+        assert sorted(doc["papis_id"] for doc in app.docs) == ["id0", "id2"]
         moved = papis.database.get(str(other)).get_all_documents()
-        assert [d["papis_id"] for d in moved] == ["id1"]
+        assert [doc["papis_id"] for doc in moved] == ["id1"]
         assert (other / "doc1" / "info.yaml").exists()
         assert app.marks == {"id0"}  # the one that stayed is still marked
 
 
 @pytest.mark.parametrize(("source", "uri"), [("arxiv", "2607.00687"), ("doi", "10.1109/CVPR52688.2022.01167")])
 async def test_doc_add_with_a_uri_skips_both_prompts(app, monkeypatch, source, uri):
-    """`:doc.add arxiv 2607.00687` goes straight to the form, prefilled — and a
-    DOI, slash and all, the same way."""
+    """Doc add with a uri skips both prompts.
+
+    `:doc.add arxiv 2607.00687` goes straight to the form, prefilled — and a
+    DOI, slash and all, the same way.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+        source: Parametrized, such as `'arxiv'`.
+        uri: Parametrized, such as `'2607.00687'`.
+    """
     from ptui import actions, fetch, ui
 
     asked = []
 
     def fake(name, uri):
+        """Stand in for the importer, recording what it was asked.
+
+        Args:
+            name: The importer's name.
+            uri: What to import.
+
+        Returns:
+            `(metadata, files)`, with no files.
+        """
         asked.append((name, uri))
         return {"title": "Fetched Title", "year": 2026}, []
 
@@ -167,9 +223,16 @@ async def test_doc_add_with_a_uri_skips_both_prompts(app, monkeypatch, source, u
 
 
 async def test_adding_what_the_library_already_holds_asks_first(app, papis_lib):
-    """papis add asks about a duplicate in a prompt_toolkit pager, which cannot
+    """Adding what the library already holds asks first.
+
+    papis add asks about a duplicate in a prompt_toolkit pager, which cannot
     run inside the TUI: the add simply failed. ptui asks instead — papis's own
-    unique keys first (here the DOI), then the same title in the same year."""
+    unique keys first (here the DOI), then the same title in the same year.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from ptui import actions
 
     info = papis_lib / "lib" / "doc0" / "info.yaml"
@@ -199,7 +262,12 @@ async def test_adding_what_the_library_already_holds_asks_first(app, papis_lib):
 
 
 async def test_the_same_title_in_another_year_asks_too_and_says_which_year_is_there(app, papis_lib):
-    """A preprint and its journal version share the title, not the year."""
+    """A preprint and its journal version share the title, not the year.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from ptui import actions
 
     async with app.run_test() as pilot:
@@ -215,14 +283,22 @@ async def test_the_same_title_in_another_year_asks_too_and_says_which_year_is_th
 
 
 async def test_adding_places_only_the_new_paper_not_the_marked_ones(app, papis_lib, tmp_path):
-    """After an add, ptui ran the placement rules on the *marked* papers, not the
-    new one: with a rule that moves PDFs, adding a paper moved their files unasked."""
+    """Adding places only the new paper not the marked ones.
+
+    After an add, ptui ran the placement rules on the *marked* papers, not the
+    new one: with a rule that moves PDFs, adding a paper moved their files unasked.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        tmp_path: pytest's per-test temporary folder.
+    """
     from cover_helpers import attach
 
     from ptui import actions
 
-    for n in range(3):
-        attach(papis_lib, f"doc{n}", f"old{n}.pdf")
+    for number in range(3):
+        attach(papis_lib, f"doc{number}", f"old{number}.pdf")
     new = tmp_path / "new paper.pdf"
     new.write_bytes(b"new")
     async with app.run_test() as pilot:
@@ -231,6 +307,6 @@ async def test_adding_places_only_the_new_paper_not_the_marked_ones(app, papis_l
         data = {"title": "Freshly Added", "year": "2026", "author_list": [{"family": "Doe", "given": "Jane"}]}
         actions._add_document(app, new, data)
         await pilot.pause(0.3)
-        assert all((papis_lib / "lib" / f"doc{n}" / f"old{n}.pdf").exists() for n in range(3))
+        assert all((papis_lib / "lib" / f"doc{number}" / f"old{number}.pdf").exists() for number in range(3))
         placed = list((papis_lib / "pdfs").glob("*.pdf"))
-        assert [p.read_bytes() for p in placed] == [b"new"]
+        assert [path.read_bytes() for path in placed] == [b"new"]

@@ -6,10 +6,24 @@ from session_lib import awkward_app, info_text, row_of
 
 
 def on_disk(papis_lib, name: str) -> dict:
+    """Read a document's file, past papis and ptui.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        name: The document's folder name.
+
+    Returns:
+        The parsed `info.yaml`.
+    """
     return yaml.safe_load((papis_lib / "lib" / name / "info.yaml").read_text())
 
 
 async def test_edit_a_bracketed_title_in_the_form_rate_it_and_undo_both(papis_lib):
+    """Edit a bracketed title in the form rate it and undo both.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from ptui import ui
 
     app = awkward_app(papis_lib)
@@ -40,7 +54,12 @@ async def test_edit_a_bracketed_title_in_the_form_rate_it_and_undo_both(papis_li
 
 
 async def test_yank_copies_the_stored_latex_not_the_screen(papis_lib, monkeypatch):
-    """SPEC: titles render de-braced, but a yank or a bib export is verbatim."""
+    """SPEC: titles render de-braced, but a yank or a bib export is verbatim.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     app = awkward_app(papis_lib)
     copied = []
     monkeypatch.setattr(app, "copy_to_clipboard", copied.append)  # the fixture asks for OSC52

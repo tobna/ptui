@@ -1,3 +1,5 @@
+"""Command implementations, driven through the app."""
+
 from pathlib import Path
 
 import pytest
@@ -7,7 +9,13 @@ from ptui import actions, clip, fetch
 
 
 def _attach(papis_lib, name: str = "downloaded paper.pdf", body: bytes = b"pdf") -> None:
-    """Give doc0 a file, the way a user's script would: appended to `files`."""
+    """Give doc0 a file, the way a user's script would: appended to `files`.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        name: The file's name.
+        body: The file's bytes.
+    """
     folder = papis_lib / "lib" / "doc0"
     (folder / name).write_bytes(body)
     info = folder / "info.yaml"
@@ -16,24 +24,39 @@ def _attach(papis_lib, name: str = "downloaded paper.pdf", body: bytes = b"pdf")
 
 
 async def test_relocate_moves_files_and_rewrites_info_yaml(app, papis_lib, monkeypatch):
+    """Relocate moves files and rewrites info yaml.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     _attach(papis_lib)
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "f", "r")
         await settle(pilot)
 
-    dest = papis_lib / "pdfs" / "2017_Vaswani_Attention_Is_All_You_Need.pdf"
-    assert dest.read_bytes() == b"pdf"
+    destination = papis_lib / "pdfs" / "2017_Vaswani_Attention_Is_All_You_Need.pdf"
+    assert destination.read_bytes() == b"pdf"
     assert not (papis_lib / "lib" / "doc0" / "downloaded paper.pdf").exists()
 
     info = (papis_lib / "lib" / "doc0" / "info.yaml").read_text()
-    assert str(dest) in info
+    assert str(destination) in info
     assert "papis_id: id0" in info  # the rest of the file survived
 
 
 async def test_relocate_writes_what_moved_when_a_later_entry_raises(app, papis_lib, monkeypatch):
-    """place() raising on one entry used to abandon the document after the
-    earlier entries had moved, leaving info.yaml naming paths that were gone."""
+    """Relocate writes what moved when a later entry raises.
+
+    place() raising on one entry used to abandon the document after the
+    earlier entries had moved, leaving info.yaml naming paths that were gone.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import place
 
     _attach(papis_lib, "a.pdf")
@@ -41,6 +64,20 @@ async def test_relocate_writes_what_moved_when_a_later_entry_raises(app, papis_l
     real = place.place
 
     def flaky(doc, entry, *args, **kwargs):
+        """Fail on the `.djvu` entry, placing every other one.
+
+        Args:
+            doc: The document.
+            entry: The `files` entry.
+            *args: `place.place`'s other positional arguments.
+            **kwargs: Its keyword arguments.
+
+        Returns:
+            The real `place.place`'s result.
+
+        Raises:
+            OSError: For a `.djvu` entry.
+        """
         if str(entry).endswith(".djvu"):
             raise OSError("the disk said no")
         return real(doc, entry, *args, **kwargs)
@@ -57,6 +94,12 @@ async def test_relocate_writes_what_moved_when_a_later_entry_raises(app, papis_l
 
 
 async def test_relocate_reports_conflicts_without_touching_anything(app, papis_lib):
+    """Relocate reports conflicts without touching anything.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     _attach(papis_lib)
     (papis_lib / "pdfs").mkdir()
     clash = papis_lib / "pdfs" / "2017_Vaswani_Attention_Is_All_You_Need.pdf"
@@ -73,32 +116,46 @@ async def test_relocate_reports_conflicts_without_touching_anything(app, papis_l
 
 
 async def test_undoing_a_relocate_puts_file_and_entry_back_and_redo_moves_them_again(app, papis_lib):
-    """`f r` pushed no undo step, so `u` right after it undid the tag before it
-    and left the file in the PDF root."""
+    """Undoing a relocate puts file and entry back and redo moves them again.
+
+    `f r` pushed no undo step, so `u` right after it undid the tag before it
+    and left the file in the PDF root.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     _attach(papis_lib)
     info = papis_lib / "lib" / "doc0" / "info.yaml"
-    src = papis_lib / "lib" / "doc0" / "downloaded paper.pdf"
-    dest = papis_lib / "pdfs" / "2017_Vaswani_Attention_Is_All_You_Need.pdf"
+    source = papis_lib / "lib" / "doc0" / "downloaded paper.pdf"
+    destination = papis_lib / "pdfs" / "2017_Vaswani_Attention_Is_All_You_Need.pdf"
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.doc_tag(app, "kept")
         tagged = info.read_text()
         await press(pilot, "f", "r")  # one document: no question
-        assert dest.read_bytes() == b"pdf" and not src.exists()
+        assert destination.read_bytes() == b"pdf" and not source.exists()
 
         await press(pilot, "u")
-        assert src.read_bytes() == b"pdf" and not dest.exists()
+        assert source.read_bytes() == b"pdf" and not destination.exists()
         assert info.read_text() == tagged  # the entry back, and the tag still there
 
         await press(pilot, "ctrl+r")
-        assert dest.read_bytes() == b"pdf" and not src.exists()
-        assert app.current["files"] == [str(dest)]
+        assert destination.read_bytes() == b"pdf" and not source.exists()
+        assert app.current["files"] == [str(destination)]
 
 
 async def test_a_file_that_cannot_move_back_on_undo_keeps_its_entry_where_it_is(app, papis_lib):
-    """Undoing `f r` wrote `files` back, then moved each file: one that could
+    """A file that cannot move back on undo keeps its entry where it is.
+
+    Undoing `f r` wrote `files` back, then moved each file: one that could
     not move stayed in the PDF root while its entry named the old path — here
-    another file, downloaded since under that name."""
+    another file, downloaded since under that name.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     import yaml
     from cover_helpers import attach, info
 
@@ -119,6 +176,12 @@ async def test_a_file_that_cannot_move_back_on_undo_keeps_its_entry_where_it_is(
 
 
 async def test_relocating_a_batch_asks_first_counting_the_marks_the_narrow_hides(app, papis_lib):
+    """Relocating a batch asks first counting the marks the narrow hides.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from cover_helpers import attach, info
 
     from ptui import ui
@@ -152,7 +215,12 @@ async def test_relocating_a_batch_asks_first_counting_the_marks_the_narrow_hides
 
 
 async def test_normalize_and_backfill_ask_first_on_a_batch_counting_what_the_narrow_hides(app, papis_lib):
-    """Both had their own copy of the batch confirm."""
+    """Both had their own copy of the batch confirm.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from cover_helpers import info
 
     from ptui import ui
@@ -180,7 +248,12 @@ async def test_normalize_and_backfill_ask_first_on_a_batch_counting_what_the_nar
 
 
 async def test_the_relocate_undo_step_counts_the_documents_whose_files_changed(app, papis_lib):
-    """It counted every target, the ones with nothing to move too."""
+    """It counted every target, the ones with nothing to move too.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     _attach(papis_lib)
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -190,6 +263,12 @@ async def test_the_relocate_undo_step_counts_the_documents_whose_files_changed(a
 
 
 async def test_citekey_yank_is_batch_aware(app, monkeypatch):
+    """Citekey yank is batch aware.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     yanked = []
     monkeypatch.setattr(clip, "copy", lambda app, text: yanked.append(text) or "test")
     async with app.run_test() as pilot:
@@ -202,29 +281,48 @@ async def test_citekey_yank_is_batch_aware(app, monkeypatch):
 
 
 async def test_bibtex_export_writes_papis_own_entry(app, tmp_path):
-    out = tmp_path / "out.bib"
+    """Bibtex export writes papis own entry.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        tmp_path: pytest's per-test temporary folder.
+    """
+    output_file = tmp_path / "out.bib"
     async with app.run_test() as pilot:
         await settle(pilot)
-        actions.export_bibtex(app, str(out))
-    assert "Vaswani2017" in out.read_text()
+        actions.export_bibtex(app, str(output_file))
+    assert "Vaswani2017" in output_file.read_text()
 
 
 async def test_main_file_comes_before_notes(app, papis_lib):
+    """Main file comes before notes.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     _attach(papis_lib, "paper.pdf")
     _attach(papis_lib, "paper_notes.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
-        names = [p.name for p in actions.files_of(app, app.current)]
+        names = [path.name for path in actions.files_of(app, app.current)]
     assert names == ["paper.pdf", "paper_notes.pdf"]
 
 
 async def test_open_reports_a_missing_file_instead_of_launching(app, papis_lib, monkeypatch):
+    """Open reports a missing file instead of launching.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     import papis.utils
 
     _attach(papis_lib)
     (papis_lib / "lib" / "doc0" / "downloaded paper.pdf").unlink()
     opened = []
-    monkeypatch.setattr(papis.utils, "open_file", lambda *a, **k: opened.append(a))
+    monkeypatch.setattr(papis.utils, "open_file", lambda *args, **kwargs: opened.append(args))
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "o")
@@ -232,21 +330,29 @@ async def test_open_reports_a_missing_file_instead_of_launching(app, papis_lib, 
 
 
 async def test_open_pick_opens_a_lone_file_without_asking(app, papis_lib, monkeypatch):
+    """Open pick opens a lone file without asking.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     import papis.utils
 
     from ptui import ui
 
     _attach(papis_lib)
     opened = []
-    monkeypatch.setattr(papis.utils, "open_file", lambda *a, **k: opened.append(a))
+    monkeypatch.setattr(papis.utils, "open_file", lambda *args, **kwargs: opened.append(args))
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "f", "o")
         assert not isinstance(app.screen, ui.SelectList)
-    assert [Path(a[0]).name for a in opened] == ["downloaded paper.pdf"]
+    assert [Path(args[0]).name for args in opened] == ["downloaded paper.pdf"]
 
 
 def test_parse_args_maps_a_typed_line_onto_the_signature():
+    """Parse args maps a typed line onto the signature."""
     import pytest
 
     from ptui import commands
@@ -266,6 +372,11 @@ def test_parse_args_maps_a_typed_line_onto_the_signature():
 
 
 async def test_cmdline_prompts_for_arguments_and_passes_them(app):
+    """Cmdline prompts for arguments and passes them.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, ":", *"sort.by", "enter")
@@ -274,13 +385,19 @@ async def test_cmdline_prompts_for_arguments_and_passes_them(app):
         await press(pilot, *"year true", "enter")
         await settle(pilot)
         assert (app.sort_key, app.sort_reverse) == ("year", True)
-        assert [d["year"] for d in app.rows] == [2017, 2016, 2003]
+        assert [doc["year"] for doc in app.rows] == [2017, 2016, 2003]
 
         await press(pilot, ":", *"pane.focus", "enter", *"log", "enter")
         assert app.mode == "log"
 
 
 async def test_cmdline_reports_a_bad_argument_line(app, monkeypatch):
+    """Cmdline reports a bad argument line.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = []
@@ -291,6 +408,12 @@ async def test_cmdline_reports_a_bad_argument_line(app, monkeypatch):
 
 
 async def test_set_writes_a_field_with_the_type_papis_declares(app, papis_lib):
+    """Set writes a field with the type papis declares.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -314,6 +437,13 @@ async def test_set_writes_a_field_with_the_type_papis_declares(app, papis_lib):
 
 
 async def test_set_refuses_a_value_of_the_wrong_type(app, papis_lib, monkeypatch):
+    """Set refuses a value of the wrong type.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = []
@@ -325,6 +455,11 @@ async def test_set_refuses_a_value_of_the_wrong_type(app, papis_lib, monkeypatch
 
 
 async def test_set_over_marks_asks_first(app):
+    """Set over marks asks first.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from ptui import ui
 
     async with app.run_test() as pilot:
@@ -335,14 +470,20 @@ async def test_set_over_marks_asks_first(app):
 
         await press(pilot, "escape")  # ...and cancelling writes nothing
         await settle(pilot)
-        assert not any(d.get("reading_status") for d in app.docs)
+        assert not any(doc.get("reading_status") for doc in app.docs)
 
         await press(pilot, "c", "f", *"reading_status read", "enter", "enter")
         await settle(pilot)
-        assert [d.get("reading_status") for d in app.targets] == ["read", "read"]
+        assert [doc.get("reading_status") for doc in app.targets] == ["read", "read"]
 
 
 async def test_tag_adds_and_untag_removes_without_touching_the_rest(app, papis_lib):
+    """Tag adds and untag removes without touching the rest.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         assert app.current["tags"] == ["test"]  # the fixture's own tag
@@ -368,6 +509,11 @@ async def test_tag_adds_and_untag_removes_without_touching_the_rest(app, papis_l
 
 
 async def test_a_multi_word_tag_is_one_tag(app):
+    """A multi word tag is one tag.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test(size=(100, 40)) as pilot:
         await settle(pilot)
         await press(pilot, "c", "t", *"machine learning, cv", "enter")
@@ -389,8 +535,15 @@ async def test_a_multi_word_tag_is_one_tag(app):
 
 
 async def test_untag_and_its_undo_keep_a_tag_a_script_added_since_loading(app, papis_lib):
-    """The new list is worked out from the file at write time, and undo puts back
-    what the write replaced — not the list ptui loaded before the script ran."""
+    """Untag and its undo keep a tag a script added since loading.
+
+    The new list is worked out from the file at write time, and undo puts back
+    what the write replaced — not the list ptui loaded before the script ran.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -405,6 +558,12 @@ async def test_untag_and_its_undo_keep_a_tag_a_script_added_since_loading(app, p
 
 
 async def test_set_keeps_an_undeclared_float_a_float(app, papis_lib):
+    """Set keeps an undeclared float a float.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     info.write_text(info.read_text() + "ratio: 1.5\n")
     async with app.run_test() as pilot:
@@ -414,6 +573,11 @@ async def test_set_keeps_an_undeclared_float_a_float(app, papis_lib):
 
 
 async def test_status_and_rating_pick_a_value(app):
+    """Status and rating pick a value.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from ptui import ui
 
     async with app.run_test() as pilot:
@@ -439,6 +603,11 @@ async def test_status_and_rating_pick_a_value(app):
 
 
 async def test_tagging_a_batch_confirms_and_keeps_each_documents_own_tags(app):
+    """Tagging a batch confirms and keeps each documents own tags.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "c", "t", *"solo", "enter")  # doc0 only
@@ -446,7 +615,7 @@ async def test_tagging_a_batch_confirms_and_keeps_each_documents_own_tags(app):
         await press(pilot, "space", "space")  # mark doc0 and doc1
         await press(pilot, "c", "t", *"shared", "enter", "enter")  # confirm the batch
         await settle(pilot)
-        assert [d["tags"] for d in app.targets] == [
+        assert [doc["tags"] for doc in app.targets] == [
             ["test", "solo", "shared"],
             ["test", "shared"],
         ]
@@ -454,15 +623,24 @@ async def test_tagging_a_batch_confirms_and_keeps_each_documents_own_tags(app):
 
 @pytest.mark.parametrize(("mode", "key"), [("editor", "e"), ("structured", "E")])
 async def test_edit_reports_yaml_it_can_no_longer_parse(papis_lib, monkeypatch, mode, key):
-    """It said "press E again" whatever opened the editor, and with the shipped
-    `edit.mode = "editor"` `E` is the form."""
+    """Edit reports yaml it can no longer parse.
+
+    It said "press E again" whatever opened the editor, and with the shipped
+    `edit.mode = "editor"` `E` is the form.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+        mode: Parametrized, such as `'editor'`.
+        key: Parametrized, such as `'e'`.
+    """
     import contextlib
 
     import papis.commands.edit
     from conftest import build_app
 
     info = papis_lib / "lib" / "doc0" / "info.yaml"
-    monkeypatch.setattr(papis.commands.edit, "run", lambda doc, **kw: info.write_text("title: [unclosed\n"))
+    monkeypatch.setattr(papis.commands.edit, "run", lambda doc, **kwargs: info.write_text("title: [unclosed\n"))
     app = build_app(papis_lib, f'[edit]\nmode = "{mode}"\n')
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -478,8 +656,15 @@ async def test_edit_reports_yaml_it_can_no_longer_parse(papis_lib, monkeypatch, 
 
 
 async def test_backfill_stamps_only_the_documents_that_lack_time_added(app, papis_lib):
-    """papis stopped writing the key, so most of a real library has none and the
-    "recently added" sort has nothing to order it by."""
+    """Backfill stamps only the documents that lack time added.
+
+    papis stopped writing the key, so most of a real library has none and the
+    "recently added" sort has nothing to order it by.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from ptui import library, ui
 
     info = papis_lib / "lib" / "doc0" / "info.yaml"
@@ -494,13 +679,19 @@ async def test_backfill_stamps_only_the_documents_that_lack_time_added(app, papi
         await settle(pilot)
         assert not isinstance(app.screen, ui.SelectList)  # one document: no question, as for any verb
 
-        stamped = {d["ref"]: d[library.TIME_ADDED] for d in app.docs}
+        stamped = {doc["ref"]: doc[library.TIME_ADDED] for doc in app.docs}
         assert stamped["Vaswani2017"] == library.stamp(mtime)
         assert stamped["He2016"] == "2023-01-01-00:00:00"  # untouched
         assert app.docs[0]["ref"] == "Vaswani2017"  # and the list re-sorted
 
 
 async def test_attach_from_inbox_is_papis_addto(app, papis_lib):
+    """Attach from inbox is papis addto.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     import yaml
 
     inbox = papis_lib / "inbox"
@@ -525,6 +716,13 @@ async def test_attach_from_inbox_is_papis_addto(app, papis_lib):
 
 
 async def test_attach_a_url_keeps_existing_files_and_drops_the_download(app, papis_lib, monkeypatch):
+    """Attach a url keeps existing files and drops the download.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     import papis.paths
     import yaml
 
@@ -532,8 +730,16 @@ async def test_attach_a_url_keeps_existing_files_and_drops_the_download(app, pap
     download = papis_lib / "code.zip"
 
     def fake(uris):  # addto calls it again on the local copy, which passes through
+        """Stand in for the download, writing a local file.
+
+        Args:
+            uris: The URLs or paths to fetch.
+
+        Returns:
+            The local path per URL; anything else unchanged.
+        """
         download.write_bytes(b"zip")
-        return [str(download) if papis.paths.is_remote_file(u) else u for u in uris]
+        return [str(download) if papis.paths.is_remote_file(uri) else uri for uri in uris]
 
     monkeypatch.setattr(papis.paths, "download_remote_files", fake)
     async with app.run_test() as pilot:
@@ -548,6 +754,11 @@ async def test_attach_a_url_keeps_existing_files_and_drops_the_download(app, pap
 
 
 async def test_mark_query_marks_without_changing_the_view_and_shift_unmarks(app):
+    """Mark query marks without changing the view and shift unmarks.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from conftest import press, settle
 
     async with app.run_test() as pilot:
@@ -561,8 +772,14 @@ async def test_mark_query_marks_without_changing_the_view_and_shift_unmarks(app)
 
 
 async def test_mark_query_inside_a_narrow_marks_only_what_is_shown(app):
-    """A document the narrow hides must not be marked: a verb on the marks would
-    then act on something the user cannot see."""
+    """Mark query inside a narrow marks only what is shown.
+
+    A document the narrow hides must not be marked: a verb on the marks would
+    then act on something the user cannot see.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from conftest import press, settle
 
     async with app.run_test() as pilot:
@@ -574,6 +791,11 @@ async def test_mark_query_inside_a_narrow_marks_only_what_is_shown(app):
 
 
 async def test_unmark_all_filtered_takes_back_only_what_is_shown(app):
+    """Unmark all filtered takes back only what is shown.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from conftest import press, settle
 
     async with app.run_test() as pilot:
@@ -586,11 +808,16 @@ async def test_unmark_all_filtered_takes_back_only_what_is_shown(app):
 
 
 async def test_visual_marks_the_range_as_the_cursor_moves_and_shift_unmarks(app):
+    """Visual marks the range as the cursor moves and shift unmarks.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from ptui import library
 
     async with app.run_test() as pilot:
         await settle(pilot)
-        ids = [library.doc_id(d) for d in app.rows]
+        ids = [library.doc_id(doc) for doc in app.rows]
         await press(pilot, "j", "v", "j")
         assert app.marks == set(ids[1:3])
         await press(pilot, "k", "k")  # back past the anchor: the range follows
@@ -608,15 +835,20 @@ async def test_visual_marks_the_range_as_the_cursor_moves_and_shift_unmarks(app)
 
 
 async def test_a_jump_with_g_r_stretches_a_visual_range_to_its_target(app):
-    """Pinned as it works today: `g r` is a move like `j`, so `v` then `g r`
-    marks everything from the anchor to the document it lands on, both ways.
-    (When `g r` has to drop a narrow to get there, the range ends instead —
-    whether it should stretch then is still open.)"""
+    """Pinned as it works today.
+
+    `g r` is a move like `j`, so `v` then `g r` marks everything from the anchor to the document
+    it lands on, both ways. (When `g r` has to drop a narrow to get there, the range ends
+    instead — whether it should stretch then is still open.)
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from ptui import library
 
     async with app.run_test() as pilot:
         await settle(pilot)
-        ids = [library.doc_id(d) for d in app.rows]
+        ids = [library.doc_id(doc) for doc in app.rows]
         await press(pilot, "v", "g", "r", *"Bengio2003", "enter")
         assert app.visual is not None
         assert app.current["ref"] == "Bengio2003"
@@ -629,6 +861,12 @@ async def test_a_jump_with_g_r_stretches_a_visual_range_to_its_target(app):
 
 
 async def test_query_prompts_share_a_history_that_up_and_down_walk(app, papis_lib):
+    """Query prompts share a history that up and down walk.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from textual.widgets import Input
 
     async with app.run_test() as pilot:
@@ -651,6 +889,12 @@ async def test_query_prompts_share_a_history_that_up_and_down_walk(app, papis_li
 
 
 async def test_up_after_typing_walks_only_the_history_that_starts_with_it(app, papis_lib):
+    """Up after typing walks only the history that starts with it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from textual.widgets import Input
 
     (papis_lib / "history").write_text("neural\nyear:>2010\nne\nnet\nyear:<2000\n")
@@ -668,7 +912,8 @@ async def test_up_after_typing_walks_only_the_history_that_starts_with_it(app, p
 
 
 def test_refetchers_come_from_the_document_itself_without_the_network():
-    names = lambda data: [imp.name for imp in fetch.refetchers(data)]  # noqa: E731
+    """Refetchers come from the document itself without the network."""
+    names = lambda data: [importer.name for importer in fetch.refetchers(data)]  # noqa: E731
     assert names({"title": "T", "doi": "10.1/x"}) == ["doi", "crossref"]
     assert names({"title": "T", "eprint": "1706.03762", "eprinttype": "arXiv"}) == ["arxiv", "crossref"]
     assert names({"title": "T", "eprint": "rJ4km2R5t7", "eprinttype": "openreview"}) == ["crossref"]
@@ -676,7 +921,22 @@ def test_refetchers_come_from_the_document_itself_without_the_network():
 
 
 def test_refetch_by_id_never_downloads_and_drops_the_keys_that_are_the_librarys_own(monkeypatch):
+    """Refetch by id never downloads and drops the keys that are the librarys own.
+
+    Args:
+        monkeypatch: pytest's monkeypatch fixture.
+    """
+
     def fetch_importers(importers, download_files):  # the network, and nothing else
+        """Stand in for the network, filling each importer's context.
+
+        Args:
+            importers: The importers to run.
+            download_files: Must be false: a refetch never downloads.
+
+        Returns:
+            The same importers.
+        """
         assert not download_files
         for importer in importers:
             importer.ctx.data = {"title": "T", "ref": "Theirs2020", "citations": [{"doi": "10.1/y"}], "files": ["x"]}
@@ -688,9 +948,17 @@ def test_refetch_by_id_never_downloads_and_drops_the_keys_that_are_the_librarys_
 
 
 def _crossref(monkeypatch, hits):
-    """papis's Crossref search, without the network; the calls are recorded."""
+    """Stand in for the papis Crossref search, recording the calls.
+
+    Args:
+        monkeypatch: pytest's monkeypatch fixture.
+        hits: The records the search returns.
+
+    Returns:
+        A list receiving the keyword arguments of each call.
+    """
     asked = []
-    monkeypatch.setattr("papis.crossref.get_data", lambda **kwargs: asked.append(kwargs) or [dict(h) for h in hits])
+    monkeypatch.setattr("papis.crossref.get_data", lambda **kwargs: asked.append(kwargs) or [dict(hit) for hit in hits])
     return asked
 
 
@@ -707,7 +975,13 @@ HITS = [
 
 
 async def test_refresh_from_crossref_lists_the_hits_and_merges_the_one_picked(app, papis_lib, monkeypatch):
-    """papis's importer kept the first hit ("Picking the first one!"): here, another paper."""
+    """The papis importer kept the first hit ("Picking the first one!"): here, another paper.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import ui
 
     asked = _crossref(monkeypatch, HITS)
@@ -726,6 +1000,13 @@ async def test_refresh_from_crossref_lists_the_hits_and_merges_the_one_picked(ap
 
 
 async def test_none_of_the_crossref_hits_writes_nothing(app, papis_lib, monkeypatch):
+    """None of the crossref hits writes nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     _crossref(monkeypatch, HITS)
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     before = info.read_text()
@@ -739,7 +1020,12 @@ async def test_none_of_the_crossref_hits_writes_nothing(app, papis_lib, monkeypa
 
 
 async def test_adding_from_crossref_lists_the_hits_and_fills_the_form_with_the_one_picked(app, monkeypatch):
-    """papis's Crossref importer matches no typed text at all: this source never worked."""
+    """The papis Crossref importer matches no typed text at all: this source never worked.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from textual.widgets import Input
 
     from ptui import ui
@@ -759,6 +1045,13 @@ async def test_adding_from_crossref_lists_the_hits_and_fills_the_form_with_the_o
 
 
 async def test_refresh_fills_gaps_asks_each_clash_and_undoes_in_one_step(app, papis_lib, monkeypatch):
+    """Refresh fills gaps asks each clash and undoes in one step.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import ui
 
     fetched = {
@@ -794,8 +1087,13 @@ async def test_refresh_fills_gaps_asks_each_clash_and_undoes_in_one_step(app, pa
 
 
 async def test_refresh_from_crossref_writes_nothing_when_it_found_another_paper(app, papis_lib, monkeypatch):
-    """A title search can find the wrong paper, and its gaps were filled silently."""
+    """A title search can find the wrong paper, and its gaps were filled silently.
 
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     _crossref(monkeypatch, [{"title": "Attention Is Not All You Need", "year": 2021, "doi": "10.1/other"}])
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     before = info.read_text()
@@ -810,6 +1108,12 @@ async def test_refresh_from_crossref_writes_nothing_when_it_found_another_paper(
 
 
 async def test_export_as_offers_every_papis_exporter_and_yanks_the_targets(app, monkeypatch):
+    """Export as offers every papis exporter and yanks the targets.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import ui
 
     yanked = []
@@ -826,15 +1130,24 @@ async def test_export_as_offers_every_papis_exporter_and_yanks_the_targets(app, 
 
 @pytest.mark.parametrize("to_file", [True, False])
 async def test_an_export_papis_failed_writes_and_copies_nothing(app, tmp_path, monkeypatch, to_file):
-    """papis's export returns "" on failure (`csl` without citeproc-py), and that
-    "" was written over the target, or copied with a success message."""
+    """An export papis failed writes and copies nothing.
+
+    papis's export returns "" on failure (`csl` without citeproc-py), and that
+    "" was written over the target, or copied with a success message.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        tmp_path: pytest's per-test temporary folder.
+        monkeypatch: pytest's monkeypatch fixture.
+        to_file: Parametrized, such as `True`.
+    """
     import papis.commands.export
 
     target = tmp_path / "refs.txt"
     target.write_text("what was there\n")
     yanked = []
     monkeypatch.setattr(clip, "copy", lambda _app, text: yanked.append(text) or "test")
-    monkeypatch.setattr(papis.commands.export, "run", lambda _docs, _fmt: "")
+    monkeypatch.setattr(papis.commands.export, "run", lambda _docs, _format_name: "")
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = []
@@ -846,6 +1159,11 @@ async def test_an_export_papis_failed_writes_and_copies_nothing(app, tmp_path, m
 
 
 async def test_config_set_applies_for_the_session_and_checks_the_value(app):
+    """Config set applies for the session and checks the value.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from ptui import actions
 
     async with app.run_test() as pilot:
@@ -867,7 +1185,12 @@ async def test_config_set_applies_for_the_session_and_checks_the_value(app):
 
 
 def test_config_set_refuses_a_key_read_only_at_startup(app, monkeypatch):
-    """Setting one used to report "until you quit" and change nothing at all."""
+    """Setting one used to report "until you quit" and change nothing at all.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import actions
 
     logged = []
@@ -888,6 +1211,11 @@ def test_config_set_refuses_a_key_read_only_at_startup(app, monkeypatch):
 
 
 async def test_goto_jumps_to_a_pasted_citekey_and_drops_a_hiding_narrow(app):
+    """Goto jumps to a pasted citekey and drops a hiding narrow.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from conftest import press, settle
 
     async with app.run_test() as pilot:
@@ -902,6 +1230,11 @@ async def test_goto_jumps_to_a_pasted_citekey_and_drops_a_hiding_narrow(app):
 
 
 async def test_goto_without_an_exact_ref_warns_and_takes_the_one_that_contains_it(app):
+    """Goto without an exact ref warns and takes the one that contains it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = []
@@ -919,7 +1252,11 @@ async def test_goto_without_an_exact_ref_warns_and_takes_the_one_that_contains_i
 
 
 async def test_goto_takes_the_one_near_match_the_narrowed_list_shows(app):
-    """All three refs contain `20`; with one of them on screen, that one was meant."""
+    """All three refs contain `20`; with one of them on screen, that one was meant.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = []
@@ -938,6 +1275,12 @@ async def test_goto_takes_the_one_near_match_the_narrowed_list_shows(app):
 
 
 async def test_a_saved_search_comes_back_with_its_sort_and_can_be_forgotten(app, papis_lib):
+    """A saved search comes back with its sort and can be forgotten.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     import json
 
     from conftest import press, settle
@@ -967,6 +1310,11 @@ async def test_a_saved_search_comes_back_with_its_sort_and_can_be_forgotten(app,
 
 
 async def test_g_m_shows_only_the_marked(app):
+    """G m shows only the marked.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from conftest import press, settle
 
     async with app.run_test() as pilot:
@@ -976,6 +1324,12 @@ async def test_g_m_shows_only_the_marked(app):
 
 
 async def test_the_structured_editor_writes_typed_values_and_undoes_in_one_step(app, papis_lib):
+    """The structured editor writes typed values and undoes in one step.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from conftest import press, settle
 
     from ptui import ui
@@ -995,7 +1349,7 @@ async def test_the_structured_editor_writes_typed_values_and_undoes_in_one_step(
         doc = app.current
         assert doc["year"] == 2018  # an int, as papis declares it
         assert doc["tags"] == ["nlp", "attention"]
-        assert [a["family"] for a in doc["author_list"]] == ["Vaswani", "Shazeer"]
+        assert [author["family"] for author in doc["author_list"]] == ["Vaswani", "Shazeer"]
         assert "ref" not in doc
         assert "title: Attention Is All You Need" in info.read_text()  # untouched
 
@@ -1006,6 +1360,12 @@ async def test_the_structured_editor_writes_typed_values_and_undoes_in_one_step(
 
 
 async def test_the_structured_editor_refuses_a_value_of_the_wrong_type(app, papis_lib):
+    """The structured editor refuses a value of the wrong type.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from conftest import press, settle
 
     before = (papis_lib / "lib" / "doc0" / "info.yaml").read_text()
@@ -1018,6 +1378,12 @@ async def test_the_structured_editor_refuses_a_value_of_the_wrong_type(app, papi
 
 
 async def test_edit_mode_structured_swaps_e_and_shift_e(papis_lib, monkeypatch):
+    """Edit mode structured swaps e and shift e.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from conftest import build_app, press, settle
 
     from ptui import actions, ui
@@ -1035,8 +1401,15 @@ async def test_edit_mode_structured_swaps_e_and_shift_e(papis_lib, monkeypatch):
 
 
 async def test_editing_the_author_line_keeps_what_each_matching_author_had(app, papis_lib):
-    """Editing the author line rebuilt `author_list` from the names alone, and
-    every author lost their affiliation and ORCID."""
+    """Editing the author line keeps what each matching author had.
+
+    Editing the author line rebuilt `author_list` from the names alone, and
+    every author lost their affiliation and ORCID.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from conftest import press, settle
 
     info = papis_lib / "lib" / "doc0" / "info.yaml"
@@ -1053,6 +1426,13 @@ async def test_editing_the_author_line_keeps_what_each_matching_author_had(app, 
 
 
 async def test_a_document_with_no_citekey_is_named_in_the_log_and_nothing_is_yanked(app, papis_lib, monkeypatch):
+    """A document with no citekey is named in the log and nothing is yanked.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     info = papis_lib / "lib" / "doc0" / "info.yaml"
     info.write_text(info.read_text().replace("ref: Vaswani2017\n", ""))
     yanked = []
@@ -1070,7 +1450,12 @@ async def test_a_document_with_no_citekey_is_named_in_the_log_and_nothing_is_yan
 
 
 async def test_r_finds_an_info_yaml_edited_on_disk_after_startup(app, papis_lib):
-    """papis's own cache never sees an edit made outside papis: vim, a sync, `git pull`."""
+    """The papis cache never sees an edit made outside papis: vim, a sync, `git pull`.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from conftest import press, settle
 
     info = papis_lib / "lib" / "doc0" / "info.yaml"

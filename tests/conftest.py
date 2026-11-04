@@ -1,14 +1,26 @@
+"""Fixtures shared by the suite: a throwaway papis library and the app wired to it."""
+
 import pytest
 
 
 async def press(pilot, *keys):
+    """Press keys in order, then let the app settle.
+
+    Args:
+        pilot: Textual's `Pilot`.
+        *keys: Textual key names.
+    """
     for key in keys:
         await pilot.press(key)
     await settle(pilot)
 
 
 async def settle(pilot):
-    """Let the debounced narrow worker finish."""
+    """Let the debounced narrow worker finish.
+
+    Args:
+        pilot: Textual's `Pilot`.
+    """
     await pilot.pause(0.2)
 
 
@@ -19,6 +31,13 @@ def papis_lib(tmp_path, monkeypatch):
     Autouse: papis resolves the current library lazily from global state, so any
     test that touches `papis.format` would otherwise depend on whoever is
     running it having a library called `papers`.
+
+    Args:
+        tmp_path: pytest's per-test temporary folder.
+        monkeypatch: pytest's monkeypatch fixture.
+
+    Yields:
+        `tmp_path`, which holds the library in `lib/` and papis's config in `config/`.
     """
     import papis.config
     import papis.database
@@ -30,20 +49,20 @@ def papis_lib(tmp_path, monkeypatch):
     docs.mkdir()
     config_dir.mkdir()
 
-    for i, (title, year, author) in enumerate(
+    for index, (title, year, author) in enumerate(
         [
             ("Attention Is All You Need", 2017, "Vaswani"),
             ("Deep Residual Learning", 2016, "He"),
             ("A Neural Probabilistic Language Model", 2003, "Bengio"),
         ]
     ):
-        folder = docs / f"doc{i}"
+        folder = docs / f"doc{index}"
         folder.mkdir()
         (folder / "info.yaml").write_text(
             f"title: {title}\nyear: {year}\n"
             f"author: {author}\nauthor_list:\n- family: {author}\n  given: X\n"
-            f"ref: {author}{year}\ntags: [test]\npapis_id: id{i}\n"
-            f"time-added: 202{4 - i}-01-01-00:00:00\n"  # newest added first
+            f"ref: {author}{year}\ntags: [test]\npapis_id: id{index}\n"
+            f"time-added: 202{4 - index}-01-01-00:00:00\n"  # newest added first
         )
 
     # Every opener is `true`: `O` and `b` hand a path or URL to the desktop, and a
@@ -87,6 +106,13 @@ def build_app(papis_lib, extra: str = ""):
     against their own libraries. Nothing here ever touches a real library: the
     documents, the pdf root, the trash and the git repo all live under
     `tmp_path` and go away with it.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        extra: TOML appended to the config; bare keys continue `[undo]`.
+
+    Returns:
+        An unstarted `PtuiApp`.
     """
     from ptui import config, keymap
     from ptui.app import PtuiApp
@@ -122,6 +148,14 @@ def build_app(papis_lib, extra: str = ""):
 
 @pytest.fixture
 def app(papis_lib):
+    """Build the app under test.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+
+    Returns:
+        An unstarted `PtuiApp` on the three-document library.
+    """
     return build_app(papis_lib)
 
 
@@ -132,6 +166,12 @@ def git_lib(papis_lib):
     `undo.strategy = "git"` needs a real repository — the strategy is `git rm`
     plus a commit, and mocking that would test the mock. It is a `git init` in
     `tmp_path`, so it costs milliseconds and is gone afterwards.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+
+    Returns:
+        The same temporary folder, its `lib/` now a repository.
     """
     import subprocess
 

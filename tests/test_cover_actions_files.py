@@ -1,6 +1,8 @@
-"""The file verbs: detach, reorder, repoint, rename and attach, each on the
-entry under the files pane's cursor or a given index — out-of-range indices,
-the last entry, a write that fails after the file moved, failed downloads."""
+"""The file verbs: detach, reorder, repoint, rename and attach.
+
+Each on the entry under the files pane's cursor or a given index: out-of-range indices, the last
+entry, a write that fails after the file moved, failed downloads.
+"""
 
 import papis.config
 import papis.paths
@@ -15,17 +17,46 @@ SCHEME = "{doc[year]}-{doc[author_list][0][family]}"
 
 
 def _files(papis_lib, folder: str = "doc0") -> list[str] | None:
+    """Read a document's `files`, past papis and ptui.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        folder: The document's folder name.
+
+    Returns:
+        The entries as stored, or `None` without the key.
+    """
     return yaml.safe_load(info(papis_lib, folder).read_text()).get("files")
 
 
 def _fail_writes(monkeypatch) -> None:
+    """Make every `safewrite.write` fail.
+
+    Args:
+        monkeypatch: pytest's monkeypatch fixture.
+    """
+
     def broken(info):
+        """Fail, as a full disk does.
+
+        Args:
+            info: The `InfoFile`; unused.
+
+        Raises:
+            OSError: Always.
+        """
         raise OSError("disk full")
 
     monkeypatch.setattr(safewrite, "write", broken)
 
 
 async def test_detaching_the_last_file_removes_the_key_and_undo_brings_it_back(app, papis_lib):
+    """Detaching the last file removes the key and undo brings it back.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "only.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -39,6 +70,14 @@ async def test_detaching_the_last_file_removes_the_key_and_undo_brings_it_back(a
 
 @pytest.mark.parametrize("command", [actions.files_detach, actions.files_reorder, actions.files_rename])
 async def test_an_index_past_the_end_is_reported_and_writes_nothing(app, papis_lib, monkeypatch, command):
+    """An index past the end is reported and writes nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+        command: Parametrized, such as `actions.files_detach`.
+    """
     attach(papis_lib, "doc0", "a.pdf")
     before = info(papis_lib).read_text()
     async with app.run_test() as pilot:
@@ -52,6 +91,13 @@ async def test_an_index_past_the_end_is_reported_and_writes_nothing(app, papis_l
 
 @pytest.mark.parametrize("command", [actions.files_detach, actions.files_repoint, actions.files_rename])
 async def test_a_document_with_no_files_says_so(app, monkeypatch, command):
+    """A document with no files says so.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+        command: Parametrized, such as `actions.files_detach`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -60,6 +106,12 @@ async def test_a_document_with_no_files_says_so(app, monkeypatch, command):
 
 
 async def test_reordering_past_either_end_is_a_no_op(app, papis_lib):
+    """Reordering past either end is a no op.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     before = info(papis_lib).read_text()
     async with app.run_test() as pilot:
@@ -71,6 +123,12 @@ async def test_reordering_past_either_end_is_a_no_op(app, papis_lib):
 
 
 async def test_reordering_by_index_from_the_command_line_undoes(app, papis_lib):
+    """Reordering by index from the command line undoes.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "a.pdf", "b.pdf", "c.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -81,6 +139,13 @@ async def test_reordering_by_index_from_the_command_line_undoes(app, papis_lib):
 
 
 async def test_repointing_to_a_missing_path_changes_nothing(app, papis_lib, monkeypatch):
+    """Repointing to a missing path changes nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     attach(papis_lib, "doc0", "a.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -91,6 +156,12 @@ async def test_repointing_to_a_missing_path_changes_nothing(app, papis_lib, monk
 
 
 async def test_repointing_an_absolute_entry_keeps_it_absolute(app, papis_lib):
+    """Repointing an absolute entry keeps it absolute.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     folder = papis_lib / "lib" / "doc0"
     (folder / "new.pdf").write_bytes(b"new")
     info(papis_lib).write_text(info(papis_lib).read_text() + f"files:\n- {folder / 'old.pdf'}\n")
@@ -101,6 +172,12 @@ async def test_repointing_an_absolute_entry_keeps_it_absolute(app, papis_lib):
 
 
 async def test_choosing_a_path_in_the_repoint_picker_asks_for_it(app, papis_lib):
+    """Choosing a path in the repoint picker asks for it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "a.pdf")
     other = papis_lib / "elsewhere.pdf"
     other.write_bytes(b"x")
@@ -115,6 +192,13 @@ async def test_choosing_a_path_in_the_repoint_picker_asks_for_it(app, papis_lib)
 
 
 async def test_renaming_twice_says_the_name_already_follows_the_scheme(app, papis_lib, monkeypatch):
+    """Renaming twice says the name already follows the scheme.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     attach(papis_lib, "doc0", "paper.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -128,6 +212,13 @@ async def test_renaming_twice_says_the_name_already_follows_the_scheme(app, papi
 
 
 async def test_renaming_a_missing_file_points_at_repoint(app, papis_lib, monkeypatch):
+    """Renaming a missing file points at repoint.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     info(papis_lib).write_text(info(papis_lib).read_text() + "files:\n- gone.pdf\n")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -139,6 +230,12 @@ async def test_renaming_a_missing_file_points_at_repoint(app, papis_lib, monkeyp
 
 
 async def test_renaming_never_clobbers_a_file_already_at_the_name(app, papis_lib):
+    """Renaming never clobbers a file already at the name.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "paper.pdf")
     folder = papis_lib / "lib" / "doc0"
     (folder / "2017-vaswani.pdf").write_bytes(b"someone else's")
@@ -152,8 +249,16 @@ async def test_renaming_never_clobbers_a_file_already_at_the_name(app, papis_lib
 
 
 async def test_a_rename_whose_write_fails_puts_the_file_back(app, papis_lib, monkeypatch):
-    """SPEC's commit order: file first, info.yaml second, and a failed write
-    takes the file back — or the entry would name a file that is gone."""
+    """A rename whose write fails puts the file back.
+
+    SPEC's commit order: file first, info.yaml second, and a failed write
+    takes the file back — or the entry would name a file that is gone.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     attach(papis_lib, "doc0", "paper.pdf")
     folder = papis_lib / "lib" / "doc0"
     async with app.run_test() as pilot:
@@ -169,6 +274,12 @@ async def test_a_rename_whose_write_fails_puts_the_file_back(app, papis_lib, mon
 
 
 async def test_redoing_a_rename_renames_it_again(app, papis_lib):
+    """Redoing a rename renames it again.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     attach(papis_lib, "doc0", "paper.pdf")
     folder = papis_lib / "lib" / "doc0"
     async with app.run_test() as pilot:
@@ -177,10 +288,17 @@ async def test_redoing_a_rename_renames_it_again(app, papis_lib):
         actions.files_rename(app, 0)
         await press(pilot, "u", "ctrl+r")
     assert _files(papis_lib) == ["2017-vaswani.pdf"]
-    assert sorted(p.name for p in folder.iterdir()) == ["2017-vaswani.pdf", "info.yaml"]
+    assert sorted(path.name for path in folder.iterdir()) == ["2017-vaswani.pdf", "info.yaml"]
 
 
 async def test_attaching_a_path_that_is_not_a_file_says_so(app, papis_lib, monkeypatch):
+    """Attaching a path that is not a file says so.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -190,6 +308,12 @@ async def test_attaching_a_path_that_is_not_a_file_says_so(app, papis_lib, monke
 
 
 async def test_the_attach_picker_without_an_inbox_still_offers_a_path(app, papis_lib):
+    """The attach picker without an inbox still offers a path.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     paper = papis_lib / "paper.pdf"
     paper.write_bytes(b"pdf")
     app.config.data["files"]["inbox"] = str(papis_lib / "no-inbox")
@@ -205,7 +329,24 @@ async def test_the_attach_picker_without_an_inbox_still_offers_a_path(app, papis
 
 @pytest.mark.parametrize("download", [None, OSError("connection refused")])
 async def test_a_failed_download_attaches_nothing_and_says_so(app, papis_lib, monkeypatch, download):
+    """A failed download attaches nothing and says so.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+        download: Parametrized, such as `None`.
+    """
+
     def fake(uris):
+        """Stand in for the download, giving the parametrized outcome.
+
+        Args:
+            uris: The URLs to fetch; unused.
+
+        Returns:
+            One path, or `None`, per the parametrized case.
+        """
         if isinstance(download, Exception):
             raise download
         return [download]
@@ -222,12 +363,29 @@ async def test_a_failed_download_attaches_nothing_and_says_so(app, papis_lib, mo
 
 
 async def test_an_attach_papis_refuses_is_reported_and_reloads_from_disk(app, papis_lib, monkeypatch):
+    """An attach papis refuses is reported and reloads from disk.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     import papis.commands.addto
 
     paper = papis_lib / "paper.pdf"
     paper.write_bytes(b"pdf")
 
     def refuse(doc, paths, git=False):
+        """Fail the way addto may: with a half-written document in memory.
+
+        Args:
+            doc: The document.
+            paths: The files to add; unused.
+            git: Whether to commit; unused.
+
+        Raises:
+            RuntimeError: Always.
+        """
         doc["files"] = ["half-written.pdf"]  # what a failing addto may leave in memory
         raise RuntimeError("addto broke")
 
@@ -242,6 +400,13 @@ async def test_an_attach_papis_refuses_is_reported_and_reloads_from_disk(app, pa
 
 
 async def test_an_attach_that_adds_nothing_points_at_the_papis_log(app, papis_lib, monkeypatch):
+    """An attach that adds nothing points at the papis log.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     import papis.commands.addto
 
     paper = papis_lib / "paper.pdf"
@@ -255,6 +420,12 @@ async def test_an_attach_that_adds_nothing_points_at_the_papis_log(app, papis_li
 
 
 async def test_a_mistyped_home_path_at_the_attach_prompt_is_reported_not_fatal(app, monkeypatch):
+    """A mistyped home path at the attach prompt is reported not fatal.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -265,9 +436,24 @@ async def test_a_mistyped_home_path_at_the_attach_prompt_is_reported_not_fatal(a
 
 
 async def test_a_stale_file_aborts_a_detach_and_records_no_step(app, papis_lib, monkeypatch):
+    """A stale file aborts a detach and records no step.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     attach(papis_lib, "doc0", "a.pdf")
 
     def stale(info):
+        """Refuse the write, as a file changed on disk does.
+
+        Args:
+            info: The `InfoFile`; unused.
+
+        Raises:
+            StaleError: Always.
+        """
         raise safewrite.StaleError("changed on disk")
 
     async with app.run_test() as pilot:
@@ -282,6 +468,13 @@ async def test_a_stale_file_aborts_a_detach_and_records_no_step(app, papis_lib, 
 
 @pytest.mark.parametrize("command", [actions.files_detach, actions.files_reorder])
 async def test_a_files_key_written_as_one_string_is_not_split_into_letters(app, papis_lib, command):
+    """A files key written as one string is not split into letters.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        command: Parametrized, such as `actions.files_detach`.
+    """
     (papis_lib / "lib" / "doc0" / "paper.pdf").write_bytes(b"pdf")
     info(papis_lib).write_text(info(papis_lib).read_text() + "files: paper.pdf\n")
     async with app.run_test() as pilot:

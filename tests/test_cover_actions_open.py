@@ -1,6 +1,8 @@
-"""Handing a document to the desktop and the editor, and yanking it: which file
-opens, `opened_at`, `$EDITOR` round trips, notes, and every export verb on a
-document that lacks what it exports. Every opener is `true` (conftest)."""
+"""Handing a document to the desktop and the editor, and yanking it.
+
+Which file opens, `opened_at`, `$EDITOR` round trips, notes, and every export verb on a document
+that lacks what it exports. Every opener is `true` (conftest).
+"""
 
 import contextlib
 from pathlib import Path
@@ -18,6 +20,14 @@ from ptui import actions, clip, ui
 
 @pytest.fixture
 def opened(monkeypatch) -> list[str]:
+    """Stand in for the file opener.
+
+    Args:
+        monkeypatch: pytest's monkeypatch fixture.
+
+    Returns:
+        A list receiving each opened file's name.
+    """
     paths: list[str] = []
     monkeypatch.setattr(papis.utils, "open_file", lambda path, **_: paths.append(Path(path).name))
     return paths
@@ -25,12 +35,27 @@ def opened(monkeypatch) -> list[str]:
 
 @pytest.fixture
 def yanked(monkeypatch) -> list[str]:
+    """Stand in for the clipboard.
+
+    Args:
+        monkeypatch: pytest's monkeypatch fixture.
+
+    Returns:
+        A list receiving each copied text.
+    """
     texts: list[str] = []
     monkeypatch.setattr(clip, "copy", lambda app, text: texts.append(text) or "test")
     return texts
 
 
 async def test_open_with_no_files_says_so(app, opened, monkeypatch):
+    """Open with no files says so.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        opened: The `opened` fixture: the names of the files opened.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -41,6 +66,15 @@ async def test_open_with_no_files_says_so(app, opened, monkeypatch):
 
 @pytest.mark.parametrize(("which", "name"), [(None, "a.pdf"), (1, "b.pdf"), (7, "a.pdf")])
 async def test_open_takes_the_main_file_or_the_one_asked_for(app, papis_lib, opened, which, name):
+    """Open takes the main file or the one asked for.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        opened: The `opened` fixture: the names of the files opened.
+        which: Parametrized, such as `None`.
+        name: Parametrized, such as `'a.pdf'`.
+    """
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -49,6 +83,13 @@ async def test_open_takes_the_main_file_or_the_one_asked_for(app, papis_lib, ope
 
 
 async def test_the_main_file_opens_before_a_notes_file_listed_first(app, papis_lib, opened):
+    """The main file opens before a notes file listed first.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        opened: The `opened` fixture: the names of the files opened.
+    """
     attach(papis_lib, "doc0", "talk_notes.pdf", "paper.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -57,6 +98,12 @@ async def test_the_main_file_opens_before_a_notes_file_listed_first(app, papis_l
 
 
 async def test_opening_records_opened_at_only_when_asked_to(papis_lib, opened):
+    """Opening records opened at only when asked to.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        opened: The `opened` fixture: the names of the files opened.
+    """
     attach(papis_lib, "doc0", "a.pdf")
     for track in (False, True):
         app = build_app(papis_lib)
@@ -69,6 +116,13 @@ async def test_opening_records_opened_at_only_when_asked_to(papis_lib, opened):
 
 
 async def test_the_open_picker_lists_every_file_and_flags_a_missing_one(app, papis_lib, opened):
+    """The open picker lists every file and flags a missing one.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        opened: The `opened` fixture: the names of the files opened.
+    """
     attach(papis_lib, "doc0", "a.pdf", "b.pdf")
     (papis_lib / "lib" / "doc0" / "b.pdf").unlink()
     attach(papis_lib, "doc0", "c.pdf")
@@ -85,6 +139,13 @@ async def test_the_open_picker_lists_every_file_and_flags_a_missing_one(app, pap
 
 
 async def test_open_folder_hands_papis_the_document_folder(app, papis_lib, monkeypatch):
+    """Open folder hands papis the document folder.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     folders = []
     monkeypatch.setattr(papis.api, "open_dir", folders.append)
     async with app.run_test() as pilot:
@@ -94,6 +155,12 @@ async def test_open_folder_hands_papis_the_document_folder(app, papis_lib, monke
 
 
 async def test_browse_logs_the_url_papis_built(app, monkeypatch):
+    """Browse logs the url papis built.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.doc_set(app, "doi", "10.1000/xyz")
@@ -103,6 +170,13 @@ async def test_browse_logs_the_url_papis_built(app, monkeypatch):
 
 
 async def test_an_editor_session_that_changes_the_file_shows_the_change(app, papis_lib, monkeypatch):
+    """An editor session that changes the file shows the change.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     path = info(papis_lib)
     monkeypatch.setattr(
         papis.commands.edit, "run", lambda doc, **_: path.write_text(path.read_text().replace("2017", "2018"))
@@ -117,8 +191,16 @@ async def test_an_editor_session_that_changes_the_file_shows_the_change(app, pap
 
 @pytest.mark.parametrize("key", ["enter", "escape"])
 async def test_the_form_confirmed_or_cancelled_unchanged_writes_nothing(app, papis_lib, key):
-    """Opening the editor and leaving it must not rewrite the file — not even a
-    title with non-ASCII text, a list of tags or an int year read back as text."""
+    """The form confirmed or cancelled unchanged writes nothing.
+
+    Opening the editor and leaving it must not rewrite the file — not even a
+    title with non-ASCII text, a list of tags or an int year read back as text.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        key: Parametrized, such as `'enter'`.
+    """
     path = info(papis_lib)
     path.write_text(path.read_text().replace("Attention Is All You Need", "Über Größe — 東京"))
     before = path.read_text()
@@ -132,6 +214,13 @@ async def test_the_form_confirmed_or_cancelled_unchanged_writes_nothing(app, pap
 
 
 async def test_notes_are_created_from_papis_and_recorded_on_the_document(app, papis_lib, monkeypatch):
+    """Notes are created from papis and recorded on the document.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         monkeypatch.setattr(app, "suspend", contextlib.nullcontext)
@@ -145,6 +234,13 @@ async def test_notes_are_created_from_papis_and_recorded_on_the_document(app, pa
 
 
 async def test_a_citekey_for_a_document_with_no_ref_is_skipped_not_yanked_empty(app, papis_lib, yanked):
+    """A citekey for a document with no ref is skipped not yanked empty.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        yanked: The `yanked` fixture: the texts copied.
+    """
     path = info(papis_lib, "doc1")
     path.write_text(path.read_text().replace("ref: He2016\n", ""))
     async with app.run_test() as pilot:
@@ -155,6 +251,13 @@ async def test_a_citekey_for_a_document_with_no_ref_is_skipped_not_yanked_empty(
 
 
 async def test_nothing_to_yank_copies_nothing(app, yanked, monkeypatch):
+    """Nothing to yank copies nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        yanked: The `yanked` fixture: the texts copied.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -164,6 +267,13 @@ async def test_nothing_to_yank_copies_nothing(app, yanked, monkeypatch):
 
 
 async def test_path_yanks_each_targets_main_file_absolute(app, papis_lib, yanked):
+    """Path yanks each targets main file absolute.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        yanked: The `yanked` fixture: the texts copied.
+    """
     attach(papis_lib, "doc0", "a_notes.pdf", "a.pdf")
     attach(papis_lib, "doc1", "b.pdf")
     async with app.run_test() as pilot:
@@ -175,6 +285,12 @@ async def test_path_yanks_each_targets_main_file_absolute(app, papis_lib, yanked
 
 
 async def test_url_prefers_the_url_then_a_doi_link(app, yanked):
+    """Url prefers the url then a doi link.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        yanked: The `yanked` fixture: the texts copied.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.doc_set(app, "doi", "10.1/a")
@@ -187,6 +303,12 @@ async def test_url_prefers_the_url_then_a_doi_link(app, yanked):
 
 
 async def test_bibtex_of_a_batch_yanks_every_entry(app, yanked):
+    """Bibtex of a batch yanks every entry.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        yanked: The `yanked` fixture: the texts copied.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.marks = {"id0", "id2"}
@@ -196,6 +318,11 @@ async def test_bibtex_of_a_batch_yanks_every_entry(app, yanked):
 
 
 async def test_help_lists_the_keys_of_the_pane_it_was_opened_from(app):
+    """Help lists the keys of the pane it was opened from.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "3", "?")

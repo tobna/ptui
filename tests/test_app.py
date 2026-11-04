@@ -1,3 +1,5 @@
+"""The app: panes, keys, chrome and the log, driven with real key presses."""
+
 import pytest
 from conftest import press, settle
 
@@ -5,6 +7,11 @@ from ptui import config
 
 
 async def test_starts_and_lists_the_library(app):
+    """Starts and lists the library.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         assert len(app.docs) == 3
@@ -14,12 +21,17 @@ async def test_starts_and_lists_the_library(app):
 
 
 async def test_narrow_filters_without_touching_the_scope(app):
+    """Narrow filters without touching the scope.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await press(pilot, "/")
         assert app.prompt_kind == "narrow"
         await press(pilot, "r", "e", "s", "i", "d")
         await settle(pilot)
-        assert [d["year"] for d in app.rows] == [2016]
+        assert [doc["year"] for doc in app.rows] == [2016]
         assert len(app.docs) == 3
         await press(pilot, "escape")  # closes the prompt...
         await press(pilot, "escape")  # ...then clears the narrow
@@ -28,6 +40,11 @@ async def test_narrow_filters_without_touching_the_scope(app):
 
 
 async def test_marks_survive_narrowing(app):
+    """Marks survive narrowing, and a hidden mark is still a target.
+
+    Args:
+        app: The `PtuiApp` fixture.
+    """
     async with app.run_test() as pilot:
         await press(pilot, "space")  # marks and advances
         assert app.marks == {"id0"}
@@ -42,6 +59,11 @@ async def test_marks_survive_narrowing(app):
 
 
 async def test_chord_and_unknown_command(app):
+    """Chord and unknown command.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await press(pilot, "j")
         await press(pilot, "g", "g")
@@ -53,6 +75,11 @@ async def test_chord_and_unknown_command(app):
 
 
 async def test_escape_leaves_any_mode(app):
+    """Escape leaves any mode.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await press(pilot, "4")
         assert app.mode == "log"
@@ -68,8 +95,14 @@ async def test_escape_leaves_any_mode(app):
 
 
 async def test_stacked_the_files_pane_alone_is_as_tall_as_its_entries(app):
-    """With the info pane hidden (`z i`), the files pane used to sit at the top
-    of the side's share of the height, with blank rows under it."""
+    """Stacked the files pane alone is as tall as its entries.
+
+    With the info pane hidden (`z i`), the files pane used to sit at the top
+    of the side's share of the height, with blank rows under it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test(size=(80, 24)) as pilot:
         await settle(pilot)
         assert not app.side_by_side
@@ -82,13 +115,26 @@ async def test_stacked_the_files_pane_alone_is_as_tall_as_its_entries(app):
 
 
 async def test_the_hint_bar_shows_an_entry_whole_or_not_at_all(app):
-    """At 80 columns the bar ended in `space` with no words after it, and the
-    files pane at 120 cut `x remove from the list, keep`."""
+    """The hint bar shows an entry whole or not at all.
+
+    At 80 columns the bar ended in `space` with no words after it, and the
+    files pane at 120 cut `x remove from the list, keep`.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from session_lib import hints
 
     def entries() -> list[str]:
+        """Read the hint bar, asserting that each entry is a whole binding.
+
+        Returns:
+            The entries shown, in order.
+        """
         shown = hints(app).strip().split("   ")
-        whole = {f"{b.keys} {b.description}" for b in app.keymap.modes[app.mode].values()}  # keys.toml's words
+        whole = {
+            f"{binding.keys} {binding.description}" for binding in app.keymap.modes[app.mode].values()
+        }  # keys.toml's words
         assert set(shown) <= whole, set(shown) - whole
         return shown
 
@@ -107,6 +153,11 @@ async def test_the_hint_bar_shows_an_entry_whole_or_not_at_all(app):
 
 
 async def test_z_chords_resize_the_panes(app):
+    """Z chords resize the panes.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     # this is about the manual chords, so pin the layout: at 80 columns `auto`
     # would choose stacked on its own
     app.layout_auto = False
@@ -126,6 +177,11 @@ async def test_z_chords_resize_the_panes(app):
 
 
 async def test_auto_layout_stacks_until_the_flex_column_fits(app):
+    """Auto layout stacks until the flex column fits.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     assert app.layout_auto  # the shipped ui.layout
     async with app.run_test(size=(70, 24)) as pilot:
         await settle(pilot)
@@ -149,6 +205,11 @@ async def test_auto_layout_stacks_until_the_flex_column_fits(app):
 
 
 async def test_columns_fit_the_pane_and_drop_when_they_cannot(app):
+    """Columns fit the pane and drop when they cannot.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import DataTable
 
     async with app.run_test(size=(160, 24)) as pilot:
@@ -168,6 +229,11 @@ async def test_columns_fit_the_pane_and_drop_when_they_cannot(app):
 
 
 async def test_an_optional_column_yields_to_the_flex_target(app):
+    """An optional column yields to the flex target.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     app.layout_auto = False  # forcing side by side is how the squeeze happens
     app.side_by_side = True
     target = app.config.get("list.flex_target")
@@ -186,15 +252,20 @@ async def test_an_optional_column_yields_to_the_flex_target(app):
 
 
 async def test_sort_direction_shows_in_the_header_of_the_sorted_column(app):
+    """Sort direction shows in the header of the sorted column.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import DataTable
 
     from ptui import ui
 
     async with app.run_test(size=(160, 24)) as pilot:
         await settle(pilot)
-        headers = lambda: [str(c.label) for c in app.query_one(DataTable).columns.values()]  # noqa: E731
+        headers = lambda: [str(column.label) for column in app.query_one(DataTable).columns.values()]  # noqa: E731
         # the default sort is time-added, which no column shows
-        assert not any(ui.glyph("sort_desc") in h for h in headers())
+        assert not any(ui.glyph("sort_desc") in header for header in headers())
 
         await press(pilot, "S", "y", "e", "a", "r", "enter")  # sort by Year, descending
         await settle(pilot)
@@ -205,10 +276,16 @@ async def test_sort_direction_shows_in_the_header_of_the_sorted_column(app):
         # the flexible column's header is indented past the exception marker,
         # so that `Title` sits over the titles rather than two cells left of them
         assert f"  Title {ui.glyph('sort_asc')}" in headers()
-        assert not any(h.strip().startswith("Year ") for h in headers())  # the arrow moved
+        assert not any(header.strip().startswith("Year ") for header in headers())  # the arrow moved
 
 
 async def test_help_opens_in_every_mode_and_lists_effective_bindings(app, monkeypatch):
+    """Help opens in every mode and lists effective bindings.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from ptui import commands, ui
 
     monkeypatch.delitem(commands.REGISTRY, "doc.merge")  # every shipped key has a command now
@@ -227,23 +304,32 @@ async def test_help_opens_in_every_mode_and_lists_effective_bindings(app, monkey
 
 
 async def test_cmdline_runs_a_command_by_name_and_shows_its_keys(app):
+    """Cmdline runs a command by name and shows its keys.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from ptui import ui
 
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, ":")
         assert isinstance(app.screen, ui.SelectList)
-        relocate = next(i for i in app.screen.items if i.value == "files.relocate")
+        relocate = next(item for item in app.screen.items if item.value == "files.relocate")
         assert relocate.hint == "f r"  # the teaching half: the binding beside the name
 
         await press(pilot, *"mark.all")  # fuzzy completion narrows to one row
-        assert [i.value for i in app.screen.shown] == ["mark.all_filtered"]
+        assert [item.value for item in app.screen.shown] == ["mark.all_filtered"]
         await press(pilot, "enter", "enter")  # `[unmark]` gets the prompt; empty keeps the default
         assert len(app.marks) == 3  # it ran, not just closed
 
 
 async def test_ctrl_p_reaches_the_cmdline(app):
-    """Textual's own command palette used to eat this key above `on_key`."""
+    """Textual's own command palette used to eat this key above `on_key`.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from ptui import ui
 
     async with app.run_test() as pilot:
@@ -253,7 +339,12 @@ async def test_ctrl_p_reaches_the_cmdline(app):
 
 async def test_sort_reverse_keeps_the_cursor_on_the_document(app):
     """Row 0 moves to the bottom when the sort flips; the cursor goes with it.
-    (The middle row of three maps onto itself and would prove nothing.)"""
+
+    (The middle row of three maps onto itself and would prove nothing.)
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         current = app.current["title"]
@@ -263,6 +354,11 @@ async def test_sort_reverse_keeps_the_cursor_on_the_document(app):
 
 
 async def test_clearing_the_narrow_keeps_the_cursor_on_the_document(app):
+    """Clearing the narrow keeps the cursor on the document.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await press(pilot, "/", "n", "e", "u", "r", "a", "l", "enter")
         assert app.current["title"] == "A Neural Probabilistic Language Model"
@@ -272,6 +368,11 @@ async def test_clearing_the_narrow_keeps_the_cursor_on_the_document(app):
 
 
 async def test_theme_picker_lists_textual_themes_and_switches_live(app):
+    """Theme picker lists textual themes and switches live.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import OptionList
 
     from ptui import ui
@@ -294,6 +395,12 @@ async def test_theme_picker_lists_textual_themes_and_switches_live(app):
 
 
 async def test_the_theme_picker_previews_the_highlight_and_escape_restores(app, monkeypatch):
+    """The theme picker previews the highlight and escape restores.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     shown = []
     apply_theme = app.apply_theme
     monkeypatch.setattr(app, "apply_theme", lambda name: (shown.append(name), apply_theme(name)))
@@ -315,6 +422,11 @@ async def test_the_theme_picker_previews_the_highlight_and_escape_restores(app, 
 
 
 async def test_an_unknown_theme_says_so_instead_of_starting_unreadable(app):
+    """An unknown theme says so instead of starting unreadable.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.apply_theme("no-such-theme")
@@ -322,6 +434,11 @@ async def test_an_unknown_theme_says_so_instead_of_starting_unreadable(app):
 
 
 async def test_status_bar_shows_the_mode_and_the_counts(app):
+    """Status bar shows the mode and the counts.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import Static
 
     async with app.run_test() as pilot:
@@ -338,6 +455,12 @@ async def test_status_bar_shows_the_mode_and_the_counts(app):
 
 
 async def test_a_document_with_doctor_findings_is_marked_in_the_list(app, monkeypatch):
+    """A document with doctor findings is marked in the list.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from textual.widgets import DataTable
 
     from ptui import doctor, ui
@@ -359,7 +482,7 @@ async def test_a_document_with_doctor_findings_is_marked_in_the_list(app, monkey
         await settle(pilot)
         app.refresh_rows()
         table = app.query_one(DataTable)
-        flex = next(i for i, (column, _) in enumerate(app._fit) if not column["width"])
+        flex = next(index for index, (column, _) in enumerate(app._fit) if not column["width"])
         titles = [table.get_row_at(row)[flex].plain for row in range(3)]
 
         assert titles[0].startswith(f"{ui.glyph('warning')} ")  # findings
@@ -369,6 +492,11 @@ async def test_a_document_with_doctor_findings_is_marked_in_the_list(app, monkey
 
 
 async def test_the_log_pane_colours_a_record_by_its_level(app):
+    """The log pane colours a record by its level.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from loguru import logger
     from textual.widgets import RichLog
 
@@ -378,12 +506,21 @@ async def test_the_log_pane_colours_a_record_by_its_level(app):
         pane = app.query_one(RichLog)
 
         def colours(text: str) -> set[str]:
-            """Every foreground colour on the line holding `text`."""
-            line = next(strip for strip in pane.lines if text in "".join(s.text for s in strip._segments))
+            """Every foreground colour on the line holding `text`.
+
+            Args:
+                text: Text only that line holds.
+
+            Returns:
+                The colours in lower case.
+            """
+            line = next(strip for strip in pane.lines if text in "".join(segment.text for segment in strip._segments))
             # Textual normalises a theme colour (`#ff757f` comes back `#FE757F`),
             # so compare against `theme_variables` — the same source the sink
             # reads — and case-insensitively.
-            return {s.style.color.name.lower() for s in line._segments if s.style and s.style.color}
+            return {
+                segment.style.color.name.lower() for segment in line._segments if segment.style and segment.style.color
+            }
 
         logger.error("everything is on fire")
         logger.info("just so you know")
@@ -396,6 +533,11 @@ async def test_the_log_pane_colours_a_record_by_its_level(app):
 
 
 async def test_log_line_colours_follow_the_theme(app):
+    """Log line colours follow the theme.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import RichLog
 
     async with app.run_test() as pilot:
@@ -405,17 +547,27 @@ async def test_log_line_colours_follow_the_theme(app):
         await settle(pilot)
 
         line = next(
-            strip for strip in app.query_one(RichLog).lines if "it broke" in "".join(s.text for s in strip._segments)
+            strip
+            for strip in app.query_one(RichLog).lines
+            if "it broke" in "".join(segment.text for segment in strip._segments)
         )
-        colours = {s.style.color.name.lower() for s in line._segments if s.style and s.style.color}
+        colours = {
+            segment.style.color.name.lower() for segment in line._segments if segment.style and segment.style.color
+        }
         assert app.theme_variables["error"].lower() in colours
         assert app.theme_variables["warning"].lower() in colours
         assert "red" not in colours  # the basic ANSI colour never reaches the pane
 
 
 async def test_a_logged_value_in_brackets_survives(app):
-    """Every `log_line` call interpolates something — a config path, a title, a
-    keymap section — and Rich read `[modes.files]` or `[ui]` as a tag and ate it."""
+    """A logged value in brackets survives.
+
+    Every `log_line` call interpolates something — a config path, a title, a
+    keymap section — and Rich read `[modes.files]` or `[ui]` as a tag and ate it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import RichLog
 
     async with app.run_test() as pilot:
@@ -427,6 +579,11 @@ async def test_a_logged_value_in_brackets_survives(app):
 
 
 async def test_a_log_record_quoting_markup_is_not_swallowed(app):
+    """A log record quoting markup is not swallowed.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from loguru import logger
     from textual.widgets import RichLog
 
@@ -436,10 +593,17 @@ async def test_a_log_record_quoting_markup_is_not_swallowed(app):
         logger.warning("key [doc[year]] is odd")  # papis quotes values like this
         await settle(pilot)
         pane = app.query_one(RichLog)
-        assert any("key [doc[year]] is odd" in "".join(s.text for s in strip._segments) for strip in pane.lines)
+        assert any(
+            "key [doc[year]] is odd" in "".join(segment.text for segment in strip._segments) for strip in pane.lines
+        )
 
 
 async def test_the_info_pane_gives_the_four_meaningful_fields_a_colour(app):
+    """The info pane gives the four meaningful fields a colour.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from ptui import ui
 
     async with app.run_test() as pilot:
@@ -464,6 +628,11 @@ async def test_the_info_pane_gives_the_four_meaningful_fields_a_colour(app):
 
 
 async def test_the_info_pane_renders_a_real_document(app):
+    """The info pane renders a real document.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import Static
 
     async with app.run_test() as pilot:
@@ -475,6 +644,11 @@ async def test_the_info_pane_renders_a_real_document(app):
 
 
 async def test_a_long_info_value_wraps_under_itself_not_under_its_label(app):
+    """A long info value wraps under itself not under its label.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import Static
 
     from ptui import actions
@@ -484,13 +658,18 @@ async def test_a_long_info_value_wraps_under_itself_not_under_its_label(app):
         actions.doc_set(app, "url", "https://example.org/" + "very-long-path-segment/" * 6)
         await settle(pilot)
         lines = app.query_one("#info", Static).content.plain.splitlines()
-        head = next(i for i, line in enumerate(lines) if "url" in line and "https" in line)
+        head = next(index for index, line in enumerate(lines) if "url" in line and "https" in line)
         indent = lines[head].index("https")
         assert lines[head + 1].startswith(" " * indent)
         assert lines[head + 1].strip()  # the continuation, not a blank line
 
 
 async def test_the_abstract_closes_the_info_pane_and_j_k_scroll_it_from_the_list(app):
+    """The abstract closes the info pane and j k scroll it from the list.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import Static
 
     from ptui import actions
@@ -512,8 +691,14 @@ async def test_the_abstract_closes_the_info_pane_and_j_k_scroll_it_from_the_list
 
 
 async def test_a_missing_nested_key_renders_blank_without_a_papis_warning(app):
-    """`default=""` made papis log a warning *with a traceback* for every such
-    cell on every redraw — and build the document's description to do it."""
+    """A missing nested key renders blank without a papis warning.
+
+    `default=""` made papis log a warning *with a traceback* for every such
+    cell on every redraw — and build the document's description to do it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     import papis.document
     import papis.format
     from loguru import logger
@@ -531,8 +716,15 @@ async def test_a_missing_nested_key_renders_blank_without_a_papis_warning(app):
 
 @pytest.mark.parametrize("level", config.CHOICES["log.level"])
 async def test_every_allowed_log_level_starts(app, level):
-    """`trace` and `success` are loguru's names. Handed to papis's stdlib logger
-    by name, they raised "Unknown level" in `on_mount`, and ptui did not start."""
+    """`trace` and `success` are loguru's names.
+
+    Handed to papis's stdlib logger by name, they raised "Unknown level" in `on_mount`, and ptui
+    did not start.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        level: Parametrized case.
+    """
     import logging
 
     from loguru import logger
@@ -544,8 +736,14 @@ async def test_every_allowed_log_level_starts(app, level):
 
 
 async def test_papis_records_reach_the_log_pane_not_the_terminal(app):
-    """Under `papis ptui` papis's StreamHandler held the real stderr and wrote over
-    the screen; standalone, its warnings went nowhere at all."""
+    """Papis records reach the log pane not the terminal.
+
+    Under `papis ptui` papis's StreamHandler held the real stderr and wrote over
+    the screen; standalone, its warnings went nowhere at all.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     import logging
 
     from textual.widgets import RichLog
@@ -553,7 +751,7 @@ async def test_papis_records_reach_the_log_pane_not_the_terminal(app):
     async with app.run_test() as pilot:
         await settle(pilot)
         papis_log = logging.getLogger("papis")
-        assert not [h for h in papis_log.handlers if isinstance(h, logging.StreamHandler)]
+        assert not [handler for handler in papis_log.handlers if isinstance(handler, logging.StreamHandler)]
         logging.getLogger("papis.downloaders").warning("could not fetch [the thing]")
         logging.getLogger("papis.add").info("chatter")
         await press(pilot, "4")
@@ -563,6 +761,11 @@ async def test_papis_records_reach_the_log_pane_not_the_terminal(app):
 
 
 async def test_an_edit_shows_up_in_the_cached_cells(app):
+    """An edit shows up in the cached cells.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from ptui import actions
 
     title = next(column for column in app.config.get("list.columns") if column["title"] == "Title")
@@ -574,6 +777,11 @@ async def test_an_edit_shows_up_in_the_cached_cells(app):
 
 
 async def test_marking_redraws_only_the_row_it_changed(app):
+    """Marking redraws only the row it changed.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         table = app.query_one("DataTable")
@@ -584,14 +792,25 @@ async def test_marking_redraws_only_the_row_it_changed(app):
 
 
 async def test_the_status_bar_shows_a_bracketed_query_as_typed(app):
+    """The status bar shows a bracketed query as typed.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await press(pilot, "/", "[", "x", "]", "enter")
         assert "/ [x]" in str(app.query_one("#status-bar").render())
 
 
 async def test_a_failed_scope_keeps_the_scope_that_is_on_screen(app):
-    """papis rejects `year:>2020`; the status bar used to name it anyway, over
-    the previous query's results."""
+    """A failed scope keeps the scope that is on screen.
+
+    papis rejects `year:>2020`; the status bar used to name it anyway, over
+    the previous query's results.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await press(pilot, "s", *"year:2016", "enter")
         assert len(app.docs) == 1
@@ -602,8 +821,14 @@ async def test_a_failed_scope_keeps_the_scope_that_is_on_screen(app):
 
 
 async def test_the_pane_keys_work_from_every_pane(app):
-    """`[modes.info]` bound only j/k/e and the log had no table at all, so `tab`
-    stopped at the info pane and `g o` could not close the log it opened."""
+    """The pane keys work from every pane.
+
+    `[modes.info]` bound only j/k/e and the log had no table at all, so `tab`
+    stopped at the info pane and `g o` could not close the log it opened.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "tab")
@@ -621,12 +846,23 @@ async def test_the_pane_keys_work_from_every_pane(app):
 
 
 async def test_clicking_a_pane_focuses_it(app):
-    """A click lands on whatever widget is under it — the text inside the info
+    """Clicking a pane focuses it.
+
+    A click lands on whatever widget is under it — the text inside the info
     pane, a row of the list — and focuses the pane holding it, the same way
-    `1`-`4` do: transient panes open and close, the border follows."""
+    `1`-`4` do: transient panes open and close, the border follows.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
 
         async def click(selector: str) -> None:
+            """Click inside a pane, not on its border.
+
+            Args:
+                selector: The pane's CSS selector.
+            """
             await pilot.click(selector, offset=(3, 1))  # inside, not on the border
             await settle(pilot)
 
@@ -650,6 +886,11 @@ async def test_clicking_a_pane_focuses_it(app):
 
 
 async def test_h_and_l_walk_the_panes_from_every_pane(app):
+    """H and l walk the panes from every pane.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         seen = []
@@ -664,9 +905,14 @@ async def test_h_and_l_walk_the_panes_from_every_pane(app):
 
 
 async def test_q_quits_from_every_pane(app, monkeypatch):
-    """`q` was bound in [modes.list] only, so it did nothing in the other panes."""
+    """`q` was bound in [modes.list] only, so it did nothing in the other panes.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     quit_from = []
-    monkeypatch.setattr(app, "exit", lambda *_a, **_k: quit_from.append(app.mode))
+    monkeypatch.setattr(app, "exit", lambda *_args, **_kwargs: quit_from.append(app.mode))
     async with app.run_test() as pilot:
         await settle(pilot)
         for pane in "1234":
@@ -675,11 +921,25 @@ async def test_q_quits_from_every_pane(app, monkeypatch):
 
 
 async def test_a_failing_command_is_reported_once(app, monkeypatch):
+    """A failing command is reported once.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     from textual.widgets import RichLog
 
     from ptui import commands
 
     def boom(_app):
+        """Fail, as a broken command would.
+
+        Args:
+            _app: The app; unused.
+
+        Raises:
+            RuntimeError: Always.
+        """
         raise RuntimeError("kaputt")
 
     monkeypatch.setitem(commands.REGISTRY, "test.boom", commands.Command("test.boom", "explode", boom))
@@ -693,6 +953,11 @@ async def test_a_failing_command_is_reported_once(app, monkeypatch):
 
 
 async def test_a_long_log_line_wraps_instead_of_being_cut(app):
+    """A long log line wraps instead of being cut.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import RichLog
 
     async with app.run_test(size=(60, 30)) as pilot:
@@ -705,15 +970,21 @@ async def test_a_long_log_line_wraps_instead_of_being_cut(app):
 
 
 async def test_log_lines_wrap_short_of_the_scrollbar(app):
-    """A line was wrapped at the pane's width when it was written: zero while the
+    """Log lines wrap short of the scrollbar.
+
+    A line was wrapped at the pane's width when it was written: zero while the
     pane is hidden, so one cell per row, and a terminal narrowed afterwards left
-    every older line running under the scrollbar."""
+    every older line running under the scrollbar.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import RichLog
 
     async with app.run_test(size=(60, 30)) as pilot:
         await press(pilot, "4", "escape")  # shown once: RichLog stops deferring writes
-        for n in range(20):
-            app.log_line(f"while hidden {n} " + "word " * 15)
+        for number in range(20):
+            app.log_line(f"while hidden {number} " + "word " * 15)
         await press(pilot, "4")
         log = app.query_one(RichLog)
         assert log.max_scroll_y > 0  # enough lines that the scrollbar is in play
@@ -726,10 +997,15 @@ async def test_log_lines_wrap_short_of_the_scrollbar(app):
 
 
 async def test_the_log_pane_scrolls_with_the_info_pane_keys(app):
+    """The log pane scrolls with the info pane keys.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test(size=(80, 30)) as pilot:
         await press(pilot, "4")
-        for n in range(60):
-            app.log_line(f"line {n}")
+        for number in range(60):
+            app.log_line(f"line {number}")
         await settle(pilot)
         log = app.query_one("#log-pane")
         bottom = log.scroll_y
@@ -748,7 +1024,11 @@ async def test_the_log_pane_scrolls_with_the_info_pane_keys(app):
 
 
 async def test_two_flexible_columns_share_the_room(papis_lib):
-    """A second `width = 0` column used to be squeezed to nothing and vanish."""
+    """A second `width = 0` column used to be squeezed to nothing and vanish.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from conftest import build_app
 
     app = build_app(papis_lib)
@@ -767,6 +1047,11 @@ async def test_two_flexible_columns_share_the_room(papis_lib):
 
 
 async def test_the_first_header_sits_over_its_values_not_over_the_mark(papis_lib):
+    """The first header sits over its values not over the mark.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from conftest import build_app
 
     app = build_app(papis_lib)
@@ -782,6 +1067,11 @@ async def test_the_first_header_sits_over_its_values_not_over_the_mark(papis_lib
 
 
 async def test_a_startup_query_papis_rejects_opens_the_whole_library(papis_lib):
+    """A startup query papis rejects opens the whole library.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from conftest import build_app
 
     app = build_app(papis_lib)
@@ -793,6 +1083,11 @@ async def test_a_startup_query_papis_rejects_opens_the_whole_library(papis_lib):
 
 
 async def test_an_unknown_library_is_one_readable_sentence(app):
+    """An unknown library is one readable sentence.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     from textual.widgets import RichLog
 
     async with app.run_test() as pilot:
@@ -805,6 +1100,13 @@ async def test_an_unknown_library_is_one_readable_sentence(app):
 
 
 def _give_files(papis_lib, *names, doc="doc0"):
+    """Create files in a document's folder and list them in `files`.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        doc: The document's folder name.
+        *names: The file names.
+    """
     folder = papis_lib / "lib" / doc
     for name in names:
         (folder / name).write_bytes(name.encode())
@@ -813,6 +1115,13 @@ def _give_files(papis_lib, *names, doc="doc0"):
 
 
 async def test_the_files_pane_lists_the_entries_and_opens_the_one_under_its_cursor(app, papis_lib, monkeypatch):
+    """The files pane lists the entries and opens the one under its cursor.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     import papis.utils
     from textual.widgets import OptionList
 
@@ -824,7 +1133,10 @@ async def test_the_files_pane_lists_the_entries_and_opens_the_one_under_its_curs
         await press(pilot, "3")
         pane = app.query_one("#files-pane", OptionList)
         assert app.mode == "files" and pane.display
-        assert [str(pane.get_option_at_index(i).prompt).split()[0] for i in range(2)] == ["paper.pdf", "paper_supp.pdf"]
+        assert [str(pane.get_option_at_index(index).prompt).split()[0] for index in range(2)] == [
+            "paper.pdf",
+            "paper_supp.pdf",
+        ]
         await press(pilot, "j")
         assert app.file_index == 1
         assert app.current["title"] == "Attention Is All You Need"  # j moved the file, not the document
@@ -835,6 +1147,12 @@ async def test_the_files_pane_lists_the_entries_and_opens_the_one_under_its_curs
 
 
 async def test_detach_keeps_the_file_and_reorder_moves_the_cursor_with_it(app, papis_lib):
+    """Detach keeps the file and reorder moves the cursor with it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     _give_files(papis_lib, "a.pdf", "b.pdf", "c.pdf")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -851,6 +1169,12 @@ async def test_detach_keeps_the_file_and_reorder_moves_the_cursor_with_it(app, p
 
 
 async def test_repoint_offers_the_folder_files_no_entry_holds(app, papis_lib):
+    """Repoint offers the folder files no entry holds.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     _give_files(papis_lib, "kept.pdf", "gone.pdf")
     folder = papis_lib / "lib" / "doc0"
     (folder / "gone.pdf").rename(folder / "renamed.pdf")
@@ -865,6 +1189,12 @@ async def test_repoint_offers_the_folder_files_no_entry_holds(app, papis_lib):
 
 
 async def test_rename_uses_papis_scheme_and_undoes(app, papis_lib):
+    """Rename uses papis scheme and undoes.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     import papis.config
 
     _give_files(papis_lib, "paper.pdf", "2017-vaswani.pdf")
@@ -887,6 +1217,12 @@ async def test_rename_uses_papis_scheme_and_undoes(app, papis_lib):
 
 
 async def test_rename_leaves_a_supplement_its_name(app, papis_lib):
+    """Rename leaves a supplement its name.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     import papis.config
 
     _give_files(papis_lib, "paper_supp.pdf")
@@ -898,6 +1234,12 @@ async def test_rename_leaves_a_supplement_its_name(app, papis_lib):
 
 
 async def test_normalize_writes_the_canonical_style_and_drops_duplicates(app, papis_lib):
+    """Normalize writes the canonical style and drops duplicates.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     # not .pdf: the fixture's rules ask for absolute paths there, and do get them
     folder = papis_lib / "lib" / "doc0"
     for name in ("a.djvu", "b.djvu"):
@@ -913,8 +1255,15 @@ async def test_normalize_writes_the_canonical_style_and_drops_duplicates(app, pa
 
 
 async def test_normalize_follows_no_symlink_and_writes_the_shortest_entry(app, papis_lib):
-    """A library reached through a symlink got `../../real-lib/doc0/a.djvu`,
-    and a linked file was replaced by its target."""
+    """Normalize follows no symlink and writes the shortest entry.
+
+    A library reached through a symlink got `../../real-lib/doc0/a.djvu`,
+    and a linked file was replaced by its target.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     real = papis_lib / "real-lib"
     (papis_lib / "lib").rename(real)
     (papis_lib / "lib").symlink_to(real)
@@ -933,6 +1282,12 @@ async def test_normalize_follows_no_symlink_and_writes_the_shortest_entry(app, p
 
 
 async def test_a_files_key_written_as_one_string_lists_one_file(app, papis_lib):
+    """A files key written as one string lists one file.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from textual.widgets import Static
 
     folder = papis_lib / "lib" / "doc0"
@@ -946,7 +1301,11 @@ async def test_a_files_key_written_as_one_string_lists_one_file(app, papis_lib):
 
 
 async def test_the_next_session_starts_where_this_one_ended(papis_lib):
-    """Per library: scope, sort and cursor. An explicit scope wins."""
+    """Per library: scope, sort and cursor. An explicit scope wins.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     import json
 
     from conftest import build_app
@@ -954,6 +1313,11 @@ async def test_the_next_session_starts_where_this_one_ended(papis_lib):
     from ptui import library
 
     def session():
+        """Build one app with `persist_state` on.
+
+        Returns:
+            An unstarted `PtuiApp`.
+        """
         app = build_app(papis_lib)
         app.config.data["general"]["persist_state"] = True
         return app

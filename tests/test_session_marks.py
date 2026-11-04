@@ -7,12 +7,26 @@ from session_lib import awkward_app, hints, info_text, row_of, screen, status
 
 
 def on_disk(papis_lib, name: str) -> dict:
+    """Read a document's file, past papis and ptui.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture.
+        name: The document's folder name.
+
+    Returns:
+        The parsed `info.yaml`.
+    """
     return yaml.safe_load((papis_lib / "lib" / name / "info.yaml").read_text())
 
 
 @pytest.mark.parametrize("size", [(80, 24), (200, 50)])
 async def test_narrow_mark_two_tag_them_and_undo(papis_lib, size):
-    """`/nlp`, mark two of the three, `c t survey`, read the files, `u`."""
+    """`/nlp`, mark two of the three, `c t survey`, read the files, `u`.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        size: Parametrized, such as `(80, 24)`.
+    """
     from ptui import ui
 
     app = awkward_app(papis_lib)
@@ -64,7 +78,11 @@ async def test_narrow_mark_two_tag_them_and_undo(papis_lib, size):
 
 
 async def test_visual_range_gets_a_reading_status_and_gives_it_back(papis_lib):
-    """`j v j j`, `c s read`: three documents read, the rest untouched; `u`."""
+    """`j v j j`, `c s read`: three documents read, the rest untouched; `u`.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from ptui import ui
 
     app = awkward_app(papis_lib)
@@ -99,7 +117,11 @@ async def test_visual_range_gets_a_reading_status_and_gives_it_back(papis_lib):
 
 
 async def test_visual_unmark_takes_a_range_back_out_of_mark_all(papis_lib):
-    """`m a` marks all ten, `G V k k` unmarks the last three, `g m` shows the rest."""
+    """`m a` marks all ten, `G V k k` unmarks the last three, `g m` shows the rest.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     from ptui import ui
 
     app = awkward_app(papis_lib)

@@ -1,5 +1,7 @@
-"""Scope, narrow and sort state, saved searches, and switching or moving between
-libraries: the state every view is built from."""
+"""Scope, narrow and sort state, saved searches, and libraries.
+
+Switching or moving between libraries included: the state every view is built from.
+"""
 
 import json
 import os
@@ -12,10 +14,24 @@ from ptui import actions, library, ui
 
 
 def _ids(docs) -> list[str]:
-    return [library.doc_id(d) for d in docs]
+    """Reduce documents to their ids.
+
+    Args:
+        docs: The documents.
+
+    Returns:
+        Their ids, in order.
+    """
+    return [library.doc_id(doc) for doc in docs]
 
 
 async def test_an_alias_reaches_papis_expanded_and_the_status_keeps_what_was_typed(app, monkeypatch):
+    """An alias reaches papis expanded and the status keeps what was typed.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -26,6 +42,11 @@ async def test_an_alias_reaches_papis_expanded_and_the_status_keeps_what_was_typ
 
 
 async def test_a_new_scope_keeps_the_narrow_on_top_of_it(app):
+    """A new scope keeps the narrow on top of it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "/", *"deep", "enter")
@@ -36,6 +57,11 @@ async def test_a_new_scope_keeps_the_narrow_on_top_of_it(app):
 
 
 async def test_clearing_the_narrow_keeps_the_scope(app):
+    """Clearing the narrow keeps the scope.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.scope(app, "year:2016 OR year:2017")
@@ -52,6 +78,14 @@ async def test_clearing_the_narrow_keeps_the_scope(app):
     [(actions.query_scope, "scope", "year:2016"), (actions.query_narrow, "narrow", "deep")],
 )
 async def test_the_query_prompts_open_on_what_is_already_applied(app, command, kind, value):
+    """The query prompts open on what is already applied.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        command: Parametrized, such as `actions.query_scope`.
+        kind: Parametrized, such as `'scope'`.
+        value: Parametrized, such as `'year:2016'`.
+    """
     from textual.widgets import Input
 
     async with app.run_test() as pilot:
@@ -65,6 +99,13 @@ async def test_the_query_prompts_open_on_what_is_already_applied(app, command, k
 
 @pytest.mark.parametrize(("key", "reverse"), [("year", True), ("title", False), ("volume", False)])
 async def test_sort_by_takes_the_presets_direction_and_ascending_for_any_other_key(app, key, reverse):
+    """Sort by takes the presets direction and ascending for any other key.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        key: Parametrized, such as `'year'`.
+        reverse: Parametrized, such as `True`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.sort_by(app, key)
@@ -72,8 +113,11 @@ async def test_sort_by_takes_the_presets_direction_and_ascending_for_any_other_k
 
 
 async def test_sorting_keeps_the_narrow_and_the_cursor(app):
-    """SPEC: changing the sort must not clear the narrow, and the cursor stays on
-    the same document."""
+    """SPEC: changing the sort must not clear the narrow, and the cursor stays on the same document.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "/", *"year:>2010", "enter")
@@ -90,6 +134,11 @@ async def test_sorting_keeps_the_narrow_and_the_cursor(app):
 
 
 async def test_the_sort_picker_offers_presets_then_discovered_keys_without_repeats(app):
+    """The sort picker offers presets then discovered keys without repeats.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "S")
@@ -106,6 +155,11 @@ async def test_the_sort_picker_offers_presets_then_discovered_keys_without_repea
 
 
 async def test_sort_discovery_can_be_turned_off(papis_lib):
+    """Sort discovery can be turned off.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = build_app(papis_lib, "[list]\nsort_discover_keys = false\n")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -117,6 +171,11 @@ async def test_sort_discovery_can_be_turned_off(papis_lib):
 
 
 async def test_a_plain_string_in_config_is_a_scope_that_keeps_the_sort(papis_lib):
+    """A plain string in config is a scope that keeps the sort.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = build_app(papis_lib, '[query.saved]\nold = "year:2003"\n')
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -127,6 +186,11 @@ async def test_a_plain_string_in_config_is_a_scope_that_keeps_the_sort(papis_lib
 
 
 async def test_a_table_in_config_brings_its_sort(papis_lib):
+    """A table in config brings its sort.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     app = build_app(papis_lib, '[query.saved.recent]\nscope = ""\nsort = "year"\nreverse = false\n')
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -136,6 +200,13 @@ async def test_a_table_in_config_brings_its_sort(papis_lib):
 
 
 async def test_saving_under_a_config_name_replaces_it_and_says_so(app, papis_lib, monkeypatch):
+    """Saving under a config name replaces it and says so.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.scope(app, "year:2016")
@@ -146,6 +217,13 @@ async def test_saving_under_a_config_name_replaces_it_and_says_so(app, papis_lib
 
 
 async def test_a_search_from_config_cannot_be_forgotten_from_the_picker(app, papis_lib, monkeypatch):
+    """A search from config cannot be forgotten from the picker.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -156,6 +234,12 @@ async def test_a_search_from_config_cannot_be_forgotten_from_the_picker(app, pap
 
 
 async def test_loading_an_unknown_search_changes_nothing(app, monkeypatch):
+    """Loading an unknown search changes nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.scope(app, "year:2016")
@@ -166,6 +250,12 @@ async def test_loading_an_unknown_search_changes_nothing(app, monkeypatch):
 
 
 async def test_with_no_saved_searches_the_picker_does_not_open(papis_lib, monkeypatch):
+    """With no saved searches the picker does not open.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     app = build_app(papis_lib)
     app.config.data["query"]["saved"] = {}
     async with app.run_test() as pilot:
@@ -177,6 +267,12 @@ async def test_with_no_saved_searches_the_picker_does_not_open(papis_lib, monkey
 
 
 async def test_an_unreadable_saved_file_reads_as_empty(app, papis_lib):
+    """An unreadable saved file reads as empty.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     (papis_lib / "saved.json").write_text("{not json")
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -184,6 +280,12 @@ async def test_an_unreadable_saved_file_reads_as_empty(app, papis_lib):
 
 
 async def test_a_saved_search_with_unicode_round_trips(app, papis_lib):
+    """A saved search with unicode round trips.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         actions.scope(app, "title:Résumé")
@@ -195,6 +297,12 @@ async def test_a_saved_search_with_unicode_round_trips(app, papis_lib):
 
 
 async def test_saving_with_no_saved_file_is_reported_not_fatal(papis_lib, monkeypatch):
+    """Saving with no saved file is reported not fatal.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     app = build_app(papis_lib)
     app.config.data["query"]["saved_file"] = ""
     async with app.run_test() as pilot:
@@ -206,7 +314,13 @@ async def test_saving_with_no_saved_file_is_reported_not_fatal(papis_lib, monkey
 
 
 def test_the_history_keeps_the_newest_500(app, papis_lib):
-    (papis_lib / "history").write_text("".join(f"q{n}\n" for n in range(600)))
+    """The history keeps the newest 500.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
+    (papis_lib / "history").write_text("".join(f"q{number}\n" for number in range(600)))
     actions.remember(app, "last")
     past = actions.history(app)
     assert len(past) == actions.HISTORY_MAX
@@ -215,6 +329,12 @@ def test_the_history_keeps_the_newest_500(app, papis_lib):
 
 
 def test_a_blank_query_is_not_remembered(app, papis_lib):
+    """A blank query is not remembered.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     actions.remember(app, "   ")
     assert not (papis_lib / "history").exists()
 
@@ -223,6 +343,12 @@ def test_a_blank_query_is_not_remembered(app, papis_lib):
 
 
 async def test_switching_to_an_unknown_library_leaves_everything_as_it_was(app, monkeypatch):
+    """Switching to an unknown library leaves everything as it was.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         app.marks = {"id0"}
@@ -234,6 +360,12 @@ async def test_switching_to_an_unknown_library_leaves_everything_as_it_was(app, 
 
 
 async def test_switching_libraries_drops_the_marks_of_the_old_one(app, papis_lib):
+    """Switching libraries drops the marks of the old one.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     other = papis_lib / "other"
     other.mkdir()
     async with app.run_test() as pilot:
@@ -245,6 +377,11 @@ async def test_switching_libraries_drops_the_marks_of_the_old_one(app, papis_lib
 
 
 async def test_the_library_picker_lists_papis_libraries_and_opens_on_the_current(app):
+    """The library picker lists papis libraries and opens on the current.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "g", "l")
@@ -256,6 +393,12 @@ async def test_the_library_picker_lists_papis_libraries_and_opens_on_the_current
 
 
 async def test_moving_with_no_other_library_says_so(app, monkeypatch):
+    """Moving with no other library says so.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -265,6 +408,13 @@ async def test_moving_with_no_other_library_says_so(app, monkeypatch):
 
 
 async def test_moving_to_an_unknown_library_moves_nothing(app, papis_lib, monkeypatch):
+    """Moving to an unknown library moves nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -275,6 +425,12 @@ async def test_moving_to_an_unknown_library_moves_nothing(app, papis_lib, monkey
 
 
 async def test_cancelling_a_batch_move_moves_nothing(app, papis_lib):
+    """Cancelling a batch move moves nothing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     other = papis_lib / "other"
     other.mkdir()
     async with app.run_test() as pilot:
@@ -289,6 +445,12 @@ async def test_cancelling_a_batch_move_moves_nothing(app, papis_lib):
 
 
 async def test_moving_one_document_needs_no_confirmation(app, papis_lib):
+    """Moving one document needs no confirmation.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     other = papis_lib / "other"
     other.mkdir()
     async with app.run_test() as pilot:
@@ -301,6 +463,13 @@ async def test_moving_one_document_needs_no_confirmation(app, papis_lib):
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root writes through a read-only folder")
 async def test_a_history_that_cannot_be_written_costs_the_history_not_the_query(app, papis_lib, monkeypatch):
+    """A history that cannot be written costs the history not the query.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
     state = papis_lib / "state"
     state.mkdir()
     app.config.data["query"]["history_file"] = str(state / "history")
@@ -317,6 +486,12 @@ async def test_a_history_that_cannot_be_written_costs_the_history_not_the_query(
 
 
 async def test_a_session_state_that_cannot_be_written_does_not_stop_the_app_closing(app, papis_lib):
+    """A session state that cannot be written does not stop the app closing.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+    """
     (papis_lib / "blocker").write_text("a file where a folder should be")
     app.config.data["general"]["persist_state"] = True
     app.config.data["general"]["state_file"] = str(papis_lib / "blocker" / "state.json")
