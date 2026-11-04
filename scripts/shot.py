@@ -32,36 +32,55 @@ CONVERTERS = (
 
 async def shoot(
     keys: list[str],
-    out: Path | None,
+    output_path: Path | None,
     size: tuple[int, int],
     settle: float,
     icons: bool,
     rows: int | None = None,
 ) -> str | None:
-    cfg = config.load()
+    """Run the app headlessly, press the keys, and capture the final frame.
+
+    Args:
+        keys: Textual key names, in order.
+        output_path: Where the SVG goes, with its suffix replaced; `None` returns the screen as text.
+        size: Terminal `(width, height)`.
+        settle: Seconds to pause after startup and each key.
+        icons: Force `ui.icons` on.
+        rows: Force `list.row_height`, or `None`.
+
+    Returns:
+        The composited screen as text, or `None` when a file was written.
+    """
+    configuration = config.load()
     # A screenshot neither starts from nor saves over the real session, nor its query history.
-    cfg.data["general"]["persist_state"] = False
-    cfg.data["query"]["history_file"] = ""
+    configuration.data["general"]["persist_state"] = False
+    configuration.data["query"]["history_file"] = ""
     if icons:
-        cfg.data["ui"]["icons"] = True
+        configuration.data["ui"]["icons"] = True
     if rows:
-        cfg.data["list"]["row_height"] = rows
-    app = PtuiApp(cfg, keymap.load())
+        configuration.data["list"]["row_height"] = rows
+    app = PtuiApp(configuration, keymap.load())
     async with app.run_test(size=size) as pilot:
         await pilot.pause(settle)
         for key in keys:
             await pilot.press(key)
             await pilot.pause(settle)
-        if out is None:
+        if output_path is None:
             # ponytail: private compositor API, but it is the only authoritative
             # view of the screen — the SVG splits styled runs into separately
             # positioned elements, which fakes lost spaces and misalignment.
             return "\n".join(strip.text for strip in app.screen._compositor.render_strips())
-        out.with_suffix(".svg").write_text(app.export_screenshot())
+        output_path.with_suffix(".svg").write_text(app.export_screenshot())
         return None
 
 
 def to_png(svg: Path, png: Path) -> None:
+    """Convert an SVG with the first converter installed.
+
+    Args:
+        svg: The file to read.
+        png: The file to write.
+    """
     for template in CONVERTERS:
         if shutil.which(template[0]):
             subprocess.run(
@@ -74,6 +93,7 @@ def to_png(svg: Path, png: Path) -> None:
 
 
 def main() -> None:
+    """Parse the command line and take the screenshot."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("out", type=Path, nargs="?", help="PNG to write (SVG lands beside it)")
     parser.add_argument("keys", nargs="*", help="keys to press, in order")

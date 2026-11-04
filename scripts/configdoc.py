@@ -50,6 +50,16 @@ This page is generated from
 
 @dataclass(slots=True)
 class Section:
+    """One table of `config.toml`, as the page shows it.
+
+    Attributes:
+        name: The table's dotted name.
+        array: It is a list of tables, shown as a TOML block.
+        intro: The comment block above it, as prose.
+        rows: `(key, default, note)` per setting of a plain table.
+        lines: The raw lines of a list of tables.
+    """
+
     name: str
     array: bool
     intro: str
@@ -58,84 +68,119 @@ class Section:
 
 
 def split_value(rest: str) -> tuple[str, str]:
-    """`value  # note` -> (value, note). A `#` inside a string stays in the value."""
-    for i, char in enumerate(rest):
+    """`value  # note` -> (value, note). A `#` inside a string stays in the value.
+
+    Args:
+        rest: What follows the `=` on a line.
+
+    Returns:
+        `(value, note)`, stripped; the note is empty when there is none.
+    """
+    for index, char in enumerate(rest):
         if char == "#":
             try:
-                tomllib.loads(f"v = {rest[:i]}")
+                tomllib.loads(f"v = {rest[:index]}")
             except tomllib.TOMLDecodeError:
                 continue
-            return rest[:i].strip(), rest[i + 1 :].strip()
+            return rest[:index].strip(), rest[index + 1 :].strip()
     return rest.strip(), ""
 
 
 def paragraphs(comments: list[str]) -> str:
-    """A comment block as prose: `#` alone breaks a paragraph, `# ----` rules go."""
-    out, current = [], []
+    """A comment block as prose: `#` alone breaks a paragraph, `# ----` rules go.
+
+    Args:
+        comments: The comment lines, without their `#`.
+
+    Returns:
+        The paragraphs, separated by blank lines.
+    """
+    blocks, current = [], []
     for comment in [*comments, ""]:
         if comment and set(comment) <= {"-"}:
             continue
         if comment:
             current.append(comment)
         elif current:
-            out.append(" ".join(current))
+            blocks.append(" ".join(current))
             current = []
-    return "\n\n".join(out)
+    return "\n\n".join(blocks)
 
 
 def sections(text: str) -> list[Section]:
-    out: list[Section] = []
+    """Parse `config.toml` into its tables, keeping the comments.
+
+    Args:
+        text: The file's text.
+
+    Returns:
+        One `Section` per table; repeated `[[...]]` headers fold into one.
+    """
+    found: list[Section] = []
     comments: list[str] = []
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped:
             comments = []  # a comment block introduces only the header right under it
-            if out and out[-1].array:
-                out[-1].lines.append("")
+            if found and found[-1].array:
+                found[-1].lines.append("")
             continue
         if stripped.startswith("#"):
             comments.append(stripped.lstrip("#").strip())
             continue
         if header := HEADER.match(stripped):
             array, name = header[1] == "[[", header[2]
-            if array and out and out[-1].array and out[-1].name == name:
-                out[-1].lines.append(line)  # one block for the whole list
+            if array and found and found[-1].array and found[-1].name == name:
+                found[-1].lines.append(line)  # one block for the whole list
             else:
-                out.append(Section(name, array, paragraphs(comments), lines=[line] if array else []))
-        elif out[-1].array:
-            out[-1].lines.append(line)
+                found.append(Section(name, array, paragraphs(comments), lines=[line] if array else []))
+        elif found[-1].array:
+            found[-1].lines.append(line)
         else:
             key, _, rest = line.partition("=")
             value, note = split_value(rest)
-            out[-1].rows.append((key.strip(), value, " ".join([*comments, note]).strip()))
+            found[-1].rows.append((key.strip(), value, " ".join([*comments, note]).strip()))
         comments = []
-    for section in out:
+    for section in found:
         while section.lines and not section.lines[-1]:
             section.lines.pop()
-    return out
+    return found
 
 
 def cell(text: str) -> str:
+    """Escape text for a Markdown table cell.
+
+    Args:
+        text: The cell's text.
+
+    Returns:
+        The text with `|` escaped.
+    """
     return text.replace("|", "\\|")
 
 
 def render() -> str:
-    out = [INTRO]
+    """Render `CONFIG.md` from the shipped `config.toml`.
+
+    Returns:
+        The whole file as text.
+    """
+    lines = [INTRO]
     for section in sections((DEFAULTS_DIR / "config.toml").read_text()):
-        out += [f"## `[[{section.name}]]`" if section.array else f"## `[{section.name}]`", ""]
+        lines += [f"## `[[{section.name}]]`" if section.array else f"## `[{section.name}]`", ""]
         if section.intro:
-            out += [section.intro, ""]
+            lines += [section.intro, ""]
         if section.array:
-            out += ["```toml", *section.lines, "```", ""]
+            lines += ["```toml", *section.lines, "```", ""]
             continue
-        out += ["| Setting | Default | What it does |", "| --- | --- | --- |"]
+        lines += ["| Setting | Default | What it does |", "| --- | --- | --- |"]
         for key, value, note in section.rows:
             choices = CHOICES.get(f"{section.name}.{key}", ())
             if not all(choice in note for choice in choices):
-                note = f"{note}{'; ' if note else ''}one of {', '.join(f'`{c}`' for c in choices)}"
-            out.append(f"| `{key}` | `{cell(value)}` | {cell(note)} |")
-        out.append("")
-    return "\n".join(out)
+                note = f"{note}{'; ' if note else ''}one of {', '.join(f'`{option}`' for option in choices)}"
+            lines.append(f"| `{key}` | `{cell(value)}` | {cell(note)} |")
+        lines.append("")
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

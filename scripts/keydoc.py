@@ -45,8 +45,13 @@ OPTION_DOCS = {
 
 
 def render() -> str:
+    """Render `KEYS.md` from the shipped keymap and the registry.
+
+    Returns:
+        The whole file as text.
+    """
     data = tomllib.loads((DEFAULTS_DIR / "keys.toml").read_text())
-    out = [
+    lines = [
         "# Keys",
         "",
         "Every binding ptui ships with, generated from `src/ptui/defaults/keys.toml`",
@@ -70,25 +75,27 @@ def render() -> str:
 
     tables = {"global": data.get("global", {}), **data.get("modes", {})}
     for mode, bindings in tables.items():
-        out += [f"## `[{'global' if mode == 'global' else f'modes.{mode}'}]`", ""]
+        lines += [f"## `[{'global' if mode == 'global' else f'modes.{mode}'}]`", ""]
         if mode in MODE_INTROS:
-            out += [MODE_INTROS[mode], ""]
-        out += ["| Keys | Command | Does what |", "| --- | --- | --- |"]
-        for keys, spec in sorted(bindings.items(), key=lambda kv: (kv[0][0].casefold(), kv[0])):
-            cmd = spec["cmd"]
-            registered = REGISTRY.get(cmd)
-            desc = spec.get("desc") or (registered.description if registered else "—")
-            args = " ".join(f"{k}={v}" for k, v in spec.get("args", {}).items())
+            lines += [MODE_INTROS[mode], ""]
+        lines += ["| Keys | Command | Does what |", "| --- | --- | --- |"]
+        for keys, spec in sorted(bindings.items(), key=lambda item: (item[0][0].casefold(), item[0])):
+            command_name = spec["cmd"]
+            registered = REGISTRY.get(command_name)
+            description = spec.get("desc") or (registered.description if registered else "—")
+            args = " ".join(
+                f"{argument_name}={argument_value}" for argument_name, argument_value in spec.get("args", {}).items()
+            )
             note = "" if registered else " *(not implemented)*"
-            out.append(f"| `{keys}` | `{cmd}`{f' {args}' if args else ''} | {desc}{note} |")
-        out.append("")
+            lines.append(f"| `{keys}` | `{command_name}`{f' {args}' if args else ''} | {description}{note} |")
+        lines.append("")
 
-    out += ["## `[options]`", "", "| Option | Default | Does what |", "| --- | --- | --- |"]
+    lines += ["## `[options]`", "", "| Option | Default | Does what |", "| --- | --- | --- |"]
     for option, value in data.get("options", {}).items():
         # json, not repr: the file documents TOML, where it is `true`, not `True`.
-        out.append(f"| `{option}` | `{json.dumps(value)}` | {OPTION_DOCS.get(option, '')} |")
-    out.append("")
-    return "\n".join(out)
+        lines.append(f"| `{option}` | `{json.dumps(value)}` | {OPTION_DOCS.get(option, '')} |")
+    lines.append("")
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

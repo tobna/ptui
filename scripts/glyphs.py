@@ -52,12 +52,23 @@ CANDIDATES: dict[str, list[tuple[str, str]]] = {
 
 
 def line(glyph: str, label: str) -> str:
-    """`[g]` is three cells if the font agrees with rich. When it is not, every
-    column to the right of the bracket shifts and you can see it."""
+    """Render one candidate glyph.
+
+    `[g]` is three cells if the font agrees with rich. When it is not, every column to the right of the
+    bracket shifts and you can see it.
+
+    Args:
+        glyph: The symbol.
+        label: What it is.
+
+    Returns:
+        The row of text.
+    """
     return f"  [{glyph}]  U+{ord(glyph):04X}  cell_len={cell_len(glyph)}  {label}"
 
 
 def main() -> None:
+    """Print the shipped glyphs, then the candidates."""
     print(f"\nSHIPPED — ui.GLYPHS, your config has icons = {config.load().get('ui.icons')}")
     print("  the two brackets on a row must be the same width as each other\n")
     for name, (ascii_, nerd) in ui.GLYPHS.items():
