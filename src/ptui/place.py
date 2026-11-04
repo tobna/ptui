@@ -37,6 +37,17 @@ SUFFIXES = "bcdefghijklmnopqrstuvwxyz"
 
 @dataclass(frozen=True, slots=True)
 class Rule:
+    """One `[[files.rules]]` entry: which files it matches and where they go.
+
+    Attributes:
+        name: The rule's name, for messages.
+        match: Filename patterns, as `fnmatch` reads them.
+        operation: What happens to a matched file.
+        destination: papis format string of the target path, or `None` to leave the file alone.
+        path_style: How `files` stores the path.
+        slugify: Slugify the target's file name.
+    """
+
     name: str
     match: tuple[str, ...]
     operation: str = "in-place"  # move | copy | link | hardlink | in-place
@@ -45,11 +56,29 @@ class Rule:
     slugify: bool = False
 
     def matches(self, path: Path) -> bool:
+        """Test a file's name against the rule's patterns.
+
+        Args:
+            path: The file; only its name counts.
+
+        Returns:
+            `True` when any pattern matches.
+        """
         return any(fnmatch(path.name, pattern) for pattern in self.match)
 
 
 @dataclass(frozen=True, slots=True)
 class Rules:
+    """The placement rules, in the order they are tried.
+
+    Attributes:
+        rules: The configured rules, first match wins.
+        default: The rule for a file nothing else matches.
+        pdf_root: What `{pdf_root}` expands to, or `None` when unset.
+        collision: What to do when the destination exists and differs.
+        hash_check: Compare bytes, so an identical destination counts as a duplicate.
+    """
+
     rules: tuple[Rule, ...]
     default: Rule
     pdf_root: Path | None
@@ -57,11 +86,37 @@ class Rules:
     hash_check: bool = True
 
     def first_match(self, path: Path) -> Rule:
-        return next((r for r in self.rules if r.matches(path)), self.default)
+        """Pick the rule that governs a file.
+
+        Args:
+            path: The file.
+
+        Returns:
+            The first matching rule, or `default`.
+        """
+        return next((rule for rule in self.rules if rule.matches(path)), self.default)
 
     @classmethod
-    def from_config(cls, cfg: Any) -> Rules:
+    def from_config(cls, configuration: Any) -> Rules:
+        """Read the rules from the app's settings.
+
+        Args:
+            configuration: The app's `Config`.
+
+        Returns:
+            The rules, with `files.default` as the fallback.
+        """
+
         def rule(data: dict[str, Any], name: str) -> Rule:
+            """Build one rule from its TOML table.
+
+            Args:
+                data: The rule's table; `op` and `dest` are its on-disk keys.
+                name: The name to use when the table has none.
+
+            Returns:
+                The rule.
+            """
             return Rule(
                 name=data.get("name", name),
                 match=tuple(data.get("match", ["*"])),
@@ -72,16 +127,30 @@ class Rules:
             )
 
         return cls(
-            rules=tuple(rule(r, f"rule {i}") for i, r in enumerate(cfg.get("files.rules", []))),
-            default=rule(cfg.get("files.default", {}), "default"),
-            pdf_root=cfg.as_path("files.pdf_root"),
-            collision=cfg.get("files.collision", "skip"),
-            hash_check=cfg.get("files.hash_check", True),
+            rules=tuple(
+                rule(rule_table, f"rule {index}")
+                for index, rule_table in enumerate(configuration.get("files.rules", []))
+            ),
+            default=rule(configuration.get("files.default", {}), "default"),
+            pdf_root=configuration.as_path("files.pdf_root"),
+            collision=configuration.get("files.collision", "skip"),
+            hash_check=configuration.get("files.hash_check", True),
         )
 
 
 @dataclass(frozen=True, slots=True)
 class PlaceResult:
+    """What `place()` did with one file.
+
+    Attributes:
+        status: The outcome.
+        source: The file as it was when placed.
+        rule: The name of the rule applied.
+        destination: Where it went or would go; `None` when no rule moved it.
+        entry: What to store in `files`; `None` leaves the existing entry alone.
+        message: Why, when the status is not `ok`; empty otherwise.
+    """
+
     status: Status
     source: Path
     rule: str
@@ -92,87 +161,158 @@ class PlaceResult:
 
     @property
     def moved(self) -> bool:
+        """Tell whether a file landed at a destination.
+
+        Returns:
+            `True` for an `ok` status with a destination.
+        """
         return self.status == "ok" and self.destination is not None
 
 
 def _digest(path: Path) -> str:
-    with path.open("rb") as fd:
-        return hashlib.file_digest(fd, "sha256").hexdigest()
+    """Hash a file's bytes.
+
+    Args:
+        path: The file.
+
+    Returns:
+        The SHA-256 digest as hex text.
+    """
+    with path.open("rb") as handle:
+        return hashlib.file_digest(handle, "sha256").hexdigest()
 
 
-def _existing(dest: Path) -> Path | None:
-    """`dest` or the entry it would collide with on a case-insensitive filesystem."""
-    if dest.exists():
-        return dest
-    if not dest.parent.is_dir():
+def _existing(destination: Path) -> Path | None:
+    """`destination` or the entry it would collide with on a case-insensitive filesystem.
+
+    Args:
+        destination: The wanted path.
+
+    Returns:
+        The path holding that name, or `None` when the name is free.
+    """
+    if destination.exists():
+        return destination
+    if not destination.parent.is_dir():
         return None
-    lowered = dest.name.lower()
-    return next((p for p in dest.parent.iterdir() if p.name.lower() == lowered), None)
+    lowered = destination.name.lower()
+    return next((path for path in destination.parent.iterdir() if path.name.lower() == lowered), None)
 
 
-def _suffixed(dest: Path) -> Path | None:
+def _suffixed(destination: Path) -> Path | None:
+    """Find the first free `_b`, `_c`, … name for a path.
+
+    Args:
+        destination: The wanted path.
+
+    Returns:
+        The free path, or `None` when every suffix is taken.
+    """
     for letter in SUFFIXES:
-        candidate = dest.with_name(f"{dest.stem}_{letter}{dest.suffix}")
+        candidate = destination.with_name(f"{destination.stem}_{letter}{destination.suffix}")
         if _existing(candidate) is None:
             return candidate
     return None
 
 
-def _reserve(src: Path, dest: Path) -> None:
-    """Create `dest` from `src` without any window in which it could be clobbered."""
-    dest.parent.mkdir(parents=True, exist_ok=True)
+def _reserve(source: Path, destination: Path) -> None:
+    """Create `destination` from `source` without any window in which it could be clobbered.
+
+    Args:
+        source: The existing file.
+        destination: The name to create.
+
+    Raises:
+        FileExistsError: When `destination` already exists.
+        OSError: When neither a link nor a copy works.
+    """
+    destination.parent.mkdir(parents=True, exist_ok=True)
     try:
-        os.link(src, dest)  # raises FileExistsError — cannot clobber
-    except OSError as exc:
-        if isinstance(exc, FileExistsError):
+        os.link(source, destination)  # raises FileExistsError — cannot clobber
+    except OSError as error:
+        if isinstance(error, FileExistsError):
             raise
-        tmp = dest.parent / f".{dest.name}.ptui.{os.getpid()}"
+        temporary = destination.parent / f".{destination.name}.ptui.{os.getpid()}"
         try:
-            shutil.copy2(src, tmp)
-            with tmp.open("rb") as fd:
-                os.fsync(fd.fileno())
-            os.link(tmp, dest)  # same guard
+            shutil.copy2(source, temporary)
+            with temporary.open("rb") as handle:
+                os.fsync(handle.fileno())
+            os.link(temporary, destination)  # same guard
         finally:
-            tmp.unlink(missing_ok=True)
+            temporary.unlink(missing_ok=True)
 
 
-def _entry(dest: Path, doc: Document, style: str, previous: str | None) -> str:
-    """What `files` stores for `dest`, in `style`.
+def _entry(destination: Path, doc: Document, style: str, previous: str | None) -> str:
+    """What `files` stores for `destination`, in `style`.
 
     Both sides are `normal`ised and no link is followed, so a library reached
     through a symlink gets `paper.pdf` rather than a climb out to the link's
     target, and a linked PDF stays the link. A relative entry never climbs to
     `/`: when that is its only relative path, the absolute one is written, and
     the log says so.
+
+    Args:
+        destination: The placed file.
+        doc: The document it belongs to.
+        style: The rule's `path_style`.
+        previous: The entry as `files` holds it today, for `keep`; `None` when new.
+
+    Returns:
+        The text for the `files` entry.
     """
     folder = doc.get_main_folder()
-    dest = normal(dest)
+    destination = normal(destination)
     if style == "keep" and previous is not None:
         style = "absolute" if Path(previous).is_absolute() else "relative-doc"
     if style == "relative-doc" and folder:
         home = normal(Path(folder))
-        if os.path.commonpath([dest, home]) != dest.anchor:
-            return os.path.relpath(dest, home)
-        logger.info(f"{dest}: written absolute, the only path to it from {home} climbs to {dest.anchor}")
-    return str(dest)
+        if os.path.commonpath([destination, home]) != destination.anchor:
+            return os.path.relpath(destination, home)
+        logger.info(f"{destination}: written absolute, the only path to it from {home} climbs to {destination.anchor}")
+    return str(destination)
 
 
 def normal(path: Path) -> Path:
-    """`path` absolute and free of `..`, worked out from the text alone: a symlink
-    is not followed, so a linked file or folder keeps the name it was given."""
+    """Make a path absolute and free of `..`, working from the text alone.
+
+    A symlink is not followed, so a linked file or folder keeps the name it was given.
+
+    Args:
+        path: Any path.
+
+    Returns:
+        The normalised path.
+    """
     return Path(os.path.normpath(os.path.abspath(path)))
 
 
-def same_file(a: Path, b: Path) -> bool:
-    """One file under two spellings — `../../pdfs/x.pdf` beside `/data/pdfs/x.pdf`:
-    the same path once normalised, or the same target once links are followed."""
-    return normal(a) == normal(b) or a.resolve() == b.resolve()
+def same_file(first: Path, second: Path) -> bool:
+    """Tell whether two paths spell one file, like `../../pdfs/x.pdf` and `/data/pdfs/x.pdf`.
+
+    They do when they are the same path once normalised, or the same target once links are followed.
+
+    Args:
+        first: One path.
+        second: The other path.
+
+    Returns:
+        `True` when both name one file.
+    """
+    return normal(first) == normal(second) or first.resolve() == second.resolve()
 
 
 def entries(doc: Document) -> list[str]:
-    """`files`, entry by entry as written. A hand-written `files: paper.pdf` is
-    legal YAML and papis reads it as one entry (`Document.get_files`); iterating
-    the string would give its letters."""
+    """`files`, entry by entry as written.
+
+    A hand-written `files: paper.pdf` is legal YAML and papis reads it as one entry
+    (`Document.get_files`); iterating the string would give its letters.
+
+    Args:
+        doc: The document to read.
+
+    Returns:
+        The entries as stored; empty when it has none.
+    """
     value = doc.get("files")
     if value in (None, ""):
         return []
@@ -180,122 +320,174 @@ def entries(doc: Document) -> list[str]:
 
 
 def resolve(doc: Document, entry: str) -> Path:
-    """A `files` entry as an absolute path (entries may be relative to the doc folder)."""
+    """A `files` entry as an absolute path (entries may be relative to the doc folder).
+
+    Args:
+        doc: The document the entry belongs to.
+        entry: One `files` entry; `~` is expanded.
+
+    Returns:
+        The absolute path, or the relative one when the document has no folder.
+    """
     path = Path(entry).expanduser()
     folder = doc.get_main_folder()
     return path if path.is_absolute() or not folder else Path(folder) / path
 
 
-def target(doc: Document, src: Path, rule: Rule, rules: Rules, *, default: str | None = None) -> Path:
-    """The path `rule` wants `src` at. Pure — touches nothing.
+def target(doc: Document, source: Path, rule: Rule, rules: Rules, *, default: str | None = None) -> Path:
+    """The path `rule` wants `source` at. Pure — touches nothing.
 
     `default` fills in missing document keys instead of raising; the add-flow
     preview uses it so a half-filled form still shows a path.
+
+    Args:
+        doc: The document naming the file.
+        source: The file; its name is used when the rule has no destination.
+        rule: The governing rule.
+        rules: The rule set, for `pdf_root`.
+        default: Text for missing document keys, or `None` to raise on one.
+
+    Returns:
+        The wanted path, with `~` expanded and the name slugified when the rule says so.
     """
     formatted = papis.format.format(
-        rule.destination or src.name,
+        rule.destination or source.name,
         doc,
         additional={"pdf_root": str(rules.pdf_root or "")},
         default=default,
     )
-    dest = Path(formatted).expanduser()
+    destination = Path(formatted).expanduser()
     if rule.slugify:
-        dest = dest.with_name(slugify(dest.stem, separator="_", lowercase=False) + dest.suffix)
-    return dest
+        destination = destination.with_name(
+            slugify(destination.stem, separator="_", lowercase=False) + destination.suffix
+        )
+    return destination
 
 
 def place(
     doc: Document,
-    src_path: Path | str,
+    source_path: Path | str,
     rules: Rules,
     *,
     force: bool = False,
     dry_run: bool = False,
     previous: str | None = None,
 ) -> PlaceResult:
-    """Move `src_path` where the rules say it belongs.
+    """Move `source_path` where the rules say it belongs.
 
     Idempotent: a second run returns `already`, which is what makes migrating a
     whole library safe. `force` turns a `conflict` into a suffixed name instead
     of a skip. `previous` is the entry as it is written in `files` today, so the
     `keep` path style can be preserved.
+
+    Args:
+        doc: The document the file belongs to.
+        source_path: The file, absolute or relative to the document's folder.
+        rules: The placement rules.
+        force: Take a suffixed name on a conflict instead of skipping.
+        dry_run: Work the outcome out without touching the file.
+        previous: The entry as `files` holds it today, or `None` when new.
+
+    Returns:
+        The outcome; every failure is a status, never an exception.
     """
-    src = resolve(doc, str(src_path))
-    rule = rules.first_match(src)
+    source = resolve(doc, str(source_path))
+    rule = rules.first_match(source)
 
     if rule.operation == "in-place" or not rule.destination:
-        return PlaceResult("unmanaged", src, rule.name, message="rule keeps files in place")
-    if not src.exists():
-        return PlaceResult("error", src, rule.name, message="source does not exist")
+        return PlaceResult("unmanaged", source, rule.name, message="rule keeps files in place")
+    if not source.exists():
+        return PlaceResult("error", source, rule.name, message="source does not exist")
 
     try:
-        dest = target(doc, src, rule, rules)
-    except Exception as exc:
+        destination = target(doc, source, rule, rules)
+    except Exception as error:
         # A naming scheme the document cannot satisfy is one document's problem,
         # not the batch's: report it and let the other documents through.
-        return PlaceResult("error", src, rule.name, message=f"cannot name destination: {exc}")
+        return PlaceResult("error", source, rule.name, message=f"cannot name destination: {error}")
 
-    clash = _existing(dest)
+    clash = _existing(destination)
     if clash is not None:
         # A link to nothing holds the name but has no file to compare with: it
         # is a clash like any other, never something to stat or hash.
         broken = not clash.exists()
-        if not broken and (src.resolve() == clash.resolve() or os.path.samefile(src, clash)):
+        if not broken and (source.resolve() == clash.resolve() or os.path.samefile(source, clash)):
             entry = _entry(clash, doc, rule.path_style, previous)
-            return PlaceResult("already", src, rule.name, destination=clash, entry=entry)
-        if not broken and rules.hash_check and _digest(src) == _digest(clash):
-            return PlaceResult("duplicate", src, rule.name, destination=clash, message="destination is byte-identical")
+            return PlaceResult("already", source, rule.name, destination=clash, entry=entry)
+        if not broken and rules.hash_check and _digest(source) == _digest(clash):
+            return PlaceResult(
+                "duplicate", source, rule.name, destination=clash, message="destination is byte-identical"
+            )
         if rules.collision == "suffix" or force:
-            suffixed = _suffixed(dest)
+            suffixed = _suffixed(destination)
             if suffixed is None:
-                return PlaceResult("conflict", src, rule.name, destination=dest, message="no free suffix")
-            dest = suffixed
+                return PlaceResult("conflict", source, rule.name, destination=destination, message="no free suffix")
+            destination = suffixed
         else:
             why = "destination is a broken link" if broken else "destination exists, differs"
-            return PlaceResult("conflict", src, rule.name, destination=dest, message=why)
+            return PlaceResult("conflict", source, rule.name, destination=destination, message=why)
 
-    entry = _entry(dest, doc, rule.path_style, previous)
+    entry = _entry(destination, doc, rule.path_style, previous)
     if dry_run:
-        return PlaceResult("ok", src, rule.name, destination=dest, entry=entry)
+        return PlaceResult("ok", source, rule.name, destination=destination, entry=entry)
 
     try:
-        _reserve(src, dest)
+        _reserve(source, destination)
     except FileExistsError:
-        return PlaceResult("conflict", src, rule.name, destination=dest, message="destination appeared")
-    except OSError as exc:
-        return PlaceResult("error", src, rule.name, destination=dest, message=str(exc))
+        return PlaceResult("conflict", source, rule.name, destination=destination, message="destination appeared")
+    except OSError as error:
+        return PlaceResult("error", source, rule.name, destination=destination, message=str(error))
 
     if rule.operation in ("move", "copy"):
         if rule.operation == "move":
-            src.unlink()
-        return PlaceResult("ok", src, rule.name, destination=dest, entry=entry)
-    if rule.operation == "link":  # dest is a hardlink so far; replace it with a symlink
-        dest.unlink()
-        dest.symlink_to(src)
-    return PlaceResult("ok", src, rule.name, destination=dest, entry=entry)
+            source.unlink()
+        return PlaceResult("ok", source, rule.name, destination=destination, entry=entry)
+    if rule.operation == "link":  # destination is a hardlink so far; replace it with a symlink
+        destination.unlink()
+        destination.symlink_to(source)
+    return PlaceResult("ok", source, rule.name, destination=destination, entry=entry)
 
 
-def adopt(src: Path, folder: Path) -> Path:
-    """Move `src` into `folder` under its own name, `_b`-suffixed on a clash —
-    for a file the rules leave in place whose own folder is about to go (a
-    merge's loser). Never clobbers; a byte-identical file already there is the
-    file, and `src` is left alone."""
-    dest = folder / src.name
-    if (clash := _existing(dest)) is not None:
-        if clash.exists() and _digest(clash) == _digest(src):
+def adopt(source: Path, folder: Path) -> Path:
+    """Move a file into a folder under its own name, `_b`-suffixed on a clash.
+
+    For a file the rules leave in place whose own folder is about to go (a merge's loser). Never
+    clobbers; a byte-identical file already there is the file, and `source` is left alone.
+
+    Args:
+        source: The file to move.
+        folder: The folder it joins.
+
+    Returns:
+        The path the file now has, or the identical file already there.
+
+    Raises:
+        FileExistsError: When every suffix is taken.
+    """
+    destination = folder / source.name
+    if (clash := _existing(destination)) is not None:
+        if clash.exists() and _digest(clash) == _digest(source):
             return clash
-        suffixed = _suffixed(dest)
+        suffixed = _suffixed(destination)
         if suffixed is None:
-            raise FileExistsError(f"no free name for {src.name} in {folder}")
-        dest = suffixed
-    _reserve(src, dest)
-    src.unlink()
-    return dest
+            raise FileExistsError(f"no free name for {source.name} in {folder}")
+        destination = suffixed
+    _reserve(source, destination)
+    source.unlink()
+    return destination
 
 
-def holding(doc: Document, src: Path) -> Path | None:
-    """The file of `doc` with the same bytes as `src`, if it already has one."""
-    digest = _digest(src)
+def holding(doc: Document, source: Path) -> Path | None:
+    """The file of `doc` with the same bytes as `source`, if it already has one.
+
+    Args:
+        doc: The document to search.
+        source: The file to compare.
+
+    Returns:
+        The matching file of `doc`, or `None`.
+    """
+    digest = _digest(source)
     held = (resolve(doc, entry) for entry in entries(doc))
     return next((path for path in held if path.is_file() and _digest(path) == digest), None)
 
@@ -307,6 +499,12 @@ def rollback(result: PlaceResult) -> None:
     file is dropped — unless its bytes differ: then another file has taken the
     name since (or the copy was annotated), and deleting the placed one would
     lose it, so this raises and keeps it.
+
+    Args:
+        result: The outcome of the `place()` to undo; one that moved nothing is ignored.
+
+    Raises:
+        FileExistsError: When the placed file's bytes differ from the source's.
     """
     if not result.moved or result.destination is None:
         return
@@ -327,20 +525,30 @@ def trash(folder: Path, trash_dir: Path) -> Path:
 
     The destination is suffixed deterministically on collision (`_b`, `_c`, …),
     like every other name ptui reserves, so trashing the same ref twice is safe.
+
+    Args:
+        folder: The document folder.
+        trash_dir: The trash folder; `~` is expanded and it is created when missing.
+
+    Returns:
+        The folder's path in the trash.
+
+    Raises:
+        FileExistsError: When every suffix is taken.
     """
     trash_dir = trash_dir.expanduser()
     trash_dir.mkdir(parents=True, exist_ok=True)
-    dest = trash_dir / folder.name
-    for suffix in ("", *(f"_{chr(c)}" for c in range(ord("b"), ord("z") + 1))):
+    destination = trash_dir / folder.name
+    for suffix in ("", *(f"_{chr(code_point)}" for code_point in range(ord("b"), ord("z") + 1))):
         candidate = trash_dir / f"{folder.name}{suffix}"
         if not candidate.exists():
-            dest = candidate
+            destination = candidate
             break
     else:
         raise FileExistsError(f"{trash_dir} already holds every name for {folder.name}")
-    shutil.move(str(folder), str(dest))
-    trashed_at(trash_dir, {dest.name: time.time()})
-    return dest
+    shutil.move(str(folder), str(destination))
+    trashed_at(trash_dir, {destination.name: time.time()})
+    return destination
 
 
 TRASH_INDEX = ".ptui-trashed.json"
@@ -350,9 +558,18 @@ folder trashed today because it was last edited months ago."""
 
 
 def trashed_at(trash_dir: Path, stamp: dict[str, float] | None = None) -> dict[str, float]:
-    """The trash index, with `stamp` merged in and entries that are gone (an
-    undo moved them back) dropped. An entry the index has never seen — trashed
-    before there was an index — is stamped now, so it gets the full retention."""
+    """Read the trash index, merging `stamp` in and dropping entries that are gone.
+
+    An undo moves entries back, and those are gone. An entry the index has never seen, trashed before
+    there was an index, is stamped now, so it gets the full retention.
+
+    Args:
+        trash_dir: The trash folder.
+        stamp: Entry name to the time it was trashed, or `None` to add nothing.
+
+    Returns:
+        Entry name to the epoch seconds it was trashed at; also written back to the index.
+    """
     path = trash_dir / TRASH_INDEX
     try:
         index = json.loads(path.read_text())
@@ -361,7 +578,7 @@ def trashed_at(trash_dir: Path, stamp: dict[str, float] | None = None) -> dict[s
     now = time.time()
     present = {entry.name for entry in trash_dir.iterdir() if entry.name != TRASH_INDEX}
     index = {name: index.get(name, now) for name in present} | (stamp or {})
-    tmp = path.with_name(f"{TRASH_INDEX}.tmp")
-    tmp.write_text(json.dumps(index, indent=1))
-    tmp.replace(path)
+    temporary = path.with_name(f"{TRASH_INDEX}.tmp")
+    temporary.write_text(json.dumps(index, indent=1))
+    temporary.replace(path)
     return index

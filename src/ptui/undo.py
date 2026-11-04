@@ -36,7 +36,13 @@ a far bigger surprise than doing nothing."""
 
 @dataclass(frozen=True, slots=True)
 class Step:
-    """One reversible ptui operation, as the user would describe it."""
+    """One reversible ptui operation, as the user would describe it.
+
+    Attributes:
+        label: What the log says the step did.
+        undo: Reverses the operation; takes nothing.
+        redo: Performs it again; takes nothing.
+    """
 
     label: str
     undo: Callable[[], None]
@@ -51,6 +57,11 @@ class History:
     `info.yaml` changed on disk under it, and such a step leaves alone what it
     could not write (`actions._raise_stale`), so the same key tries it again.
     Moved on, the next `u` would undo the step before it while this one holds.
+
+    Attributes:
+        size: How many steps `done` keeps.
+        done: The steps `u` can undo, oldest first.
+        undone: The steps `ctrl+r` can redo, oldest first.
     """
 
     size: int = 50
@@ -58,17 +69,33 @@ class History:
     undone: list[Step] = field(default_factory=list)
 
     def push(self, step: Step) -> None:
+        """Record a new step, dropping the oldest past `size` and the whole redo branch.
+
+        Args:
+            step: The operation just done.
+        """
         self.done.append(step)
         del self.done[: max(0, len(self.done) - self.size)]
         self.undone.clear()  # a new operation invalidates the redo branch
 
     def clear(self) -> None:
-        """Forget everything — `strategy = "none"` after an operation nobody
-        can reverse, so `u` cannot offer the *previous* one by mistake."""
+        """Forget everything.
+
+        Used for `strategy = "none"` after an operation nobody can reverse, so `u` cannot offer the
+        *previous* one by mistake.
+        """
         self.done.clear()
         self.undone.clear()
 
     def undo(self) -> Step | None:
+        """Undo the newest step.
+
+        Returns:
+            The step undone, or `None` when there is nothing to undo.
+
+        Raises:
+            StaleError: When an `info.yaml` changed on disk; the step stays on `done`.
+        """
         if not self.done:
             return None
         step = self.done.pop()
@@ -81,6 +108,14 @@ class History:
         return step
 
     def redo(self) -> Step | None:
+        """Redo the newest undone step.
+
+        Returns:
+            The step redone, or `None` when there is nothing to redo.
+
+        Raises:
+            StaleError: When an `info.yaml` changed on disk; the step stays on `undone`.
+        """
         if not self.undone:
             return None
         step = self.undone.pop()
@@ -97,17 +132,23 @@ class History:
 
 
 def restore(moved: list[tuple[Path, Path]]) -> list[Path]:
-    """Move trashed paths back where they came from. Returns what was restored.
+    """Move trashed paths back where they came from.
 
-    A destination that has reappeared in the meantime is left alone rather than
-    overwritten: undo may not clobber whatever took the name back.
+    A destination that has reappeared in the meantime is left alone rather than overwritten: undo may
+    not clobber whatever took the name back.
+
+    Args:
+        moved: `(original path, path in the trash)` pairs.
+
+    Returns:
+        The original paths that were restored.
     """
     back = []
-    for source, dest in moved:
-        if not dest.exists() or source.exists():
+    for source, destination in moved:
+        if not destination.exists() or source.exists():
             continue
         source.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(dest), str(source))
+        shutil.move(str(destination), str(source))
         back.append(source)
     return back
 
@@ -116,7 +157,18 @@ def restore(moved: list[tuple[Path, Path]]) -> list[Path]:
 
 
 def git(root: Path, *args: str) -> str:
-    """Run git in `root`, raising with git's own message on failure."""
+    """Run git in `root`, raising with git's own message on failure.
+
+    Args:
+        root: The folder to run in.
+        *args: git's arguments.
+
+    Returns:
+        git's standard output, stripped.
+
+    Raises:
+        RuntimeError: When git exits non-zero, carrying its message.
+    """
     done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
     if done.returncode:
         raise RuntimeError((done.stderr or done.stdout).strip())
@@ -124,21 +176,37 @@ def git(root: Path, *args: str) -> str:
 
 
 def git_root(path: Path) -> Path | None:
-    """The work tree `path` belongs to, or None when it is not in one."""
+    """The work tree `path` belongs to, or None when it is not in one.
+
+    Args:
+        path: A file or folder.
+
+    Returns:
+        The work tree's top folder, or `None`.
+    """
     try:
         return Path(git(path if path.is_dir() else path.parent, "rev-parse", "--show-toplevel"))
     except (RuntimeError, OSError):
         return None
 
 
-def require_git(cfg: Any, library: Path) -> str | None:
-    """`undo.strategy = "git"` works only on a git work tree. When the library is
-    not in one, `trash` takes its place — the way config repair replaces a value
-    that cannot work — and the sentence saying so is returned. Checked at
-    startup, on `:config.set undo.strategy` and on a library switch."""
-    if cfg.get("undo.strategy") != "git" or git_root(library) is not None:
+def require_git(configuration: Any, library: Path) -> str | None:
+    """Fall back on `trash` when `undo.strategy = "git"` cannot work.
+
+    The strategy works only on a git work tree. When the library is not in one, `trash` takes its
+    place, the way config repair replaces a value that cannot work. Checked at startup, on
+    `:config.set undo.strategy` and on a library switch.
+
+    Args:
+        configuration: The app's `Config`; its `undo.strategy` is changed in place.
+        library: The library's folder.
+
+    Returns:
+        The sentence saying so when the strategy was replaced, else `None`.
+    """
+    if configuration.get("undo.strategy") != "git" or git_root(library) is not None:
         return None
-    cfg.data["undo"]["strategy"] = "trash"
+    configuration.data["undo"]["strategy"] = "trash"
     return f"undo.strategy = 'git', but {library} is not in a git work tree; using 'trash'"
 
 
@@ -148,6 +216,17 @@ def git_delete(root: Path, folders: list[Path], message: str) -> str:
     One ptui operation is one commit (SPEC), which is what makes the log a
     usable history: reverting one entry undoes what the user did, not what it
     happened to do to the seventh document.
+
+    Args:
+        root: The work tree.
+        folders: The document folders to remove.
+        message: The commit subject, without `COMMIT_PREFIX`.
+
+    Returns:
+        The hash of the new commit.
+
+    Raises:
+        RuntimeError: When git refuses.
     """
     for folder in folders:
         git(root, "rm", "-r", "-q", "-f", str(folder))
@@ -161,6 +240,13 @@ def git_revert(root: Path, commit: str) -> None:
     `revert`, never `reset --hard`: the working tree may hold edits ptui knows
     nothing about, and rewriting history under a user who also uses this repo
     by hand is not undo, it is data loss.
+
+    Args:
+        root: The work tree.
+        commit: The hash of the commit to revert.
+
+    Raises:
+        RuntimeError: When the commit is not ptui's, or git refuses.
     """
     subject = git(root, "log", "-1", "--format=%s", commit)
     if not subject.startswith(COMMIT_PREFIX):
@@ -170,7 +256,15 @@ def git_revert(root: Path, commit: str) -> None:
 
 
 def git_tracks(root: Path, path: Path) -> bool:
-    """Whether git actually has this path — a gitignored PDF is not an undo."""
+    """Whether git actually has this path — a gitignored PDF is not an undo.
+
+    Args:
+        root: The work tree.
+        path: The path to ask about.
+
+    Returns:
+        `True` when git knows the path.
+    """
     try:
         return bool(git(root, "ls-files", "--error-unmatch", str(path)))
     except RuntimeError:

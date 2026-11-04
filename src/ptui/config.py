@@ -13,20 +13,34 @@ DEFAULTS_DIR = Path(__file__).parent / "defaults"
 
 
 def config_dir() -> Path:
-    """User config dir: `ptui/` in papis's config folder, which honours
-    `$PAPIS_CONFIG_DIR` (on Linux usually `~/.config/papis/ptui`)."""
+    """Find the user's config folder.
+
+    It is `ptui/` in papis's config folder, which honours `$PAPIS_CONFIG_DIR` (on Linux usually
+    `~/.config/papis/ptui`).
+
+    Returns:
+        The folder's path; it may not exist.
+    """
     return Path(papis.config.get_config_folder()) / "ptui"
 
 
 def _merge(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
-    """Deep-merge tables; anything else (including lists) is replaced wholesale."""
-    out = dict(base)
+    """Deep-merge tables; anything else (including lists) is replaced wholesale.
+
+    Args:
+        base: The table to start from; left unchanged.
+        over: The table whose values win.
+
+    Returns:
+        A new table holding both.
+    """
+    merged = dict(base)
     for key, value in over.items():
-        if isinstance(value, dict) and isinstance(out.get(key), dict):
-            out[key] = _merge(out[key], value)
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge(merged[key], value)
         else:
-            out[key] = value
-    return out
+            merged[key] = value
+    return merged
 
 
 USER_TABLES = ("query.aliases", "query.saved", "files.kind_patterns", "add.sources")
@@ -34,8 +48,18 @@ USER_TABLES = ("query.aliases", "query.saved", "files.kind_patterns", "add.sourc
 
 
 def _unknown(base: dict[str, Any], over: dict[str, Any], prefix: str = "") -> list[str]:
-    """Dotted keys present in `over` but not in `base`. Does not descend into
-    lists or `USER_TABLES`."""
+    """Find the dotted keys present in `over` but not in `base`.
+
+    Does not descend into lists or `USER_TABLES`.
+
+    Args:
+        base: The shipped table.
+        over: The user's table.
+        prefix: Dotted path of these tables, ending in a dot; empty at the top level.
+
+    Returns:
+        Dotted key names, in the order `over` holds them.
+    """
     bad = []
     for key, value in over.items():
         dotted = f"{prefix}{key}"
@@ -48,6 +72,15 @@ def _unknown(base: dict[str, Any], over: dict[str, Any], prefix: str = "") -> li
 
 @dataclass(frozen=True, slots=True)
 class Config:
+    """Shipped defaults merged with the user's overrides.
+
+    Attributes:
+        data: The merged settings, nested by TOML table.
+        unknown: Dotted keys the user set that ptui does not know.
+        path: The user's `config.toml`, or `None` if they have none.
+        invalid: Sentences naming the values put back to the shipped default.
+    """
+
     data: dict[str, Any]
     unknown: tuple[str, ...]
     """Dotted keys the user set that ptui does not know — reported by app.config_check."""
@@ -58,6 +91,15 @@ class Config:
     sentences — logged at startup and by app.config_check."""
 
     def get(self, dotted: str, default: Any = None) -> Any:
+        """Look a setting up by its dotted key.
+
+        Args:
+            dotted: Dotted key, such as `ui.icons`.
+            default: What to return when the key is missing.
+
+        Returns:
+            The stored value, which may be a whole table, or `default`.
+        """
         node: Any = self.data
         for part in dotted.split("."):
             if not isinstance(node, dict) or part not in node:
@@ -66,17 +108,42 @@ class Config:
         return node
 
     def as_path(self, dotted: str) -> Path | None:
-        """A config value as an expanded absolute path, or None if unset."""
+        """A config value as an expanded absolute path, or None if unset.
+
+        Args:
+            dotted: Dotted key of a path setting.
+
+        Returns:
+            The path with `~` expanded, or `None` when the setting is unset or empty.
+        """
         value = self.get(dotted)
         return Path(value).expanduser() if value else None
 
     def papis(self, dotted: str, papis_key: str) -> Any:
-        """Our value if set, else the value papis already owns."""
+        """Our value if set, else the value papis already owns.
+
+        Args:
+            dotted: Dotted key of ptui's own setting.
+            papis_key: Name of the papis setting to fall back on.
+
+        Returns:
+            ptui's value when it is truthy, else papis's.
+        """
         return self.get(dotted) or papis.config.get(papis_key)
 
 
 def load(path: Path | None = None) -> Config:
-    """Load defaults + user overrides. `path` defaults to `<config_dir>/config.toml`."""
+    """Load the shipped defaults and the user's overrides.
+
+    Args:
+        path: The user's config file; `None` means `<config_dir>/config.toml`.
+
+    Returns:
+        The merged, repaired `Config`.
+
+    Raises:
+        ValueError: When the user's file is not valid TOML.
+    """
     defaults = tomllib.loads((DEFAULTS_DIR / "config.toml").read_text())
     if path is None:
         path = config_dir() / "config.toml"
@@ -108,11 +175,24 @@ def repair(data: dict[str, Any]) -> list[str]:
     column with no `width`) or quietly meant something else (`layout =
     "diagonal"` read as side by side, `split_ratio = 1.5` pushed the list off
     the screen). Also run on every `config.set`.
+
+    Args:
+        data: The merged settings, nested by TOML table; repaired in place.
+
+    Returns:
+        One sentence per value that was put back or left out, empty when all were fine.
     """
     defaults = tomllib.loads((DEFAULTS_DIR / "config.toml").read_text())  # fresh: `data` may share its tables
     problems = []
 
     def tables(base: dict[str, Any], over: dict[str, Any], prefix: str = "") -> None:
+        """Put back any shipped table the user replaced with something else.
+
+        Args:
+            base: The shipped table.
+            over: The same table in the merged settings; repaired in place.
+            prefix: Dotted path of these tables, ending in a dot; empty at the top level.
+        """
         # `ui = "dark"`: every lookup below would index into a string and raise TypeError
         for key, default in base.items():
             if not isinstance(default, dict):
@@ -126,6 +206,13 @@ def repair(data: dict[str, Any]) -> list[str]:
     tables(defaults, data)
 
     def replace(dotted: str, value: Any, why: str) -> None:
+        """Put the shipped default back for one key and record why.
+
+        Args:
+            dotted: Dotted key to repair.
+            value: The value that cannot work.
+            why: The rest of the sentence, saying what is wrong with it.
+        """
         section, _, key = dotted.rpartition(".")
         default = Config(defaults, (), None).get(dotted)
         Config(data, (), None).get(section)[key] = default
@@ -178,9 +265,21 @@ def repair(data: dict[str, Any]) -> list[str]:
 
 
 def read_toml(path: Path) -> dict[str, Any]:
-    """A user's TOML file. A syntax error names the file: tomllib only gives the
-    line and column, and the user has two files that could hold it."""
+    """Read a user's TOML file.
+
+    A syntax error names the file: tomllib only gives the line and column, and the user has two files
+    that could hold it.
+
+    Args:
+        path: The file to read.
+
+    Returns:
+        The parsed tables.
+
+    Raises:
+        ValueError: When the file is not valid TOML.
+    """
     try:
         return tomllib.loads(path.read_text())
-    except tomllib.TOMLDecodeError as exc:
-        raise ValueError(f"{path}: {exc}") from exc
+    except tomllib.TOMLDecodeError as error:
+        raise ValueError(f"{path}: {error}") from error

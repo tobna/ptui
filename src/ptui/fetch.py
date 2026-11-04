@@ -33,7 +33,14 @@ def available(sources: dict[str, dict[str, str]]) -> list[str]:
     A curated table rather than the raw plugin list: an importer nobody has
     described is not a source a user can choose. A missing plugin is skipped,
     so this degrades rather than breaking; a new one is offered once the
-    config gives it a row."""
+    config gives it a row.
+
+    Args:
+        sources: The `[add.sources]` table: source name to its `label` and `example`.
+
+    Returns:
+        The names papis registers, in table order.
+    """
     import papis.importer
 
     known = set(papis.importer.get_available_importers())
@@ -41,17 +48,31 @@ def available(sources: dict[str, dict[str, str]]) -> list[str]:
 
 
 def downloaders() -> list[str]:
-    """Every downloader papis registers — what `from_url` can dispatch to."""
+    """Every downloader papis registers — what `from_url` can dispatch to.
+
+    Returns:
+        The downloader names.
+    """
     import papis.downloaders
 
     return papis.downloaders.get_available_downloaders()
 
 
 def fetch(name: str, uri: str) -> tuple[dict[str, Any], list[Path]]:
-    """Run one named importer. Returns its metadata and any file it downloaded.
+    """Run one named importer.
 
-    `match()` is what constructs the importer — constructors differ per plugin
-    (`ArxivImporter` wants `arxivid`, not `uri`), so it is the only generic way in.
+    `match()` is what constructs the importer: constructors differ per plugin (`ArxivImporter` wants
+    `arxivid`, not `uri`), so it is the only generic way in.
+
+    Args:
+        name: The importer's name, chosen by the user.
+        uri: What to import: an id, a path or a URL.
+
+    Returns:
+        `(metadata, files)`: the importer's keys and values, and the paths of any file it downloaded.
+
+    Raises:
+        ValueError: When the importer rejects `uri` or finds nothing.
     """
     import papis.importer
 
@@ -62,13 +83,22 @@ def fetch(name: str, uri: str) -> tuple[dict[str, Any], list[Path]]:
     data = dict(importer.ctx.data or {})
     if not data:
         raise ValueError(f"{name} found nothing for {uri!r}")
-    return data, [Path(f) for f in importer.ctx.files or []]
+    return data, [Path(file_name) for file_name in importer.ctx.files or []]
 
 
 def from_url(url: str) -> tuple[dict[str, Any], list[Path]]:
     """Let papis pick one of its `downloaders()` for a publisher URL.
 
     `http(s)` only: `fallback` matches anything and would try to GET a path.
+
+    Args:
+        url: The page to read.
+
+    Returns:
+        `(metadata, files)` from the first importer that read anything.
+
+    Raises:
+        ValueError: When `url` is not `http(s)`, or nothing could read it.
     """
     import papis.importer
 
@@ -80,19 +110,27 @@ def from_url(url: str) -> tuple[dict[str, Any], list[Path]]:
     for importer in matched:
         try:
             importer.fetch()
-        except Exception as exc:  # a downloader that cannot parse this page
-            errors.append(f"{importer.name}: {exc}")
+        except Exception as error:  # a downloader that cannot parse this page
+            errors.append(f"{importer.name}: {error}")
             continue
         if importer.ctx.data:
-            return dict(importer.ctx.data), [Path(f) for f in importer.ctx.files or []]
+            return dict(importer.ctx.data), [Path(file_name) for file_name in importer.ctx.files or []]
     detail = "; ".join(errors[:3]) or "no importer matched"
     raise ValueError(f"nothing could read {url} ({detail})")
 
 
 def refetchers(doc: dict[str, Any]) -> list[Any]:
-    """The importers that can fetch `doc` again, built from its own data with no
-    network: papis's data matching (the DOI; the title, for Crossref), plus arXiv
-    for an arXiv id — that importer matches no data of its own."""
+    """List the importers that can fetch `doc` again, with no network.
+
+    They are built from its own data: papis's data matching (the DOI; the title, for Crossref), plus
+    arXiv for an arXiv id, since that importer matches no data of its own.
+
+    Args:
+        doc: The document's keys.
+
+    Returns:
+        The importers, most authoritative first.
+    """
     import papis.importer
 
     found = papis.importer.get_matching_importers_by_doc(doc)
@@ -103,7 +141,7 @@ def refetchers(doc: dict[str, Any]) -> list[Any]:
             found.append(arxiv)
             break
     order = ["doi", "arxiv", "crossref"]  # authority first; a title search last
-    return sorted(found, key=lambda imp: order.index(imp.name) if imp.name in order else len(order))
+    return sorted(found, key=lambda candidate: order.index(candidate.name) if candidate.name in order else len(order))
 
 
 CROSSREF_HITS = 10
@@ -111,12 +149,24 @@ CROSSREF_HITS = 10
 
 
 def crossref(query: str) -> list[dict[str, Any]]:
-    """Every hit of a Crossref search, best first. papis's `crossref` importer
-    keeps only the first ("Picking the first one!") and its `match()` accepts no
-    text at all, so neither `c u` nor the add flow could choose. Network.
+    """Run a Crossref search and return every hit, best first.
 
-    A failed request also returns `[]`: papis catches it and logs an error, and
-    that record is the one thing telling it from an answer with no hits."""
+    papis's `crossref` importer keeps only the first ("Picking the first one!") and its `match()`
+    accepts no text at all, so neither `c u` nor the add flow could choose. Network.
+
+    A failed request also returns `[]`: papis catches it and logs an error, and that record is the one
+    thing telling it from an answer with no hits.
+
+    Args:
+        query: The title or words to search for.
+
+    Returns:
+        At most `CROSSREF_HITS` records, each a dict of document keys.
+
+    Raises:
+        ConnectionError: When the request failed.
+        ValueError: When Crossref answered with no hits.
+    """
     import papis.crossref
 
     failed = logging.handlers.BufferingHandler(capacity=8)  # keeps what it hears in `.buffer`
@@ -137,8 +187,19 @@ def crossref(query: str) -> list[dict[str, Any]]:
 
 
 def refetch(importer: Any) -> list[dict[str, Any]]:
-    """Metadata only, never the PDF — the document already has its files. One
-    record for an id; every hit for a Crossref title search. Network."""
+    """Fetch metadata only, never the PDF: the document already has its files.
+
+    One record for an id; every hit for a Crossref title search. Network.
+
+    Args:
+        importer: A papis importer, as `refetchers` returns them.
+
+    Returns:
+        The records found, each a dict of document keys without `ref`, `citations` or `files`.
+
+    Raises:
+        ValueError: When nothing was found.
+    """
     import papis.importer
 
     if importer.name == "crossref":
@@ -160,6 +221,15 @@ def bib_entries(path: Path) -> list[dict[str, Any]]:
 
     The `bibtex` importer returns only the first entry in `ctx.data`; this is the
     same parser underneath, kept whole.
+
+    Args:
+        path: The `.bib` file; `~` is expanded.
+
+    Returns:
+        One dict of document keys per entry, in file order.
+
+    Raises:
+        ValueError: When the file holds no entries.
     """
     import papis.bibtex
 

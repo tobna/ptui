@@ -233,8 +233,8 @@ def test_an_arxiv_entry_with_no_doi_is_still_a_preprint():
 
 
 def test_p90_ignores_the_one_long_outlier():
-    assert library.p90(["x" * 5] * 9 + ["x" * 40]) == 5
-    assert library.p90([]) == 0
+    assert library.percentile_90(["x" * 5] * 9 + ["x" * 40]) == 5
+    assert library.percentile_90([]) == 0
 
 
 def test_discover_keys():

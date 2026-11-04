@@ -21,6 +21,15 @@ type Chord = tuple[str, ...]
 
 @dataclass(frozen=True, slots=True)
 class Binding:
+    """One key sequence bound to a command.
+
+    Attributes:
+        chord: The key tokens pressed in sequence.
+        command: Dotted name of the bound command.
+        args: Keyword arguments for the handler; empty for none.
+        description: keys.toml's short label, or the command's own description.
+    """
+
     chord: Chord
     command: str
     args: dict[str, Any]
@@ -28,56 +37,127 @@ class Binding:
 
     @property
     def keys(self) -> str:
+        """The chord as keys.toml writes it.
+
+        Returns:
+            The key tokens joined by spaces, such as `g o`.
+        """
         return " ".join(self.chord)
 
 
 @dataclass(frozen=True, slots=True)
 class Keymap:
+    """Every binding, grouped by mode.
+
+    Attributes:
+        modes: Mode name to its bindings, keyed by chord.
+        options: The `[options]` table of keys.toml.
+        unknown_commands: Sentences naming bindings whose command does not exist.
+    """
+
     modes: dict[str, dict[Chord, Binding]]
     options: dict[str, Any]
     unknown_commands: tuple[str, ...]
 
     def option(self, key: str, default: Any = None) -> Any:
+        """Look up a keys.toml option.
+
+        Args:
+            key: Option name.
+            default: What to return when the option is unset.
+
+        Returns:
+            The option's value, or `default`.
+        """
         return self.options.get(key, default)
 
     def lookup(self, mode: str, chord: Chord) -> Binding | None:
+        """Find the binding of a complete chord.
+
+        Args:
+            mode: Mode name.
+            chord: The key tokens pressed so far.
+
+        Returns:
+            The binding, or `None` when the chord binds nothing in that mode.
+        """
         return self.modes.get(mode, {}).get(chord)
 
     def is_prefix(self, mode: str, chord: Chord) -> bool:
-        n = len(chord)
-        return any(c[:n] == chord and len(c) > n for c in self.modes.get(mode, {}))
+        """Tell whether a chord is the start of a longer one.
+
+        Args:
+            mode: Mode name.
+            chord: The key tokens pressed so far.
+
+        Returns:
+            `True` when some binding of the mode continues the chord.
+        """
+        length = len(chord)
+        return any(candidate[:length] == chord and len(candidate) > length for candidate in self.modes.get(mode, {}))
 
     def under_prefix(self, mode: str, chord: Chord) -> list[Binding]:
-        """Bindings that continue `chord` — what which-key shows."""
-        n = len(chord)
+        """Bindings that continue `chord` — what which-key shows.
+
+        Args:
+            mode: Mode name.
+            chord: The key tokens pressed so far.
+
+        Returns:
+            The continuing bindings, sorted by their keys.
+        """
+        length = len(chord)
         return sorted(
-            (b for c, b in self.modes.get(mode, {}).items() if c[:n] == chord and len(c) > n),
-            key=lambda b: b.keys,
+            (
+                binding
+                for candidate, binding in self.modes.get(mode, {}).items()
+                if candidate[:length] == chord and len(candidate) > length
+            ),
+            key=lambda binding: binding.keys,
         )
 
-    def for_command(self, mode: str, cmd: str) -> str | None:
-        """The keys bound to a command, for help and the hint bar."""
-        return next((b.keys for b in self.modes.get(mode, {}).values() if b.command == cmd), None)
+    def for_command(self, mode: str, command: str) -> str | None:
+        """The keys bound to a command, for help and the hint bar.
+
+        Args:
+            mode: Mode name.
+            command: Dotted command name.
+
+        Returns:
+            The keys of the first binding of that command, or `None` when it has none in the mode.
+        """
+        return next((binding.keys for binding in self.modes.get(mode, {}).values() if binding.command == command), None)
 
     def conflicts(self) -> list[str]:
-        """Human-readable descriptions of every prefix collision, empty if clean."""
-        out = []
+        """Human-readable descriptions of every prefix collision, empty if clean.
+
+        Returns:
+            One sentence per colliding pair of chords, sorted.
+        """
+        descriptions = []
         for mode, bindings in self.modes.items():
             for chord in bindings:
                 for other in bindings:
                     if other != chord and other[: len(chord)] == chord:
-                        out.append(
+                        descriptions.append(
                             f"[modes.{mode}] {' '.join(chord)!r} shadows {' '.join(other)!r} "
                             f"({bindings[chord].command} vs {bindings[other].command})"
                         )
-        return sorted(out)
+        return sorted(descriptions)
 
 
 def normalize(key: str, character: str | None = None) -> str:
-    """A Textual key event as the token keys.toml uses.
+    r"""A Textual key event as the token keys.toml uses.
 
-    Printable characters bind as themselves (`?`, `\\`, `1`); everything else
+    Printable characters bind as themselves (`?`, `\`, `1`); everything else
     uses Textual's key name (`ctrl+d`, `escape`, `shift+tab`).
+
+    Args:
+        key: The event's key name.
+        character: The event's printable character, or `None` when it has none.
+
+    Returns:
+        The token keys.toml writes for that key.
     """
     if character == " ":
         return "space"
@@ -92,48 +172,91 @@ has the keyboard — a letter bound there would never reach the filter."""
 
 
 def _table(section: str, bindings: dict[str, Any], path: Path, unknown: list[str]) -> dict[Chord, Binding | None]:
-    """One keys.toml table as chords, `None` for a key set to `false`. Unknown
-    commands are collected, not fatal."""
-    out: dict[Chord, Binding | None] = {}
+    """Read one keys.toml table as chords.
+
+    A key set to `false` becomes `None`. Unknown commands are collected, not fatal.
+
+    Args:
+        section: The table's name, for messages.
+        bindings: Key sequence to its binding, or to `false`.
+        path: The file the table came from, for messages.
+        unknown: Receives one sentence per unknown command.
+
+    Returns:
+        Chord to its `Binding`, or to `None` for an unbound key.
+
+    Raises:
+        ValueError: When a binding has no `cmd`.
+    """
+    table: dict[Chord, Binding | None] = {}
     for keys, spec in bindings.items():
-        chord = tuple(normalize(k) for k in keys.split(" ") if k)
+        chord = tuple(normalize(key) for key in keys.split(" ") if key)
         if spec is False:
-            out[chord] = None
+            table[chord] = None
             continue
         if not isinstance(spec, dict) or "cmd" not in spec:
             raise ValueError(
                 f'{path}: [{section}] {keys!r} needs a cmd, like {{ cmd = "nav.down" }}, or false to unbind it'
             )
-        cmd = spec["cmd"]
-        registered = commands.REGISTRY.get(cmd)
+        command_name = spec["cmd"]
+        registered = commands.REGISTRY.get(command_name)
         if registered is None:
-            unknown.append(f"[{section}] {keys!r} -> unknown command {cmd!r}")
-        out[chord] = Binding(
+            unknown.append(f"[{section}] {keys!r} -> unknown command {command_name!r}")
+        table[chord] = Binding(
             chord=chord,
-            command=cmd,
+            command=command_name,
             args=spec.get("args", {}),
             description=spec.get("desc") or (registered.description if registered else ""),
         )
-    return out
+    return table
 
 
-def _collide(a: Chord, b: Chord) -> bool:
-    """The same key, or one a prefix of the other: one mode cannot bind both."""
-    n = min(len(a), len(b))
-    return a[:n] == b[:n]
+def _collide(first: Chord, second: Chord) -> bool:
+    """The same key, or one a prefix of the other: one mode cannot bind both.
+
+    Args:
+        first: One chord.
+        second: The other chord.
+
+    Returns:
+        `True` when the two chords cannot both be bound in a mode.
+    """
+    length = min(len(first), len(second))
+    return first[:length] == second[:length]
 
 
 def _over(top: dict[Chord, Binding | None], under: dict[Chord, Binding | None]) -> dict[Chord, Binding | None]:
-    """`top` laid over `under`: an entry of `under` survives only if it collides
-    with nothing in `top`."""
-    kept = {chord: b for chord, b in under.items() if not any(_collide(chord, c) for c in top)}
+    """Lay one table of bindings over another.
+
+    An entry of `under` survives only if it collides with nothing in `top`.
+
+    Args:
+        top: The table that wins.
+        under: The table that gives way.
+
+    Returns:
+        The surviving entries of `under` followed by all of `top`.
+    """
+    kept = {
+        chord: binding for chord, binding in under.items() if not any(_collide(chord, top_chord) for top_chord in top)
+    }
     return {**kept, **top}
 
 
 def _modes(data: dict[str, Any], path: Path, unknown: list[str]) -> dict[str, dict[Chord, Binding | None]]:
-    """One keys.toml as per-mode tables, `[global]` laid under each pane's own,
-    which wins on the same key and on a shared prefix: a pane's `g` drops the
-    global `g o` in that pane only, rather than a conflict refusing to start."""
+    """Read one keys.toml as per-mode tables.
+
+    `[global]` is laid under each pane's own table, which wins on the same key and on a shared prefix:
+    a pane's `g` drops the global `g o` in that pane only, rather than a conflict refusing to start.
+
+    Args:
+        data: The parsed keys.toml.
+        path: The file it came from, for messages.
+        unknown: Receives one sentence per unknown command.
+
+    Returns:
+        Mode name to its table of chords, with `None` for an unbound key.
+    """
     shared = _table("global", data.get("global", {}), path, unknown)
     tables = {
         mode: _table(f"modes.{mode}", bindings, path, unknown) for mode, bindings in data.get("modes", {}).items()
@@ -157,6 +280,15 @@ def load(path: Path | None = None) -> Keymap:
     `[global]` is laid under every pane's own table: one copy of the pane keys
     rather than one per mode, which is how a mode once ended up with none and
     trapped the keyboard.
+
+    Args:
+        path: The user's keys file; `None` means `<config_dir>/keys.toml`.
+
+    Returns:
+        The merged `Keymap`.
+
+    Raises:
+        ValueError: When either file holds a binding with no `cmd`, or the user's is not valid TOML.
     """
     shipped_path = DEFAULTS_DIR / "keys.toml"
     shipped = tomllib.loads(shipped_path.read_text())
@@ -169,6 +301,6 @@ def load(path: Path | None = None) -> Keymap:
     modes = {}
     for mode in {**ours, **theirs}:
         merged = _over(theirs.get(mode, {}), ours.get(mode, {}))
-        modes[mode] = {chord: b for chord, b in merged.items() if b is not None}
+        modes[mode] = {chord: binding for chord, binding in merged.items() if binding is not None}
     options = {**shipped.get("options", {}), **user.get("options", {})}
     return Keymap(modes, options, tuple(sorted(unknown)))

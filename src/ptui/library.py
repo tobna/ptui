@@ -41,7 +41,14 @@ ID_KEY = papis.id.ID_KEY_NAME
 
 
 def doc_id(doc: Document) -> str:
-    """The stable identity of a document. Never use the folder path — `papis rename` moves it."""
+    """The stable identity of a document. Never use the folder path — `papis rename` moves it.
+
+    Args:
+        doc: The document to identify.
+
+    Returns:
+        Its `papis_id`, else its folder, else the Python id of the object, as text.
+    """
     return str(doc.get(ID_KEY, doc.get_main_folder() or id(doc)))
 
 
@@ -49,10 +56,19 @@ _ALIAS = re.compile(r"(^-?|[\s(]-?)([^\s:()]+):")
 
 
 def expand_aliases(query: str, aliases: dict[str, str]) -> str:
-    """`a:Nauen` -> `author:Nauen`, per `[query.aliases]` — also right after a
-    `(`, since papis's own query grammar groups with parentheses, and after the
-    `-` that negates a narrow term, so `-a:nauen` excludes."""
-    return _ALIAS.sub(lambda m: m[1] + aliases[m[2]] if m[2] in aliases else m[0], query)
+    """Expand `a:Nauen` to `author:Nauen`, per `[query.aliases]`.
+
+    Also right after a `(`, since papis's own query grammar groups with parentheses, and after the `-`
+    that negates a narrow term, so `-a:nauen` excludes.
+
+    Args:
+        query: The query as typed.
+        aliases: Alias to the key it stands for.
+
+    Returns:
+        The query with every known alias expanded.
+    """
+    return _ALIAS.sub(lambda match: match[1] + aliases[match[2]] if match[2] in aliases else match[0], query)
 
 
 def mtime(doc: Document) -> int:
@@ -61,6 +77,12 @@ def mtime(doc: Document) -> int:
     Every write goes through `safewrite`, `place` or papis, and all of them touch
     the file, so a `stat` cannot be forgotten at a new write path the way an
     invalidation call can. 0 when there is no file.
+
+    Args:
+        doc: The document to ask about.
+
+    Returns:
+        `st_mtime_ns` of its `info.yaml`, or 0.
     """
     try:
         return os.stat(doc.get_info_file()).st_mtime_ns
@@ -75,37 +97,77 @@ def use(name: str) -> None:
     every `papis.database.get()` resolve the *current* one — switching only
     ptui's copy of the name filed a new document in the library left behind.
     `PAPIS_LIB` too: `get_lib()` re-applies it on every call, so it would win.
+
+    Args:
+        name: A configured library's name, or a folder.
+
+    Raises:
+        ValueError: When papis has no such library.
     """
     try:
         papis.config.set_lib_from_name(name)
-    except papis.exceptions.InvalidLibraryError as exc:  # its args are two sentences, printed as a tuple
-        raise ValueError(" ".join(str(arg).strip() for arg in exc.args)) from exc
+    except papis.exceptions.InvalidLibraryError as error:  # its args are two sentences, printed as a tuple
+        raise ValueError(" ".join(str(arg).strip() for arg in error.args)) from error
     os.environ["PAPIS_LIB"] = name
 
 
 def scope(query: str, library: str | None = None) -> list[Document]:
-    db = papis.database.get(library or None)
-    return db.query(query) if query.strip() else db.get_all_documents()
+    """Run a real papis query against the database.
+
+    Args:
+        query: The papis query; blank means every document.
+        library: The library's name, or `None` for the current one.
+
+    Returns:
+        The matching documents, in the order papis gives them.
+    """
+    database = papis.database.get(library or None)
+    return database.query(query) if query.strip() else database.get_all_documents()
 
 
 # ── narrow ──────────────────────────────────────────────────────────────────
 
 
 def haystack(doc: Document, fields: list[str]) -> str:
-    return shown_too(" ".join(display(doc.get(f, "")) for f in fields)).casefold()
+    """Build the text a narrow term is searched in.
+
+    Args:
+        doc: The document to read.
+        fields: The keys to search.
+
+    Returns:
+        The values joined by spaces, casefolded, with what the list shows of them added.
+    """
+    return shown_too(" ".join(display(doc.get(field, "")) for field in fields)).casefold()
 
 
 def shown_too(text: str) -> str:
-    """`text`, with what the list shows of it on a line of its own when that
-    differs: `/bert` finds the `{B}ERT` drawn as `BERT`, and `{b}` still finds
-    what is stored."""
+    """Add what the list shows of a text, on a line of its own when that differs.
+
+    So `/bert` finds the `{B}ERT` drawn as `BERT`, and `{b}` still finds what is stored.
+
+    Args:
+        text: The text as stored.
+
+    Returns:
+        `text`, or `text` and its displayed form separated by a newline.
+    """
     shown = strip_latex(text)
     return text if shown == text else f"{text}\n{shown}"
 
 
-def is_subsequence(needle: str, hay: str) -> bool:
-    it = iter(hay)
-    return all(char in it for char in needle)
+def is_subsequence(needle: str, haystack_text: str) -> bool:
+    """Tell whether the characters of `needle` appear in order.
+
+    Args:
+        needle: The characters to find.
+        haystack_text: The text to search.
+
+    Returns:
+        `True` when every character is found after the one before it.
+    """
+    remaining = iter(haystack_text)
+    return all(char in remaining for char in needle)
 
 
 FUZZY_SPAN = 3
@@ -114,22 +176,29 @@ subsequence matching is useless on real data — `note` matches
 `Locality-Atte(n)ding visi(o)n (T)ransform(e)r` — so the run has to stay tight."""
 
 
-def fuzzy_match(needle: str, hay: str) -> bool:
+def fuzzy_match(needle: str, haystack_text: str) -> bool:
     """Subsequence, but only when the matched characters sit close together.
 
     Scans from every possible start so a late tight run still counts; the needle
     is short and the haystack is one document, so the quadratic worst case never
     shows up in practice.
+
+    Args:
+        needle: The characters to find.
+        haystack_text: The text to search.
+
+    Returns:
+        `True` when the whole needle fits in `FUZZY_SPAN` times its length.
     """
     if not needle:
         return True
     budget = len(needle) * FUZZY_SPAN
-    for start in range(len(hay)):
-        if hay[start] != needle[0]:
+    for start in range(len(haystack_text)):
+        if haystack_text[start] != needle[0]:
             continue
         index = 0
-        for offset in range(start, min(len(hay), start + budget)):
-            if hay[offset] == needle[index]:
+        for offset in range(start, min(len(haystack_text), start + budget)):
+            if haystack_text[offset] == needle[index]:
                 index += 1
                 if index == len(needle):
                     return True
@@ -143,7 +212,13 @@ _RANGE = re.compile(rf"^(>=|<=|>|<)?{_NUM}(\.\.)?{_NUM}$")
 
 @dataclass(frozen=True, slots=True)
 class Term:
-    """One whitespace-separated word of a narrow query."""
+    """One whitespace-separated word of a narrow query.
+
+    Attributes:
+        text: The word, casefolded.
+        field: The key it is qualified with; empty means any of the configured narrow fields.
+        negate: The term excludes what it matches.
+    """
 
     text: str
     field: str = ""
@@ -157,6 +232,13 @@ def parse_query(query: str, aliases: dict[str, str] | None = None) -> tuple[Term
     Quotes come from `shlex`, which raises on the unbalanced quote you always
     have halfway through typing one — so an unterminated query is retried closed.
     Only `"` quotes: an apostrophe is a letter in `don't` and `o'brien`.
+
+    Args:
+        query: The query as typed.
+        aliases: Alias to the key it stands for, or `None`.
+
+    Returns:
+        The terms, in the order typed.
     """
     query = expand_aliases(query, aliases or {})
     tokens: list[str] = query.split()
@@ -182,8 +264,16 @@ def parse_query(query: str, aliases: dict[str, str] | None = None) -> tuple[Term
 
 
 def _in_range(value: str, spec: str) -> bool | None:
-    """`year:>2023`, `year:2020..2024`, `year:..2020`. None when this is not a
-    range comparison at all, so the caller falls back to a substring test."""
+    """Test a value against a range like `year:>2023`, `year:2020..2024` or `year:..2020`.
+
+    Args:
+        value: The document's value, as text.
+        spec: The term's text.
+
+    Returns:
+        The comparison's outcome, or `None` when `spec` is not a range comparison at all, so the caller
+        falls back to a substring test.
+    """
     found = _RANGE.match(spec)
     if not found or not (found.group(1) or found.group(3)):
         return None
@@ -195,22 +285,42 @@ def _in_range(value: str, spec: str) -> bool | None:
         return None
     if found.group(3):  # a .. b
         return low <= number <= high
-    op, bound = found.group(1), low
-    return {">": number > bound, ">=": number >= bound, "<": number < bound}.get(op, number <= bound)
+    operator, bound = found.group(1), low
+    return {">": number > bound, ">=": number >= bound, "<": number < bound}.get(operator, number <= bound)
 
 
 def match_text(text: str, terms: tuple[Term, ...], mode: str = "substring") -> bool:
-    """Every term must hit the blob. For pickers, where there are no fields."""
-    hay = text.casefold()
-    hit = fuzzy_match if mode == "fuzzy" else lambda n, h: n in h
-    return all(hit(term.text, hay) != term.negate for term in terms)
+    """Every term must hit the blob. For pickers, where there are no fields.
+
+    Args:
+        text: The blob to search.
+        terms: The parsed terms.
+        mode: `substring` or `fuzzy`.
+
+    Returns:
+        `True` when every term agrees, a negated term by missing.
+    """
+    folded_text = text.casefold()
+    hit = fuzzy_match if mode == "fuzzy" else lambda needle, candidate: needle in candidate
+    return all(hit(term.text, folded_text) != term.negate for term in terms)
 
 
 def match_doc(doc: Document, terms: tuple[Term, ...], fields: list[str], mode: str) -> bool:
-    """Every term must hit: a qualified term its own field, a bare term any of
-    `fields`. Ranges only apply to a qualified term — `>2023` alone is a string."""
+    """Every term must hit: a qualified term its own field, a bare term any of `fields`.
+
+    Ranges only apply to a qualified term — `>2023` alone is a string.
+
+    Args:
+        doc: The document to test.
+        terms: The parsed terms.
+        fields: The keys a bare term searches.
+        mode: `substring` or `fuzzy`.
+
+    Returns:
+        `True` when every term agrees, a negated term by missing.
+    """
     blob = haystack(doc, fields)
-    hit = fuzzy_match if mode == "fuzzy" else lambda n, h: n in h
+    hit = fuzzy_match if mode == "fuzzy" else lambda needle, candidate: needle in candidate
     for term in terms:
         if not term.field:
             found = hit(term.text, blob)
@@ -230,10 +340,23 @@ def narrow(
     mode: str,
     aliases: dict[str, str] | None = None,
 ) -> list[Document]:
-    """Filter in memory. Terms are ANDed, so typing more always narrows — the
-    old whole-query subsequence test left 702 of 754 documents on `nauen`.
-    Unparsable regex matches nothing rather than raising. A regex is compiled
-    case-insensitive rather than casefolded, which would turn `\\D` into `\\d`."""
+    r"""Filter in memory.
+
+    Terms are ANDed, so typing more always narrows — the old whole-query subsequence test left
+    702 of 754 documents on `nauen`. Unparsable regex matches nothing rather than raising. A
+    regex is compiled case-insensitive rather than casefolded, which would turn `\D` into
+    `\doc`.
+
+    Args:
+        docs: The documents to filter.
+        query: The narrow query as typed; blank keeps them all.
+        fields: The keys to search.
+        mode: `substring`, `fuzzy` or `regex`.
+        aliases: Alias to the key it stands for, or `None`.
+
+    Returns:
+        The documents that match, in their given order.
+    """
     if not query.strip():
         return docs
     if mode == "regex":
@@ -241,9 +364,9 @@ def narrow(
             pattern = re.compile(query, re.IGNORECASE | re.MULTILINE)  # `^` starts the shown line too
         except re.error:
             return []
-        return [d for d in docs if pattern.search(haystack(d, fields))]
+        return [doc for doc in docs if pattern.search(haystack(doc, fields))]
     terms = parse_query(query, aliases)
-    return [d for d in docs if match_doc(d, terms, fields, mode)]
+    return [doc for doc in docs if match_doc(doc, terms, fields, mode)]
 
 
 # ── sorting ─────────────────────────────────────────────────────────────────
@@ -255,15 +378,33 @@ TIME_ADDED = "time-added"
 
 
 def stamp(when: float | None = None) -> str:
-    """`time-added` for now, or for a POSIX timestamp. papis's format sorts
-    lexically, which is why the value can stay a string."""
+    """Render `time-added` for now, or for a POSIX timestamp.
+
+    papis's format sorts lexically, which is why the value can stay a string.
+
+    Args:
+        when: Seconds since the epoch, or `None` for now.
+
+    Returns:
+        The time as papis's `time-added` text.
+    """
     moment = datetime.now() if when is None else datetime.fromtimestamp(when)
     return moment.strftime(papis.strings.time_format)
 
 
 def resolve(doc: Document, dotted: str) -> Any:
-    """`author_list.0.family` -> the value, or None. Dotted paths matter because
-    `author` is a formatted string and people want the first author's surname."""
+    """`author_list.0.family` -> the value, or None.
+
+    Dotted paths matter because `author` is a formatted string and people want the first
+    author's surname.
+
+    Args:
+        doc: The document to read.
+        dotted: Dotted path of dict keys and list indexes.
+
+    Returns:
+        The value found, or `None` when any step of the path is missing.
+    """
     node: Any = doc
     for part in dotted.split("."):
         if isinstance(node, dict):
@@ -279,7 +420,14 @@ def resolve(doc: Document, dotted: str) -> Any:
 
 
 def _comparable(value: Any) -> tuple[int, float, str]:
-    """Make mixed types orderable: numbers before strings, strings case-folded."""
+    """Make mixed types orderable: numbers before strings, strings case-folded.
+
+    Args:
+        value: A stored value.
+
+    Returns:
+        A `(rank, number, text)` sort key.
+    """
     if isinstance(value, bool):
         return (0, float(value), "")
     if isinstance(value, (int, float)):
@@ -299,21 +447,39 @@ def sort(
     tiebreak: str | None = None,
     null_ordering: str = "last",
 ) -> list[Document]:
-    """Sort, keeping documents that lack the key at one end whatever the direction."""
+    """Sort, keeping documents that lack the key at one end whatever the direction.
+
+    Args:
+        docs: The documents to sort; left unchanged.
+        key: Dotted path to sort by.
+        reverse: Sort descending.
+        tiebreak: Dotted path deciding ties, or `None`.
+        null_ordering: `first` puts documents without the key first; anything else, last.
+
+    Returns:
+        A new sorted list.
+    """
     if tiebreak and tiebreak != key:
         docs = sort(docs, tiebreak, null_ordering=null_ordering)  # stable: secondary first
 
-    present = [d for d in docs if resolve(d, key) is not None]
-    missing = [d for d in docs if resolve(d, key) is None]
-    present.sort(key=lambda d: _comparable(resolve(d, key)), reverse=reverse)
+    present = [doc for doc in docs if resolve(doc, key) is not None]
+    missing = [doc for doc in docs if resolve(doc, key) is None]
+    present.sort(key=lambda doc: _comparable(resolve(doc, key)), reverse=reverse)
     return missing + present if null_ordering == "first" else present + missing
 
 
 def discover_keys(docs: list[Document]) -> list[str]:
-    """Union of top-level keys across the library, for the sort picker."""
+    """Union of top-level keys across the library, for the sort picker.
+
+    Args:
+        docs: The documents to read.
+
+    Returns:
+        The keys, sorted, without those starting with `_`.
+    """
     keys: set[str] = set()
     for doc in docs:
-        keys |= {k for k in doc if not k.startswith("_")}
+        keys |= {key for key in doc if not key.startswith("_")}
     return sorted(keys)
 
 
@@ -334,22 +500,39 @@ def fit(text: str, width: int) -> str:
     The cut backs off to a word boundary — mid-word reads as a typo — and
     prefers the last colon, since a title's head is the informative part.
     Only when that boundary keeps most of the budget; otherwise the cut wins.
+
+    Args:
+        text: The text to cut.
+        width: The budget in terminal cells.
+
+    Returns:
+        The text unchanged when it fits, else cut and ending in `…`; empty for no budget.
     """
     if width <= 0:
         return ""
     if cell_len(text) <= width:
         return text
     head = set_cell_size(text, width - 1)
-    for sep in (":", " "):
-        cut = head.rfind(sep)
+    for separator in (":", " "):
+        cut = head.rfind(separator)
         if cut > 0 and cell_len(head[:cut]) >= (width - 1) * 0.6:
             return head[:cut].rstrip() + "…"
     return head + "…"
 
 
 def wrap_cells(text: str, width: int) -> list[str]:
-    """Greedy word wrap by terminal cells. A word wider than `width` gets its own
-    row and is cut by the caller — splitting inside a word reads as corruption."""
+    """Greedy word wrap by terminal cells.
+
+    A word wider than `width` gets its own row and is cut by the caller — splitting inside a
+    word reads as corruption.
+
+    Args:
+        text: The text to wrap.
+        width: The width of a row in terminal cells.
+
+    Returns:
+        The rows, in order.
+    """
     rows: list[str] = []
     row = ""
     for word in text.split():
@@ -366,12 +549,22 @@ def wrap_cells(text: str, width: int) -> list[str]:
 
 
 def fit_lines(text: str, width: int, lines: int) -> str:
-    """`fit`, but over `lines` rows: the result is newline-joined and every row is
-    within `width` cells, so the table never has to guess where to wrap.
+    """Fit text into `lines` rows of `width` cells.
+
+    The result is newline-joined and every row is within `width` cells, so the table never has to guess
+    where to wrap.
 
     Wrapping ourselves rather than letting the widget do it is what keeps the
     ellipsis honest — a greedy wrap fits fewer cells than `width * lines`, and a
     budget computed from the product silently loses the last words instead.
+
+    Args:
+        text: The text to fit.
+        width: The width of a row in terminal cells.
+        lines: The number of rows.
+
+    Returns:
+        The rows joined by newlines; the last ends in `…` when text was lost.
     """
     if lines <= 1 or width <= 0:
         return fit(text, width)
@@ -385,33 +578,57 @@ def fit_lines(text: str, width: int, lines: int) -> str:
 
 
 def display(value: Any) -> str:
-    """Display text for a stored value. Papis keeps `tags` as a list and `str()`
-    would show the Python repr."""
+    """Display text for a stored value.
+
+    Papis keeps `tags` as a list and `str()` would show the Python repr.
+
+    Args:
+        value: A stored value.
+
+    Returns:
+        The text; list items are joined by `, `, recursively.
+    """
     if isinstance(value, (list, tuple)):
         return ", ".join(display(item) for item in value)
     return str(value)
 
 
 def key_types() -> dict[str, str]:
-    """The type papis declares for each key (`document-field-types`:
-    `tags:list`, `year:int`, `files:list`, …).
+    """Ask papis for the type it declares for each key (`document-field-types`).
+
+    For example `tags:list`, `year:int`, `files:list`.
 
     Asked of papis rather than kept in a table here, so setting a field and
     the `field-type` check can never disagree — a `tags` written as a string is
     exactly what that check exists to complain about.
+
+    Returns:
+        Key to the name of its type.
     """
     return {key: cls.__name__ for key, cls in papis.document.get_document_field_types().items()}
 
 
 def typed(key: str, text: str, current: Any = None) -> Any:
-    """What a user typed, as the value that key should hold. `None` means
-    *remove the key* — an empty value is how a field is cleared.
+    """What a user typed, as the value that key should hold.
+
+    `None` means *remove the key* — an empty value is how a field is cleared.
 
     The declared type wins; failing that, the type already stored under the key
     does, so a list stays a list even for a key papis has no opinion about.
     Everything else is text: guessing that `2024` in an undeclared field means a
     number is how `volume: 04` loses its zero. A list is split on commas alone,
     so a multi-word item survives being typed and the edit form's round trip.
+
+    Args:
+        key: The `info.yaml` key being set.
+        text: What the user typed.
+        current: The value stored today, or `None`.
+
+    Returns:
+        A list, bool, int, float or str, or `None` to remove the key.
+
+    Raises:
+        ValueError: When a number does not parse.
     """
     text = text.strip()
     if not text:
@@ -428,8 +645,8 @@ def typed(key: str, text: str, current: Any = None) -> Any:
     if kind in ("int", "float"):
         try:
             return int(text) if kind == "int" else float(text)
-        except ValueError as exc:
-            raise ValueError(f"{key} must be {kind}, not {text!r}") from exc
+        except ValueError as error:
+            raise ValueError(f"{key} must be {kind}, not {text!r}") from error
     return text
 
 
@@ -441,15 +658,22 @@ ARXIV_URL = "arxiv.org"
 
 
 def on_arxiv(doc: Document) -> bool:
-    """arXiv evidence that is *not* a DOI — only ever asked of a document that
-    has no DOI at all, because `eprint` survives publication: measured on the
-    real library, 182 documents carry a publisher DOI **and** an arXiv eprint,
-    so this may never outrank one.
+    """Look for arXiv evidence that is *not* a DOI.
+
+    Only ever asked of a document that has no DOI at all, because `eprint` survives publication:
+    measured on the real library, 182 documents carry a publisher DOI **and** an arXiv eprint, so this
+    may never outrank one.
 
     `eprinttype` rather than the bare presence of `eprint`: every one of the 495
     eprints in that library names its server, and the ones that are not arXiv say
     `OpenAI Blog` or `openreview`, which are exactly the entries that must stay
     `article`. The URL is the fallback for an entry that recorded no eprint type.
+
+    Args:
+        doc: The document to read.
+
+    Returns:
+        `True` when its eprint type or URL names arXiv.
     """
     if str(doc.get("eprinttype") or "").casefold() == "arxiv":
         return True
@@ -468,7 +692,14 @@ published because somebody recorded a hotel.
 
 
 def venue(doc: Document) -> str:
-    """The conference or journal name, or empty. A city is not a name."""
+    """The conference or journal name, or empty. A city is not a name.
+
+    Args:
+        doc: The document to read.
+
+    Returns:
+        The first non-blank value of `VENUE_KEYS`, stripped; empty when there is none.
+    """
     return next((str(doc[key]).strip() for key in VENUE_KEYS if str(doc.get(key) or "").strip()), "")
 
 
@@ -490,6 +721,12 @@ def kind(doc: Document) -> str:
     A DOI stored as a `https://doi.org/…` or `dx.doi.org` URL is read as the
     bare DOI first, by `python-doi` (papis's own dependency, the extraction its
     downloaders use); otherwise arXiv's prefix hides behind the host name.
+
+    Args:
+        doc: The document to read.
+
+    Returns:
+        The casefolded type with papis's aliases applied, or `preprint`.
     """
     stored = str(doc.get("type") or "").strip().casefold()
     # papis's own alias table, the one its `biblatex-type-alias` check reads: a
@@ -516,9 +753,17 @@ which is exactly what the info pane did until this existed.
 
 
 def flatten(doc: Document) -> Document:
-    """The document with scalar lists joined, plus the derived `kind`, for
-    `papis.format`. Lists of dicts stay as they are —
-    `{doc[author_list][0][family]}` still has to index."""
+    """Prepare a document for `papis.format`.
+
+    Scalar lists are joined and the derived `kind` added. Lists of dicts stay as they are:
+    `{doc[author_list][0][family]}` still has to index.
+
+    Args:
+        doc: The document to read; left unchanged.
+
+    Returns:
+        A new `Document` with the flattened values.
+    """
     data = {
         key: display(value)
         if key not in STRUCTURAL
@@ -532,12 +777,29 @@ def flatten(doc: Document) -> Document:
     return Document(data=data)
 
 
-def p90(texts: list[str]) -> int:
-    """Width the 90th-percentile cell needs. Sizing a column to its longest value
-    lets one outlier tax every row; sizing to the median truncates too much."""
+def percentile_90(texts: list[str]) -> int:
+    """Work out the width the 90th-percentile cell needs.
+
+    Sizing a column to its longest value lets one outlier tax every row; sizing to the median truncates
+    too much.
+
+    Args:
+        texts: The column's cells.
+
+    Returns:
+        The width in terminal cells, 0 for no cells.
+    """
     widths = sorted(cell_len(text) for text in texts)
     return widths[math.ceil(0.9 * len(widths)) - 1] if widths else 0  # nearest rank
 
 
 def strip_latex(text: str) -> str:
+    """Remove braces, dollars and macro names, for display only.
+
+    Args:
+        text: The text as stored.
+
+    Returns:
+        The text without them, stripped of surrounding whitespace.
+    """
     return _LATEX.sub("", text).strip()

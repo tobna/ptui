@@ -14,7 +14,15 @@ TOOLS = {
 
 
 def copy(app: Any, text: str) -> str:
-    """Copy `text`, returning the method used so the caller can say so."""
+    """Copy text to the clipboard.
+
+    Args:
+        app: The running `PtuiApp`.
+        text: The text to copy.
+
+    Returns:
+        The method used, so the caller can say so: a key of `TOOLS`, or `"osc52"`.
+    """
     choice = app.config.get("export.clipboard", "auto")
     candidates = [choice] if choice in TOOLS else ([] if choice == "osc52" else list(TOOLS))
     for name in candidates:

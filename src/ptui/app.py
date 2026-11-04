@@ -126,10 +126,17 @@ INFO_FIELDS = (
 
 
 class PapisToLoguru(logging.Handler):
-    """papis's stdlib records, re-emitted through loguru and so into the log
-    pane and `log.file`, tagged so the pane can keep papis's INFO out."""
+    """Re-emit papis's stdlib records through loguru.
+
+    So they reach the log pane and `log.file`, tagged so the pane can keep papis's INFO out.
+    """
 
     def emit(self, record: logging.LogRecord) -> None:
+        """Hand one record to loguru, at its own level when loguru knows that level.
+
+        Args:
+            record: The stdlib record.
+        """
         try:
             level: str | int = logger.level(record.levelname).name
         except ValueError:
@@ -146,6 +153,11 @@ class ListTable(DataTable):
     """
 
     def on_resize(self, _: events.Resize) -> None:
+        """Refit the columns now that the widths are real, then re-decide the layout.
+
+        Args:
+            _: Unused; Textual passes it.
+        """
         self.app.refresh_rows()  # type: ignore[attr-defined]
         self.app.relayout()  # type: ignore[attr-defined]  # now the widths are real
 
@@ -162,17 +174,40 @@ class LogPane(RichLog):
     """
 
     def __init__(self, **kwargs: Any) -> None:
+        """Set the pane up, with its own copy of every line for `rewrap`.
+
+        Args:
+            **kwargs: `RichLog`'s keyword arguments.
+        """
         super().__init__(**kwargs)
         self.entries: deque[str] = deque(maxlen=self.max_lines)
 
     def wrap_width(self, screen_width: int) -> int:
+        """Work out the wrap width for a screen width.
+
+        Args:
+            screen_width: The screen's width in cells.
+
+        Returns:
+            The width less the border and the scrollbar, at least 1.
+        """
         return max(1, screen_width - self.styles.gutter.width - self.styles.scrollbar_size_vertical)
 
     def add(self, line: str) -> None:
+        """Write one line, wrapped at the screen's current width.
+
+        Args:
+            line: The line, as Rich markup.
+        """
         self.entries.append(line)
         self.write(line, width=self.wrap_width(self.app.size.width))
 
     def rewrap(self, screen_width: int) -> None:
+        """Lay every kept line out again for a new screen width.
+
+        Args:
+            screen_width: The screen's width in cells.
+        """
         width = self.wrap_width(screen_width)
         if width == self.virtual_size.width:  # every row is padded to the wrap width
             return  # ~70 ms for a full log, and a window drag sends many resizes
@@ -182,7 +217,17 @@ class LogPane(RichLog):
 
 
 class PtuiApp(App[None]):
-    """Layout CSS lives here; themes only recolour it."""
+    """The application: widgets, key dispatch, and the state commands mutate.
+
+    Layout CSS lives here; themes only recolour it.
+
+    Attributes:
+        config: The `Config`, changed in place by `config.set`.
+        keymap: The `Keymap` every key resolves through.
+        docs: The scoped set of documents, sorted.
+        rows: The scoped set after narrowing: what the list shows, in order.
+        marks: The `papis_id`s of the marked documents.
+    """
 
     ENABLE_COMMAND_PALETTE = False
     """Textual's own palette runs as a system binding, above `on_key`, and would
@@ -233,11 +278,17 @@ class PtuiApp(App[None]):
     #which-key.open { display: block; }
     """
 
-    def __init__(self, cfg: config.Config, km: keymap.Keymap) -> None:
+    def __init__(self, configuration: config.Config, key_bindings: keymap.Keymap) -> None:
+        """Set up the state; widgets come later, in `compose`.
+
+        Args:
+            configuration: The loaded config.
+            key_bindings: The loaded keymap.
+        """
         super().__init__()
-        self.config = cfg
-        self.keymap = km
-        ui.use_icons(cfg.get("ui.icons", False))  # every glyph goes through ui.glyph
+        self.config = configuration
+        self.keymap = key_bindings
+        ui.use_icons(configuration.get("ui.icons", False))  # every glyph goes through ui.glyph
         self.mode = "list"
         self.pending: keymap.Chord = ()
         self.docs: list[Document] = []  # the scoped set
@@ -245,7 +296,7 @@ class PtuiApp(App[None]):
         self.marks: set[str] = set()
         self.visual: tuple[str, bool, set[str]] | None = None
         """`v`/`V`: (anchor `papis_id`, unmarking, the marks before it started)."""
-        self.scope_query = cfg.get("general.startup_query", "")
+        self.scope_query = configuration.get("general.startup_query", "")
         self.narrow_query = ""
         self.marked_only = False
         self.doctor_only = False
@@ -254,12 +305,12 @@ class PtuiApp(App[None]):
         filter over the scoped set, not a separate widget."""
         self.sort_key, self.sort_reverse = self._default_sort()
         self.prompt_kind = ""
-        layout = cfg.get("ui.layout", "auto")
+        layout = configuration.get("ui.layout", "auto")
         self.layout_auto = layout == "auto"
         """Cleared by `z z`: an explicit choice outlives any resize."""
         self.side_by_side = layout != "horizontal"  # `auto` re-decides in choose_layout
-        self.split = cfg.get("ui.split_ratio", 0.6)
-        self.history = undo.History(cfg.get("undo.stack_size", 50))
+        self.split = configuration.get("ui.split_ratio", 0.6)
+        self.history = undo.History(configuration.get("undo.stack_size", 50))
         """One operation is one step, not one document — see `undo.py`."""
         self._fit: list[tuple[dict[str, Any], int]] = []
         self._cells: dict[str, tuple[int, Document, dict[tuple[str, str | None], str]]] = {}
@@ -278,9 +329,15 @@ class PtuiApp(App[None]):
     # ── setup ───────────────────────────────────────────────────────────────
 
     def apply_theme(self, name: str) -> None:
-        """Switch palette. Textual owns most of the themes — 21 of them, light and dark,
-        each a full set of variables the CSS above already speaks. An unknown
-        name says so and keeps the default rather than starting unreadable."""
+        """Switch palette.
+
+        Textual owns most of the themes — 21 of them, light and dark, each a full set of variables
+        the CSS above already speaks. An unknown name says so and keeps the default rather than
+        starting unreadable.
+
+        Args:
+            name: A theme's name; empty means `DEFAULT_THEME`.
+        """
         for theme in EXTRA_THEMES:
             if theme.name not in self.available_themes:
                 self.register_theme(theme)
@@ -290,11 +347,21 @@ class PtuiApp(App[None]):
         self.theme = name or DEFAULT_THEME
 
     def _default_sort(self) -> tuple[str, bool]:
+        """Find the sort a new session starts with.
+
+        Returns:
+            `(sort key, descending)`, from the preset marked default, else the first preset.
+        """
         presets = self.config.get("list.sort_presets", [])
-        preset = next((p for p in presets if p.get("default")), presets[0] if presets else {})
+        preset = next((candidate for candidate in presets if candidate.get("default")), presets[0] if presets else {})
         return preset.get("key", "time-added"), preset.get("dir", "desc") == "desc"
 
     def compose(self) -> ComposeResult:
+        """Build the panes, the log, the bars and the prompt.
+
+        Yields:
+            The widgets, top to bottom.
+        """
         table = ListTable(id="list-pane", cursor_type="row", zebra_stripes=False)
         table.can_focus = False  # all keys go through our dispatcher
         table.border_title = "library"
@@ -319,6 +386,7 @@ class PtuiApp(App[None]):
         yield Input(id="prompt")
 
     def on_mount(self) -> None:
+        """Finish starting up: theme, logging, library, session state and the first draw."""
         self.apply_theme(self.config.get("ui.theme", DEFAULT_THEME))
         self.apply_split()
         self._setup_logging()
@@ -331,8 +399,8 @@ class PtuiApp(App[None]):
         if name := self.config.get("general.library"):  # `-l` or [general] library
             try:
                 library.use(name)
-            except Exception as exc:
-                self.log_line(f"[red]library {name!r}:[/] {exc}")
+            except Exception as error:
+                self.log_line(f"[red]library {name!r}:[/] {error}")
                 self.config.data["general"]["library"] = ""
         cursor = actions.restore_state(self)
         actions.reload(self)
@@ -349,6 +417,7 @@ class PtuiApp(App[None]):
             self.scan_library()
 
     def on_unmount(self) -> None:
+        """Save the session state."""
         # The widgets are gone by now, so not `self.current`: the document the
         # info pane last showed is the one the cursor was on.
         actions.save_state(self, self._info_of)
@@ -376,14 +445,17 @@ class PtuiApp(App[None]):
         self.refilter()
 
     def relayout(self) -> None:
-        """Re-decide the `auto` layout and apply it only if it changed. Applying
-        unconditionally would resize, be told about the resize, and resize again."""
+        """Re-decide the `auto` layout and apply it only if it changed.
+
+        Applying unconditionally would resize, be told about the resize, and resize again.
+        """
         was = self.side_by_side
         self.choose_layout()
         if was != self.side_by_side:
             self.apply_split()
 
     def _setup_logging(self) -> None:
+        """Route loguru and papis's own logger into the log pane and `log.file`."""
         logger.remove()
         pane = self.query_one(LogPane)
         level = self.config.get("log.level", "info").upper()
@@ -395,6 +467,9 @@ class PtuiApp(App[None]):
             colour is looked up in `theme_variables` — the hex the CSS would
             have used. A record's text is escaped: a warning quotes the offending
             value, and papis is full of `[...]`-shaped ones.
+
+            Args:
+                message: The loguru message; its `record` carries the text, level and time.
             """
             record = message.record
             body = escape(record["message"])
@@ -433,6 +508,11 @@ class PtuiApp(App[None]):
     # ── key dispatch ────────────────────────────────────────────────────────
 
     async def on_key(self, event: Any) -> None:
+        """Dispatch a key through the prompt, the guaranteed keys, then the keymap.
+
+        Args:
+            event: The key event.
+        """
         if len(self.screen_stack) > 1:
             return  # a modal owns the keyboard
         if self.prompt_kind:
@@ -475,6 +555,12 @@ class PtuiApp(App[None]):
         self.refresh_status()
 
     def run_command(self, name: str, args: dict[str, Any] | None = None) -> None:
+        """Run a command by name, logging a failure rather than ending the session.
+
+        Args:
+            name: Dotted command name.
+            args: Keyword arguments for the handler, or `None` for none.
+        """
         if name not in commands.REGISTRY:  # asked first: a KeyError from inside a command is a failure
             self.log_line(f"[yellow]{name} is not implemented yet[/]")
             return
@@ -485,9 +571,14 @@ class PtuiApp(App[None]):
             logger.exception(f"{name} failed: {exc}")
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
-        """Every worker runs with `exit_on_error=False`, which would swallow its
-        exception: it is logged here once, as in `run_command`, and a failed scan
-        or download no longer ends the session."""
+        """Log a failed worker's exception.
+
+        Every worker runs with `exit_on_error=False`, which would swallow its exception: it is logged here
+        once, as in `run_command`, and a failed scan or download no longer ends the session.
+
+        Args:
+            event: The worker's state change.
+        """
         if event.state == WorkerState.ERROR:
             worker = event.worker
             logger.opt(exception=worker.error).error(f"{worker.name or worker.group} failed: {worker.error}")
@@ -495,12 +586,14 @@ class PtuiApp(App[None]):
     # ── which-key ───────────────────────────────────────────────────────────
 
     def schedule_which_key(self) -> None:
+        """Start the timer that shows the which-key panel, unless it is switched off."""
         if not self.keymap.option("which_key", True):
             return
         delay = self.keymap.option("which_key_delay_ms", 400) / 1000
         self._which_timer = self.set_timer(delay, self.show_which_key)
 
     def show_which_key(self) -> None:
+        """Show what continues the pending chord."""
         rows = self.keymap.under_prefix(self.mode, self.pending)
         if not rows:
             return
@@ -508,13 +601,14 @@ class PtuiApp(App[None]):
         panel.border_title = " ".join(self.pending)
         panel.update(
             "\n".join(
-                f"[$accent bold]{ui.literal(b.keys[len(' '.join(self.pending)) + 1 :])}[/]  {ui.literal(b.description or b.command)}"
-                for b in rows
+                f"[$accent bold]{ui.literal(binding.keys[len(' '.join(self.pending)) + 1 :])}[/]  {ui.literal(binding.description or binding.command)}"
+                for binding in rows
             )
         )
         panel.add_class("open")
 
     def hide_which_key(self) -> None:
+        """Stop the timer and close the panel."""
         if self._which_timer is not None:
             self._which_timer.stop()
             self._which_timer = None
@@ -523,11 +617,14 @@ class PtuiApp(App[None]):
     # ── panes ───────────────────────────────────────────────────────────────
 
     def on_resize(self, event: events.Resize) -> None:
-        """Re-decide the `auto` layout, from the *event's* width: `App.size` still
-        holds the old one here, which is the same "fires before layout" problem
-        that put the column refit on `ListTable.on_resize` instead. That handler
-        calls `relayout()` afterwards, once the scrollbar and widget widths are
-        real, which is what settles a borderline width.
+        """Re-decide the `auto` layout from the *event's* width.
+
+        `App.size` still holds the old one here, which is the same "fires before layout" problem that put
+        the column refit on `ListTable.on_resize` instead. That handler calls `relayout()` afterwards, once
+        the scrollbar and widget widths are real, which is what settles a borderline width.
+
+        Args:
+            event: The resize event, holding the new size.
         """
         was = self.side_by_side
         self.choose_layout(event.size.width)
@@ -541,6 +638,12 @@ class PtuiApp(App[None]):
         Asked before anything is resized, which is the only way to break the
         circularity: the layout depends on the column fit, which depends on the
         pane width, which depends on the layout.
+
+        Args:
+            total: The terminal width to ask about; `None` means the current one.
+
+        Returns:
+            The flexible column's width in cells, 0 when no column is flexible.
         """
         total = self.size.width if total is None else total
         fit = self.fit_columns(int(total * self.split))
@@ -548,12 +651,16 @@ class PtuiApp(App[None]):
         return next((width for column, width in fit if column is title), 0)
 
     def choose_layout(self, total: int | None = None) -> None:
-        """`ui.layout = "auto"`: side by side only while the flexible column still
-        reaches `list.flex_target`. Expressed as a column target rather than a
-        terminal width so that adding a column moves the threshold by itself.
+        """Set `side_by_side` for `ui.layout = "auto"`.
+
+        Side by side only while the flexible column still reaches `list.flex_target`. Expressed as a column
+        target rather than a terminal width so that adding a column moves the threshold by itself.
 
         A manual `z z` ends automatic choice for the session — once the user has
         said which layout they want, a resize must not argue.
+
+        Args:
+            total: The terminal width to ask about; `None` means the current one.
         """
         if not self.layout_auto:
             return
@@ -598,6 +705,13 @@ class PtuiApp(App[None]):
         A document written since it was drawn is re-read before it is drawn
         again: formatting the copy in memory cached the old text under the new
         stamp, and the row kept it even after a rescan.
+
+        Args:
+            doc: The document to render; reloaded when written since it was drawn.
+            column: One `[[list.columns]]` table.
+
+        Returns:
+            The cell's text, uncut.
         """
         key, stamp = library.doc_id(doc), library.mtime(doc)  # stat, then read
         hit = self._cells.get(key)
@@ -612,6 +726,15 @@ class PtuiApp(App[None]):
         return texts[slot]
 
     def _render(self, flat: Document, column: dict[str, Any]) -> str:
+        """Format one cell.
+
+        Args:
+            flat: The document as `library.flatten` returned it.
+            column: One `[[list.columns]]` table.
+
+        Returns:
+            The glyph of a glyph column, else the formatted text, empty when a key is missing.
+        """
         try:
             text = papis.format.format(column["format"], flat)
         except papis.format.FormatFailedError:
@@ -625,16 +748,25 @@ class PtuiApp(App[None]):
 
     @property
     def sort_format(self) -> str:
-        """The sort key written the way a column writes it:
-        `author_list.0.family` -> `{doc[author_list][0][family]}`. That makes
-        "is the list sorted by this column?" a string comparison, and a sort key
-        no column shows (`time-added`) simply matches nothing."""
+        """The sort key written the way a column writes it.
+
+        `author_list.0.family` -> `{doc[author_list][0][family]}`. That makes "is the list sorted by this
+        column?" a string comparison, and a sort key no column shows (`time-added`) simply matches nothing.
+
+        Returns:
+            The sort key as a papis format string.
+        """
         return "{doc[" + "][".join(self.sort_key.split(".")) + "]}"
 
     @property
     def title_column(self) -> dict[str, Any] | None:
-        """The first `width = 0` column: the one that wraps and carries the
-        exception marker. Any further flexible column only shares the room."""
+        """The first `width = 0` column: the one that wraps and carries the exception marker.
+
+        Any further flexible column only shares the room.
+
+        Returns:
+            That column's table, or `None` when every column is fixed.
+        """
         return next((column for column in self.config.get("list.columns", []) if not column["width"]), None)
 
     def header(self, column: dict[str, Any], first: bool = False) -> str:
@@ -643,6 +775,13 @@ class PtuiApp(App[None]):
         Indented past whatever leads the cells under it — the exception marker
         in the title column, the mark glyph in the first one — or the header
         sits left of every value it names.
+
+        Args:
+            column: One `[[list.columns]]` table.
+            first: This is the leftmost column.
+
+        Returns:
+            The header text, indented, with the sort arrow when it applies.
         """
         pad = " " * MARKER_WIDTH if column is self.title_column else ""
         if first:
@@ -653,13 +792,22 @@ class PtuiApp(App[None]):
         return f"{pad}{column['title']} {arrow}"
 
     def natural_width(self, index: int, column: dict[str, Any]) -> int:
-        """What a fixed column asks for: its p90 over the whole narrowed set,
-        capped by the configured width and never narrower than its header.
+        """Work out what a fixed column asks for.
+
+        That is its p90 over the whole narrowed set, capped by the configured width and never narrower than
+        its header.
 
         Computed over `app.rows`, not the visible window — sizing to what is on
         screen makes the column jitter while scrolling.
+
+        Args:
+            index: The column's position; the first also holds the mark glyph.
+            column: One `[[list.columns]]` table.
+
+        Returns:
+            The width in cells.
         """
-        wanted = library.p90([self.cell_text(doc, column) for doc in self.rows])
+        wanted = library.percentile_90([self.cell_text(doc, column) for doc in self.rows])
         if index == 0:
             wanted += 2  # the mark glyph and its space
         return min(column["width"], max(wanted, cell_len(self.header(column, index == 0))))
@@ -681,13 +829,19 @@ class PtuiApp(App[None]):
         `pane_width` asks the hypothetical question the `auto` layout needs —
         "what would the flex column get in a pane this wide?" — without
         resizing anything.
+
+        Args:
+            pane_width: The pane width to ask about; `None` means the table's own.
+
+        Returns:
+            `(column table, width)` pairs for the columns kept, in configured order.
         """
         table = self.query_one(DataTable)
         spec = self.config.get("list.columns", [])
         pad = table.cell_padding * 2
         width = table.size.width if pane_width is None else pane_width
         room = width - 2 - table.scrollbar_size_vertical  # border, scrollbar
-        flexes = [i for i, column in enumerate(spec) if not column["width"]]
+        flexes = [column_index for column_index, column in enumerate(spec) if not column["width"]]
         widths: dict[int, int] = {}
         # Required columns first, so an optional one can never outbid them. Each
         # pass keeps the flex columns above their floor: bare survival for the
@@ -705,13 +859,15 @@ class PtuiApp(App[None]):
                 widths[index] = want
         # Several `width = 0` columns split what is left; the first gets the odd cells.
         share, extra = divmod(room - pad * len(flexes), len(flexes) or 1)
-        for n, index in enumerate(flexes):
-            widths[index] = max(MIN_FLEX, share + (extra if n == 0 else 0))
+        for position, index in enumerate(flexes):
+            widths[index] = max(MIN_FLEX, share + (extra if position == 0 else 0))
         return [(spec[index], widths[index]) for index in sorted(widths)]
 
     def sync_columns(self) -> None:
-        """Rebuild the table's columns when the fit or the headers changed — a
-        resize, `z z`, or a new sort key that moves the direction arrow."""
+        """Rebuild the table's columns when the fit or the headers changed.
+
+        That is a resize, `z z`, or a new sort key that moves the direction arrow.
+        """
         fit = self.fit_columns()
         headers = [self.header(column, index == 0) for index, (column, _) in enumerate(fit)]
         if (fit, headers) == self._fit_state:
@@ -724,6 +880,11 @@ class PtuiApp(App[None]):
             table.add_column(header, width=width)
 
     def focus_pane(self, pane: str) -> None:
+        """Give a pane the keyboard, and show or hide the transient panes to match.
+
+        Args:
+            pane: A name from `PANES`; any other is logged and ignored.
+        """
         if pane not in PANES:
             self.log_line(f"[yellow]no {pane} pane in v0[/]")
             return
@@ -745,8 +906,13 @@ class PtuiApp(App[None]):
         self.refresh_status()
 
     def on_click(self, event: events.Click) -> None:
-        """A click focuses the pane it lands in, the way `1`-`4` do. It lands on
-        the innermost widget — the info pane's text, not the pane — so look up."""
+        """A click focuses the pane it lands in, the way `1`-`4` do.
+
+        It lands on the innermost widget — the info pane's text, not the pane — so look up.
+
+        Args:
+            event: The click, naming the innermost widget.
+        """
         panes = {f"{name}-pane": name for name in PANES}
         hit = event.widget.ancestors_with_self if event.widget else []
         if pane := next((panes[widget.id] for widget in hit if widget.id in panes), None):
@@ -758,19 +924,29 @@ class PtuiApp(App[None]):
 
     @property
     def current(self) -> Document | None:
+        """The document under the cursor.
+
+        Returns:
+            The document, or `None` when the list is empty.
+        """
         table = self.query_one(DataTable)
         row = table.cursor_row
         return self.rows[row] if 0 <= row < len(self.rows) else None
 
     @property
     def targets(self) -> list[Document]:
-        """What a batch-aware command acts on: every mark, or the cursor."""
+        """What a batch-aware command acts on: every mark, or the cursor.
+
+        Returns:
+            The marked documents in list order, or the one under the cursor; empty for neither.
+        """
         if self.marks:
-            return [d for d in self.docs if library.doc_id(d) in self.marks]
+            return [candidate for candidate in self.docs if library.doc_id(candidate) in self.marks]
         doc = self.current
         return [doc] if doc else []
 
     def apply_sort(self) -> None:
+        """Re-sort the scoped set by the current sort key."""
         self.docs = library.sort(
             self.docs,
             self.sort_key,
@@ -780,7 +956,11 @@ class PtuiApp(App[None]):
         )
 
     def refresh_rows(self, keep: str | None = None) -> None:
-        """Rebuild the table, keeping the cursor on the same document."""
+        """Rebuild the table, keeping the cursor on the same document.
+
+        Args:
+            keep: The `papis_id` to put the cursor on; `None` means the document it is on now.
+        """
         keep = keep or (library.doc_id(self.current) if self.current else None)
         table = self.query_one(DataTable)
         self.sync_columns()
@@ -788,7 +968,7 @@ class PtuiApp(App[None]):
         # What to light up in each cell: the positive, unqualified terms. A
         # negated term matched nothing here by definition, and a qualified one
         # may have matched a field that is not on screen.
-        lit = [
+        highlighted = [
             term.text
             for term in library.parse_query(self.narrow_query, self.config.get("query.aliases", {}))
             if not term.negate and not term.field
@@ -798,19 +978,26 @@ class PtuiApp(App[None]):
         # be fetched by hand — `theme_variables` is the same table the CSS reads.
         mark_style = f"bold {self.theme_variables.get('accent', '')}".strip()
         warn_style = f"bold {self.theme_variables.get('error', '')}".strip()
-        self._paint = (lit, height, mark_style, warn_style)
+        self._paint = (highlighted, height, mark_style, warn_style)
         for doc in self.rows:
             table.add_row(*self.row_cells(doc), height=height)
         if keep is not None:
-            row = next((i for i, d in enumerate(self.rows) if library.doc_id(d) == keep), 0)
+            row = next((row_index for row_index, row_doc in enumerate(self.rows) if library.doc_id(row_doc) == keep), 0)
             table.move_cursor(row=row)
         self.refresh_info()
         self.refresh_status()
         self.refresh_hints()
 
     def row_cells(self, doc: Document) -> list[Text]:
-        """One document's row, painted with what the last `refresh_rows` decided."""
-        lit, height, mark_style, warn_style = self._paint
+        """One document's row, painted with what the last `refresh_rows` decided.
+
+        Args:
+            doc: The document to draw.
+
+        Returns:
+            One Rich `Text` per fitted column.
+        """
+        highlighted, height, mark_style, warn_style = self._paint
         marked = library.doc_id(doc) in self.marks
         marker = ui.glyph("warning") if doctor.peek(doc) else " "
         title = self.title_column
@@ -832,26 +1019,40 @@ class PtuiApp(App[None]):
             if flex:  # the exception marker, in its own colour
                 cell.append(f"{marker} ", style=warn_style)
             cell.append(text, style=mark_style if marked else "")
-            if lit:
-                cell.highlight_words(lit, "reverse", case_sensitive=False)
+            if highlighted:
+                cell.highlight_words(highlighted, "reverse", case_sensitive=False)
             cells.append(cell)
         return cells
 
     def refresh_row(self, index: int) -> None:
-        """Redraw one row in place. A mark toggle changes one row, and rebuilding
-        all of them cost 0.4 s per `space` at 5000 documents."""
+        """Redraw one row in place.
+
+        A mark toggle changes one row, and rebuilding all of them cost 0.4 s per `space` at 5000
+        documents.
+
+        Args:
+            index: The row's position in `rows`.
+        """
         table = self.query_one(DataTable)
         for column, cell in enumerate(self.row_cells(self.rows[index])):
             table.update_cell_at(Coordinate(index, column), cell)
 
     @work(exclusive=True, group="narrow", exit_on_error=False)
     async def apply_narrow(self, query: str) -> None:
-        """Debounced, cancellable: an exclusive worker replaces the pending one."""
+        """Debounced, cancellable: an exclusive worker replaces the pending one.
+
+        Args:
+            query: The narrow query as typed.
+        """
         await asyncio.sleep(self.config.get("query.narrow_debounce_ms", 60) / 1000)
         self.refilter(query)
 
     def refilter(self, query: str | None = None) -> None:
-        """Re-apply the current narrow filter to the scoped set, right now."""
+        """Re-apply the current narrow filter to the scoped set, right now.
+
+        Args:
+            query: The narrow query; `None` keeps the current one.
+        """
         query = self.narrow_query if query is None else query
         self.narrow_query = query
         self.visual = None  # a range over rows that just changed means nothing
@@ -860,14 +1061,22 @@ class PtuiApp(App[None]):
         keep = library.doc_id(self.current) if self.current else None
         docs = self.docs
         if self.marked_only:
-            docs = [d for d in docs if library.doc_id(d) in self.marks]
+            docs = [doc for doc in docs if library.doc_id(doc) in self.marks]
         if self.doctor_only:
-            docs = [d for d in docs if doctor.peek(d, self.doctor_only)]
+            docs = [doc for doc in docs if doctor.peek(doc, self.doctor_only)]
         self.rows = self.matching(docs, query)
         self.refresh_rows(keep)
 
     def matching(self, docs: list[Document], query: str) -> list[Document]:
-        """The narrow filter, configured: the `/` prompt and `mark.query` alike."""
+        """The narrow filter, configured: the `/` prompt and `mark.query` alike.
+
+        Args:
+            docs: The documents to filter.
+            query: The narrow query.
+
+        Returns:
+            The documents that match, in their given order.
+        """
         return library.narrow(
             docs,
             query,
@@ -879,6 +1088,7 @@ class PtuiApp(App[None]):
     # ── chrome ──────────────────────────────────────────────────────────────
 
     def refresh_info(self) -> None:
+        """Redraw the info pane for the document under the cursor."""
         pane = self.query_one("#info", Static)
         if self.current is None:
             pane.update("[dim]no document[/]")
@@ -889,6 +1099,14 @@ class PtuiApp(App[None]):
         strip = self.config.get("list.strip_latex", True)
 
         def show(value: Any) -> str:
+            """Prepare a value for the pane's markup.
+
+            Args:
+                value: A stored value.
+
+            Returns:
+                The value as literal text, without LaTeX when configured so.
+            """
             text = library.display(value)
             # `ui.literal`, not `escape`: Textual drops `[Extended]` from a title
             # and neither escape helper touches it — see the note on `literal`.
@@ -930,8 +1148,10 @@ class PtuiApp(App[None]):
         )
 
     def refresh_files(self) -> None:
-        """The files pane: the current document's `files` in stored order — the
-        first entry is "the" file — with the cursor on `file_index`."""
+        """Fill the files pane with the current document's `files`.
+
+        They come in stored order, the first entry being "the" file, with the cursor on `file_index`.
+        """
         pane = self.query_one("#files-pane", OptionList)
         if not pane.display:
             return
@@ -946,7 +1166,9 @@ class PtuiApp(App[None]):
         for entry in entries:
             path = place.resolve(doc, entry)
             mark = " " if path.exists() else ui.glyph("warning")
-            kind = next((name for name, globs in patterns.items() if any(fnmatch(path.name, g) for g in globs)), "")
+            kind = next(
+                (name for name, globs in patterns.items() if any(fnmatch(path.name, glob) for glob in globs)), ""
+            )
             row = Text(f"{mark} {entry}")
             if kind:
                 row.append(f"  {kind}", style="dim")
@@ -956,9 +1178,17 @@ class PtuiApp(App[None]):
         pane.highlighted = self.file_index if entries else None
 
     def hang(self, label: str, value: str) -> Content:
-        """`label` then `value`, the value wrapped so its continuation lines sit
-        under it — a long URL or doctor message otherwise ran back under the
-        label, to the pane's left edge. Both are markup."""
+        """Join a label and a value, wrapped so its continuation lines sit under it.
+
+        A long URL or doctor message otherwise ran back under the label, to the pane's left edge.
+
+        Args:
+            label: The label, as markup.
+            value: The value, as markup.
+
+        Returns:
+            The joined `Content`, on as many lines as the pane needs.
+        """
         head, body = Content.from_markup(label), Content.from_markup(value)
         width = self.query_one("#info").size.width
         if width < 16:  # not laid out yet
@@ -975,6 +1205,14 @@ class PtuiApp(App[None]):
         things, a reading status is a state, a rating is a quantity, and `ref`
         is the handle you yank into a `.tex`. Everything else is text, and
         colouring it too would leave nothing standing out.
+
+        Args:
+            key: The field's key.
+            value: The value from the flattened document.
+            show: Turns a value into literal text; `refresh_info.show`.
+
+        Returns:
+            The value as markup.
         """
         if key == "tags":
             tags = value if isinstance(value, list) else str(value).split(", ")
@@ -996,6 +1234,12 @@ class PtuiApp(App[None]):
         a permanent "no findings" would cost a line on every row to say so. An
         edited document shows its old findings until `recheck` has looked again;
         one the scan never reached reads "not checked", never clean.
+
+        Args:
+            doc: The document to read.
+
+        Returns:
+            The section's lines: text, or `(label, value)` for `hang`; empty for a clean document.
         """
         found = doctor.peek(doc)
         if found == []:
@@ -1009,10 +1253,10 @@ class PtuiApp(App[None]):
             *head,
             *(
                 (
-                    f"  [$error]{ui.glyph('warning')}[/] [$warning]{ui.literal(f.name)}[/]  ",
-                    ui.literal(f.msg) + ("" if f.fix_action else "  [dim](no fix)[/]"),
+                    f"  [$error]{ui.glyph('warning')}[/] [$warning]{ui.literal(finding.name)}[/]  ",
+                    ui.literal(finding.msg) + ("" if finding.fix_action else "  [dim](no fix)[/]"),
                 )
-                for f in found
+                for finding in found
             ),
         ]
 
@@ -1031,9 +1275,11 @@ class PtuiApp(App[None]):
 
     @work(thread=True, group="recheck", exit_on_error=False)
     def recheck(self) -> None:
-        """Re-check the documents written since their scan, off the redraw that
-        found them, then repaint. Not exclusive: two at once take different
-        documents from `doctor.STALE`, and each repaints only if it took any."""
+        """Re-check the documents written since their scan, then repaint.
+
+        Runs off the redraw that found them. Not exclusive: two at once take different documents from
+        `doctor.STALE`, and each repaints only if it took any.
+        """
         if doctor.recheck():
             self.call_from_thread(self.refresh_rows)
 
@@ -1044,44 +1290,59 @@ class PtuiApp(App[None]):
         one's, which is what makes the arrow read as one block flowing into the
         next rather than as a glyph sitting between them. `STATUS_BG` stands in
         for the bar itself at whichever end the group does not reach.
+
+        Args:
+            segments: `(text, foreground, background)` per block, in drawing order.
+            rightwards: The group runs left to right, closing back into the bar.
+
+        Returns:
+            `(markup, width in cells)`.
         """
         arrow = ui.glyph("sep_right" if rightwards else "sep_left")
-        out, width, behind = [], 0, STATUS_BG
+        pieces, width, behind = [], 0, STATUS_BG
         for text, foreground, background in segments:
             ahead = background if rightwards else behind
-            out.append(f"[{(behind if rightwards else background)} on {ahead}]{arrow}[/]")
-            out.append(f"[{foreground} on {background}]{ui.literal(text)}[/]")  # a query is text
+            pieces.append(f"[{(behind if rightwards else background)} on {ahead}]{arrow}[/]")
+            pieces.append(f"[{foreground} on {background}]{ui.literal(text)}[/]")  # a query is text
             width += cell_len(arrow) + cell_len(text)
             behind = background
         if rightwards:  # close the group back into the bar
-            out.append(f"[{behind} on {STATUS_BG}]{arrow}[/]")
+            pieces.append(f"[{behind} on {STATUS_BG}]{arrow}[/]")
             width += cell_len(arrow)
-        return "".join(out), width
+        return "".join(pieces), width
 
     def refresh_status(self) -> None:
-        """A lualine-shaped bar: mode block, scope and narrow on the left, the
-        counts on the right. Colours are theme variables, so every theme gets
-        the same shape in its own palette.
+        """Draw the lualine-shaped status bar.
+
+        Mode block, scope and narrow on the left, the counts on the right. Colours are theme variables, so
+        every theme gets the same shape in its own palette.
 
         When it all does not fit, the counts never yield. The sort block goes
         first: it changes only when asked (`S`), and a shown column's header
         carries it. Then the scope and the narrow are cut with an ellipsis, the
         longer one first, and last the left group itself.
         """
-        visible_marks = sum(1 for d in self.rows if library.doc_id(d) in self.marks)
+        visible_marks = sum(1 for doc in self.rows if library.doc_id(doc) in self.marks)
         arrow = ui.glyph("sort_desc" if self.sort_reverse else "sort_asc")
         mode = (f" {self.mode.upper()} ", "$background", "$primary")
         if self.visual is not None:
             mode = (f" {'UNMARK' if self.visual[1] else 'VISUAL'} ", "$background", "$accent")
 
         def left(cap: int) -> list[tuple[str, str, str]]:
-            """The left group, each query cut to `cap` cells."""
-            out = [mode, (f" {ui.glyph('scope')} {library.fit(self.scope_query or '*', cap)} ", "$text", "$panel")]
+            """The left group, each query cut to `cap` cells.
+
+            Args:
+                cap: The most cells a query may take.
+
+            Returns:
+                `(text, foreground, background)` per block.
+            """
+            segments = [mode, (f" {ui.glyph('scope')} {library.fit(self.scope_query or '*', cap)} ", "$text", "$panel")]
             if self.narrow_query:
-                out.append((f" / {library.fit(self.narrow_query, cap)} ", "$background", "$secondary"))
+                segments.append((f" / {library.fit(self.narrow_query, cap)} ", "$background", "$secondary"))
             if self.doctor_only:
-                out.append((f" {ui.glyph('warning')} doctor ", "$background", "$warning"))
-            return out
+                segments.append((f" {ui.glyph('warning')} doctor ", "$background", "$warning"))
+            return segments
 
         pending = [(f" {' '.join(self.pending)}- ", "$background", "$warning")] if self.pending else []
         sort = (f" {self.sort_key} {arrow} ", "$text", "$panel")
@@ -1104,6 +1365,7 @@ class PtuiApp(App[None]):
         self.query_one("#status-bar", Static).update(f"{head}[on {STATUS_BG}]{' ' * gap}[/]{tail}")
 
     def refresh_hints(self) -> None:
+        """Redraw the hint bar with what the current mode offers."""
         if not self.keymap.option("hint_bar", True):
             return
         if self.mode == "files":
@@ -1126,12 +1388,12 @@ class PtuiApp(App[None]):
             keys = self.keymap.for_command(self.mode, name)
             if not keys:
                 continue
-            desc = self.keymap.lookup(self.mode, tuple(keys.split(" "))).description  # keys.toml's short one
-            width = cell_len(f"{keys} {desc}") + (3 if hints else 0)
+            description = self.keymap.lookup(self.mode, tuple(keys.split(" "))).description  # keys.toml's short one
+            width = cell_len(f"{keys} {description}") + (3 if hints else 0)
             if width > room:
                 continue  # whole or not at all: a key without its words says nothing
             room -= width
-            hints.append(f"[$accent bold]{ui.literal(keys)}[/] [dim]{ui.literal(desc)}[/]")
+            hints.append(f"[$accent bold]{ui.literal(keys)}[/] [dim]{ui.literal(description)}[/]")
         self.query_one("#hint-bar", Static).update(" " + "   ".join(hints))
 
     def log_line(self, message: str) -> None:
@@ -1142,6 +1404,9 @@ class PtuiApp(App[None]):
         call site — and still comes out in the palette the rest of the app uses.
         Translating here rather than at forty call sites is also what keeps the
         Rich/Textual markup split from leaking into `actions.py`.
+
+        Args:
+            message: The line; only `LOG_MARKUP` is read as markup.
         """
         # Escape everything, then let the call site's own tags back through:
         # what a command interpolates (a title, a path, `[modes.files]`) is text.
@@ -1156,6 +1421,13 @@ class PtuiApp(App[None]):
     # ── prompt ──────────────────────────────────────────────────────────────
 
     def open_prompt(self, kind: str, placeholder: str, value: str = "") -> None:
+        """Open the prompt line and give it the keyboard.
+
+        Args:
+            kind: What the answer is for; decides who handles it on submit.
+            placeholder: The grey text shown while empty.
+            value: The text to start with.
+        """
         self.prompt_kind = kind
         prompt = self.query_one(Input)
         prompt.placeholder = placeholder
@@ -1165,10 +1437,14 @@ class PtuiApp(App[None]):
         self._recall, self._draft = 0, ""
 
     def recall(self, step: int) -> None:
-        """Up (`step` 1) walks back through the query history, down forward;
-        past the newest entry is whatever was being typed before. Only entries
-        that start with that, and are not it, are walked: typing first is the
-        prefix search."""
+        """Walk the query history from the prompt.
+
+        Up (`step` 1) walks back, down forward; past the newest entry is whatever was being typed before.
+        Only entries that start with that, and are not it, are walked: typing first is the prefix search.
+
+        Args:
+            step: 1 for an older entry, -1 for a newer one.
+        """
         prompt = self.query_one(Input)
         if self._recall == 0:
             self._draft = prompt.value
@@ -1178,6 +1454,7 @@ class PtuiApp(App[None]):
         prompt.cursor_position = len(prompt.value)
 
     def close_prompt(self) -> None:
+        """Close the prompt line and take the keyboard back."""
         self.prompt_kind = ""
         prompt = self.query_one(Input)
         prompt.remove_class("open")
@@ -1185,10 +1462,20 @@ class PtuiApp(App[None]):
         self.refresh_status()
 
     def on_input_changed(self, event: Input.Changed) -> None:
+        """Narrow as the user types in the narrow prompt.
+
+        Args:
+            event: The change event, holding the new text.
+        """
         if self.prompt_kind == "narrow":
             self.apply_narrow(event.value)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Hand a submitted prompt to whoever opened it, logging a failure.
+
+        Args:
+            event: The submit event, holding the text.
+        """
         kind, value = self.prompt_kind, event.value
         self.close_prompt()
         try:
@@ -1200,10 +1487,15 @@ class PtuiApp(App[None]):
                 actions.scope(self, value)
             elif kind:
                 actions.prompt_result(self, kind, value)
-        except Exception as exc:  # as in run_command: a broken prompt must not end the session
-            logger.exception(f"{kind} prompt failed: {exc}")
+        except Exception as error:  # as in run_command: a broken prompt must not end the session
+            logger.exception(f"{kind} prompt failed: {error}")
 
     def on_data_table_row_highlighted(self, _: Any) -> None:
+        """Redraw the info pane for the row the cursor landed on.
+
+        Args:
+            _: Unused; Textual passes it.
+        """
         # A highlight queued before teardown still gets delivered after the
         # widgets are gone, and `refresh_info` would raise NoMatches on the way
         # out. Rebuilding the columns during a layout flip is what queues it.

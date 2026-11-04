@@ -50,15 +50,31 @@ def check_names(configured: list[str] | None = None, *, library_wide: bool = Fal
     whichever checks a papis release happens to register. The two sets are
     disjoint — `library_wide` selects the `LIBRARY_WIDE` ones, and the default
     selects everything else.
+
+    Args:
+        configured: The check names asked for; `None` or empty means all.
+        library_wide: Select the `LIBRARY_WIDE` checks instead of the per-document ones.
+
+    Returns:
+        The check names to run, sorted when none were configured, else in configured order.
     """
     known = set(_doctor.registered_checks_names())
-    configured = [_doctor.DEPRECATED_CHECK_NAMES.get(n, n) for n in configured or []]  # `key-type` -> `field-type`
-    names = sorted(known) if not configured else [n for n in configured if n in known]
+    configured = [
+        _doctor.DEPRECATED_CHECK_NAMES.get(check_name, check_name) for check_name in configured or []
+    ]  # `key-type` -> `field-type`
+    names = sorted(known) if not configured else [check_name for check_name in configured if check_name in known]
     return [name for name in names if (name in LIBRARY_WIDE) == library_wide]
 
 
 def unknown_checks(configured: list[str] | None) -> list[str]:
-    """Configured names papis does not know — worth telling the user about once."""
+    """Configured names papis does not know — worth telling the user about once.
+
+    Args:
+        configured: The check names asked for, or `None`.
+
+    Returns:
+        The names neither registered nor a deprecated alias, in configured order.
+    """
     known = set(_doctor.registered_checks_names()) | set(_doctor.DEPRECATED_CHECK_NAMES)
     return [name for name in configured or [] if name not in known]
 
@@ -68,18 +84,34 @@ def findings(doc: Document, checks: list[str] | None = None) -> list[Finding]:
 
     `LIBRARY_WIDE` checks are excluded — running one against a single document
     is what made a second look invent findings; `scan_library` is their pass.
+
+    Args:
+        doc: The document to check.
+        checks: The check names asked for; `None` or empty means all.
+
+    Returns:
+        Every papis `Error` the checks report.
     """
     return _operate(doc, check_names(checks))
 
 
 def _operate(doc: Document, names: list[str]) -> list[Finding]:
-    """The named checks, already resolved — an empty list runs nothing here."""
+    """The named checks, already resolved — an empty list runs nothing here.
+
+    Args:
+        doc: The document to check.
+        names: Resolved check names.
+
+    Returns:
+        Every papis `Error` those checks report, in `names` order.
+    """
     return [error for name in names for error in _doctor.REGISTERED_CHECKS[name].operate(doc)]
 
 
 def scan(doc: Document, checks: list[str] | None = None) -> list[Finding]:
-    """`findings` for `checks`, cached against `info.yaml`'s mtime for the info
-    pane to read. Returns only what those checks found.
+    """`findings` for `checks`, cached against `info.yaml`'s mtime for the info pane to read.
+
+    Returns only what those checks found.
 
     Only their findings are replaced in the cache entry: replacing the whole of
     it made `:doctor.run refs` wipe every other check's marker until `! d`.
@@ -89,6 +121,13 @@ def scan(doc: Document, checks: list[str] | None = None) -> list[Finding]:
     the copy loaded before it changed. In place, so a fix can act on what is
     returned — which makes this the main thread's call (`load` empties the
     document before refilling it, under whoever is reading it).
+
+    Args:
+        doc: The document to check; reloaded in place when written since its last scan.
+        checks: The check names asked for; `None` or empty means all.
+
+    Returns:
+        The findings of those checks alone.
     """
     stamp = library.mtime(doc)  # before the read: the data is then at least this new
     hit = CACHE.get(library.doc_id(doc))
@@ -98,32 +137,59 @@ def scan(doc: Document, checks: list[str] | None = None) -> list[Finding]:
 
 
 def _from_disk(doc: Document) -> Document:
-    """The document as its file holds it now, in a new object. `cached` runs in
-    `recheck`'s thread, where reloading the redraw's own copy would empty it
-    under the redraw."""
+    """The document as its file holds it now, in a new object.
+
+    `cached` runs in `recheck`'s thread, where reloading the redraw's own copy would empty it
+    under the redraw.
+
+    Args:
+        doc: The document to read again.
+
+    Returns:
+        A new document from its folder, or `doc` itself when it has no folder.
+    """
     folder = doc.get_main_folder()
     return papis.document.from_folder(folder) if folder else doc
 
 
 def _scan(doc: Document, names: list[str], stamp: int) -> list[Finding]:
+    """Run the named checks and store the result in the document's cache entry.
+
+    Args:
+        doc: The document to check.
+        names: Resolved check names.
+        stamp: The `info.yaml` mtime the cache entry is stamped with.
+
+    Returns:
+        The findings of `names` alone.
+    """
     key = library.doc_id(doc)
     hit = CACHE.get(key)
     others = [name for name in hit[2] if name not in names] if hit else []
     # A stale entry's other checks run again too: the new stamp vouches for them.
-    kept = [f for f in hit[1] if f.name in others] if hit and hit[0] == stamp else _operate(doc, others)
+    kept = (
+        [finding for finding in hit[1] if finding.name in others] if hit and hit[0] == stamp else _operate(doc, others)
+    )
     found = _operate(doc, names)
-    CACHE[key] = (stamp, sorted([*kept, *found], key=lambda f: f.name), sorted({*others, *names}))
+    CACHE[key] = (stamp, sorted([*kept, *found], key=lambda finding: finding.name), sorted({*others, *names}))
     return found
 
 
 def cached(doc: Document) -> list[Finding] | None:
-    """This document's findings, or `None` if it was never scanned — "unknown",
-    which is not the same as "clean".
+    """Read this document's findings, or `None` if it was never scanned.
+
+    `None` is "unknown", which is not the same as "clean".
 
     A document written since its scan is re-checked here, with the checks it
     was scanned with, on a fresh read of its file (`_from_disk`): checking the
     copy in memory stamped findings from before an outside edit with the mtime
     from after it, so they never went stale again.
+
+    Args:
+        doc: The document to read.
+
+    Returns:
+        Its findings sorted by check name, or `None` when it was never scanned.
     """
     hit = CACHE.get(library.doc_id(doc))
     if hit is None:
@@ -133,12 +199,20 @@ def cached(doc: Document) -> list[Finding] | None:
 
 
 def peek(doc: Document, checks: tuple[str, ...] | None = None) -> list[Finding] | None:
-    """`cached` for a redraw, which never runs a check: a document written since
-    its scan keeps showing what that scan found and is queued for `recheck`.
-    `checks` keeps only those checks' findings — the doctor view of a named run.
+    """Read the findings for a redraw, which never runs a check.
 
-    At ~2 ms a document, re-checking inside the redraw froze the first one after
-    a mass change on disk — a sync or a `git pull` — for as long as it took.
+    A document written since its scan keeps showing what that scan found and is queued for `recheck`.
+    `checks` keeps only those checks' findings: the doctor view of a named run.
+
+    At ~2 ms a document, re-checking inside the redraw froze the first one after a mass change on
+    disk, a sync or a `git pull`, for as long as it took.
+
+    Args:
+        doc: The document to read.
+        checks: The check names to keep, or `None` for all.
+
+    Returns:
+        The findings the last scan stored, or `None` when it was never scanned.
     """
     key = library.doc_id(doc)
     hit = CACHE.get(key)
@@ -146,13 +220,18 @@ def peek(doc: Document, checks: tuple[str, ...] | None = None) -> list[Finding] 
         return None
     if hit[0] != library.mtime(doc):
         STALE[key] = doc
-    return hit[1] if checks is None else [f for f in hit[1] if f.name in checks]
+    return hit[1] if checks is None else [finding for finding in hit[1] if finding.name in checks]
 
 
 def recheck() -> int:
-    """Re-check every document `peek` queued, each with the checks it was
-    scanned with. Meant for a thread; returns how many, so the caller knows
-    whether there is anything to repaint."""
+    """Re-check every document `peek` queued, each with the checks it was scanned with.
+
+    Meant for a thread; returns how many, so the caller knows whether there is anything to
+    repaint.
+
+    Returns:
+        How many documents were re-checked.
+    """
     done = 0
     while STALE:
         try:
@@ -170,6 +249,13 @@ def scan_library(docs: list[Document], checks: list[str] | None = None) -> list[
     papis's seen-values state is reset first, so the pass sees only these
     documents; a duplicate is reported on the *second* document holding the
     value, which is why this can never run per document.
+
+    Args:
+        docs: The documents to check together.
+        checks: The check names asked for; `None` or empty means all.
+
+    Returns:
+        `(doc, finding)` pairs, in document order.
     """
     _doctor.DUPLICATED_KEYS_SEEN.clear()
     return [
@@ -181,15 +267,26 @@ def scan_library(docs: list[Document], checks: list[str] | None = None) -> list[
 
 
 def fix(doc: Document, finding: Finding) -> dict[str, tuple[Any, Any]]:
-    """Apply one finding's own fix and persist it. Returns each key that changed
-    with what the write replaced and what it wrote, `None` for no key — the two
-    sides of its undo step.
+    """Apply one finding's own fix and persist it.
+
+    Returns each key that changed with what the write replaced and what it wrote, `None` for no
+    key — the two sides of its undo step.
 
     The check's `fix_action` mutates the in-memory document, so the keys it
     touched are diffed out and written through `safewrite` — which re-checks the
     mtime, keeps unknown keys and comments, and resyncs the papis cache. On any
     failure the document is reloaded from disk, or it would keep an edit that
     never reached the file.
+
+    Args:
+        doc: The document the finding is about; reloaded from disk when the write fails.
+        finding: One finding from a check.
+
+    Returns:
+        Changed key to `(old value, new value)`, sorted by key; empty when nothing changed.
+
+    Raises:
+        StaleError: When `info.yaml` changed on disk.
     """
     if finding.fix_action is None:
         return {}
@@ -204,6 +301,11 @@ def fix(doc: Document, finding: Finding) -> dict[str, tuple[Any, Any]]:
     replaced: dict[str, Any] = {}
 
     def mutate(data: Any) -> None:
+        """Write the fix's changes into the file, remembering what each replaced.
+
+        Args:
+            data: The ruamel map of `info.yaml`.
+        """
         for key, value in written.items():
             replaced[key] = safewrite.plain(data.get(key))  # from the file, as undo restores it
             if value is None:
