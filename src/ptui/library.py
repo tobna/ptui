@@ -156,20 +156,6 @@ def shown_too(text: str) -> str:
     return text if shown == text else f"{text}\n{shown}"
 
 
-def is_subsequence(needle: str, haystack_text: str) -> bool:
-    """Tell whether the characters of `needle` appear in order.
-
-    Args:
-        needle: The characters to find.
-        haystack_text: The text to search.
-
-    Returns:
-        `True` when every character is found after the one before it.
-    """
-    remaining = iter(haystack_text)
-    return all(char in remaining for char in needle)
-
-
 FUZZY_SPAN = 3
 """How far a fuzzy match may spread, as a multiple of the needle. Plain
 subsequence matching is useless on real data — `note` matches
