@@ -36,7 +36,7 @@ def test_a_clean_start_hands_the_library_and_the_query_to_the_app(papis_lib, sta
     result = ptui(papis_lib, "-l", "test", "year:2016", "tags:test", config=QUIET + "[ui]\nmouse = false\n")
     assert result.exit_code == 0, result.output
     [(app, kwargs)] = started
-    assert app.cfg.get("general.library") == "test"
+    assert app.config.get("general.library") == "test"
     assert app.scope_query == "year:2016 tags:test"  # the words, joined back into one query
     assert kwargs == {"mouse": False}
 
@@ -73,7 +73,7 @@ def test_an_unknown_command_is_not_fatal(papis_lib, started):
     result = ptui(papis_lib, config=QUIET, keys='[modes.list]\n"j" = { cmd = "nav.sideways" }\n')
     assert result.exit_code == 0, result.output
     [(app, _)] = started
-    assert any("nav.sideways" in problem for problem in app.km.unknown_commands)
+    assert any("nav.sideways" in problem for problem in app.keymap.unknown_commands)
 
 
 def test_a_broken_config_toml_beats_a_broken_keys_toml(papis_lib, started):

@@ -92,7 +92,7 @@ async def test_a_relocate_that_fails_on_one_entry_leaves_no_dangling_entry(app, 
 
     async with app.run_test() as pilot:
         await settle(pilot)
-        app.cfg.data["files"]["rules"] = [
+        app.config.data["files"]["rules"] = [
             {"match": [f"*.{ext}"], "op": "move", "dest": f"{{pdf_root}}/{{doc[year]}}.{ext}"}
             for ext in ("pdf", "djvu")
         ]

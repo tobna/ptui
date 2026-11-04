@@ -60,7 +60,7 @@ async def test_opening_records_opened_at_only_when_asked_to(papis_lib, opened):
     attach(papis_lib, "doc0", "a.pdf")
     for track in (False, True):
         app = build_app(papis_lib)
-        app.cfg.data["general"]["track_opens"] = track  # [general] is the fixture's already
+        app.config.data["general"]["track_opens"] = track  # [general] is the fixture's already
         async with app.run_test() as pilot:
             await settle(pilot)
             await press(pilot, "o")

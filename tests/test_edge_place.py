@@ -16,7 +16,7 @@ DEST = "{pdf_root}/{doc[year]}_{doc[author_list][0][family]}.pdf"
 
 
 def _rules(tmp_path, **rule):
-    spec = {"name": "r", "match": ("*.pdf",), "op": "move", "dest": DEST, "path_style": "absolute"} | rule
+    spec = {"name": "r", "match": ("*.pdf",), "operation": "move", "destination": DEST, "path_style": "absolute"} | rule
     return place.Rules(
         rules=(place.Rule(**spec),),
         default=place.Rule(name="default", match=("*",)),
@@ -57,11 +57,11 @@ def test_the_entry_follows_the_path_style(doc, tmp_path, style, previous, relati
 
 
 def test_copy_keeps_the_source_and_rollback_removes_only_the_copy(doc, tmp_path):
-    result = place.place(doc, _src(doc), _rules(tmp_path, op="copy"))
+    result = place.place(doc, _src(doc), _rules(tmp_path, operation="copy"))
     assert result.status == "ok"
-    assert _src(doc).read_bytes() == result.dest.read_bytes() == b"pdf"
+    assert _src(doc).read_bytes() == result.destination.read_bytes() == b"pdf"
     place.rollback(result)
-    assert _src(doc).exists() and not result.dest.exists()
+    assert _src(doc).exists() and not result.destination.exists()
 
 
 def test_rollback_keeps_the_placed_file_when_another_has_taken_its_old_name(doc, tmp_path):
@@ -71,24 +71,24 @@ def test_rollback_keeps_the_placed_file_when_another_has_taken_its_old_name(doc,
     _src(doc).write_bytes(b"a new download under the old name")
     with pytest.raises(FileExistsError):
         place.rollback(result)
-    assert result.dest.read_bytes() == b"pdf"
+    assert result.destination.read_bytes() == b"pdf"
     assert _src(doc).read_bytes() == b"a new download under the old name"
 
 
 def test_hardlink_shares_the_inode(doc, tmp_path):
-    result = place.place(doc, _src(doc), _rules(tmp_path, op="hardlink"))
+    result = place.place(doc, _src(doc), _rules(tmp_path, operation="hardlink"))
     assert result.status == "ok"
-    assert os.path.samefile(_src(doc), result.dest)
-    assert not result.dest.is_symlink()
+    assert os.path.samefile(_src(doc), result.destination)
+    assert not result.destination.is_symlink()
 
 
 def test_link_is_a_symlink_back_to_the_source_and_placing_again_is_already(doc, tmp_path):
-    rules = _rules(tmp_path, op="link")
+    rules = _rules(tmp_path, operation="link")
     result = place.place(doc, _src(doc), rules)
-    assert result.dest.is_symlink() and result.dest.resolve() == _src(doc)
+    assert result.destination.is_symlink() and result.destination.resolve() == _src(doc)
     assert place.place(doc, _src(doc), rules).status == "already"
     place.rollback(result)
-    assert _src(doc).read_bytes() == b"pdf" and not result.dest.is_symlink()
+    assert _src(doc).read_bytes() == b"pdf" and not result.destination.is_symlink()
 
 
 def test_placing_the_placed_file_again_keeps_its_relative_entry(doc, tmp_path):
@@ -109,7 +109,7 @@ def test_collision_suffix_needs_no_force_and_hash_check_off_calls_a_twin_a_confl
 
     suffixing = dataclasses.replace(blind, collision="suffix")
     result = place.place(doc, _src(doc), suffixing)
-    assert result.dest.name == "2017_Vaswani_b.pdf"
+    assert result.destination.name == "2017_Vaswani_b.pdf"
     assert taken.read_bytes() == b"pdf"
 
 
@@ -127,7 +127,7 @@ def test_a_name_that_differs_only_in_case_is_a_clash(doc, tmp_path):
     rules = _rules(tmp_path)
     assert place.place(doc, _src(doc), rules).status == "conflict"
     forced = place.place(doc, _src(doc), rules, force=True)
-    assert forced.dest.name == "2017_Vaswani_b.pdf"
+    assert forced.destination.name == "2017_Vaswani_b.pdf"
 
 
 def test_a_document_the_scheme_cannot_name_is_an_error_and_moves_nothing(doc, tmp_path):
@@ -152,7 +152,7 @@ def test_cross_device_goes_through_a_tmp_name_and_leaves_no_tmp(doc, tmp_path, m
     monkeypatch.setattr(os, "link", link)
     result = place.place(doc, _src(doc), _rules(tmp_path))
     assert result.status == "ok"
-    assert result.dest.read_bytes() == b"pdf" and not _src(doc).exists()
+    assert result.destination.read_bytes() == b"pdf" and not _src(doc).exists()
     assert [p.name for p in (tmp_path / "pdfs").iterdir()] == ["2017_Vaswani.pdf"]
 
 

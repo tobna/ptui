@@ -7,17 +7,17 @@ from ptui import place
 
 RULES = place.Rules(
     rules=(
-        place.Rule(name="notes stay put", match=("*_notes.pdf",), op="in-place"),
+        place.Rule(name="notes stay put", match=("*_notes.pdf",), operation="in-place"),
         place.Rule(
             name="pdfs to central root",
             match=("*.pdf",),
-            op="move",
-            dest="{pdf_root}/{doc[year]}_{doc[author_list][0][family]}_{doc[title]}.pdf",
+            operation="move",
+            destination="{pdf_root}/{doc[year]}_{doc[author_list][0][family]}_{doc[title]}.pdf",
             path_style="absolute",
             slugify=True,
         ),
     ),
-    default=place.Rule(name="everything else", match=("*",), op="in-place"),
+    default=place.Rule(name="everything else", match=("*",), operation="in-place"),
     pdf_root=None,
     collision="skip",
 )
@@ -47,14 +47,14 @@ def test_moves_and_is_idempotent(lib):
     doc, src, rules, tmp_path = lib
     result = place.place(doc, src, rules)
     assert result.status == "ok"
-    assert result.dest == tmp_path / "pdfs" / "2017_Vaswani_Attention_Is_All_You_Need.pdf"
-    assert result.dest.read_bytes() == b"pdf-bytes"
+    assert result.destination == tmp_path / "pdfs" / "2017_Vaswani_Attention_Is_All_You_Need.pdf"
+    assert result.destination.read_bytes() == b"pdf-bytes"
     assert not src.exists()
-    assert result.entry == str(result.dest)
+    assert result.entry == str(result.destination)
 
-    again = place.place(doc, result.dest, rules)
+    again = place.place(doc, result.destination, rules)
     assert again.status == "already"
-    assert again.dest == result.dest
+    assert again.destination == result.destination
 
 
 def test_in_place_rule_is_unmanaged(lib):
@@ -74,7 +74,7 @@ def test_conflict_is_skipped_and_force_suffixes(lib):
 
     forced = place.place(doc, src, rules, force=True)
     assert forced.status == "ok"
-    assert forced.dest.name.endswith("_b.pdf")  # deterministic, not a timestamp
+    assert forced.destination.name.endswith("_b.pdf")  # deterministic, not a timestamp
 
 
 def test_identical_destination_is_a_duplicate(lib):
@@ -90,7 +90,7 @@ def test_dry_run_touches_nothing(lib):
     doc, src, rules, _ = lib
     result = place.place(doc, src, rules, dry_run=True)
     assert result.status == "ok"
-    assert src.exists() and not result.dest.exists()
+    assert src.exists() and not result.destination.exists()
 
 
 def test_rollback_restores_the_source(lib):
@@ -98,7 +98,7 @@ def test_rollback_restores_the_source(lib):
     result = place.place(doc, src, rules)
     place.rollback(result)
     assert src.read_bytes() == b"pdf-bytes"
-    assert not result.dest.exists()
+    assert not result.destination.exists()
 
 
 def test_case_insensitive_collision_is_detected(tmp_path):
@@ -111,7 +111,9 @@ def test_relative_entry_style_is_kept(lib):
     doc, src, rules, _ = lib
     rules = dataclasses.replace(
         rules,
-        rules=(place.Rule(name="r", match=("*.pdf",), op="move", dest="{pdf_root}/x.pdf", path_style="keep"),),
+        rules=(
+            place.Rule(name="r", match=("*.pdf",), operation="move", destination="{pdf_root}/x.pdf", path_style="keep"),
+        ),
     )
     result = place.place(doc, src, rules, previous="downloaded file.pdf")
     assert result.entry == "../pdfs/x.pdf"
@@ -151,7 +153,7 @@ def test_a_broken_link_is_a_clash_for_suffixing_and_for_adopt(lib):
     dead.symlink_to(tmp_path / "gone.pdf")
     result = place.place(doc, src, dataclasses.replace(rules, collision="suffix"))
     assert result.status == "ok"
-    assert result.dest.name == "2017_Vaswani_Attention_Is_All_You_Need_b.pdf"
+    assert result.destination.name == "2017_Vaswani_Attention_Is_All_You_Need_b.pdf"
     assert dead.is_symlink()  # the link is left as it was
 
     loose = tmp_path / "loose.djvu"

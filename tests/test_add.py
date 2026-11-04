@@ -9,7 +9,7 @@ async def test_add_from_inbox_previews_then_writes(app, papis_lib):
     inbox = papis_lib / "inbox"
     inbox.mkdir()
     (inbox / "some paper.pdf").write_bytes(b"pdf")
-    app.cfg.data["files"]["inbox"] = str(inbox)
+    app.config.data["files"]["inbox"] = str(inbox)
 
     async with app.run_test() as pilot:
         await settle(pilot)
@@ -41,7 +41,7 @@ async def test_add_form_escape_writes_nothing(app, papis_lib):
     inbox = papis_lib / "inbox"
     inbox.mkdir()
     (inbox / "paper.pdf").write_bytes(b"pdf")
-    app.cfg.data["files"]["inbox"] = str(inbox)
+    app.config.data["files"]["inbox"] = str(inbox)
 
     async with app.run_test() as pilot:
         await settle(pilot)

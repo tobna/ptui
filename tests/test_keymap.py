@@ -23,29 +23,29 @@ def test_user_bindings_merge_per_key_over_the_shipped_ones(tmp_path):
     """A user table used to replace the shipped one, so swapping two keys meant
     copying every binding. Each user key now drops only what it collides with."""
     km = _user(tmp_path, '[modes.list]\n"o" = { cmd = "doc.open_folder" }\n"O" = { cmd = "doc.open" }\n')
-    assert km.lookup("list", ("o",)).cmd == "doc.open_folder"
-    assert km.lookup("list", ("O",)).cmd == "doc.open"
-    assert km.lookup("list", ("j",)).cmd == "nav.down"  # everything else is still shipped
-    assert km.lookup("list", ("enter",)).cmd == "doc.open"  # a command bound anew keeps its keys
-    assert km.lookup("files", ("o",)).cmd == "doc.open"  # other modes are untouched
+    assert km.lookup("list", ("o",)).command == "doc.open_folder"
+    assert km.lookup("list", ("O",)).command == "doc.open"
+    assert km.lookup("list", ("j",)).command == "nav.down"  # everything else is still shipped
+    assert km.lookup("list", ("enter",)).command == "doc.open"  # a command bound anew keeps its keys
+    assert km.lookup("files", ("o",)).command == "doc.open"  # other modes are untouched
     assert km.option("which_key") is True
     assert km.conflicts() == []
 
 
 def test_a_user_key_takes_a_shipped_prefix_and_its_namespace_with_it(tmp_path):
     km = _user(tmp_path, '[modes.list]\n"y" = { cmd = "export.bibtex" }\n"r x" = { cmd = "app.reload" }\n')
-    assert km.lookup("list", ("y",)).cmd == "export.bibtex"
+    assert km.lookup("list", ("y",)).command == "export.bibtex"
     assert km.under_prefix("list", ("y",)) == []
     assert km.lookup("list", ("r",)) is None  # `r x` makes `r` a prefix
-    assert km.lookup("list", ("r", "x")).cmd == "app.reload"
-    assert km.lookup("list", ("f", "r")).cmd == "files.relocate"  # other namespaces stay
+    assert km.lookup("list", ("r", "x")).command == "app.reload"
+    assert km.lookup("list", ("f", "r")).command == "files.relocate"  # other namespaces stay
     assert km.conflicts() == []
 
 
 def test_a_user_pane_key_beats_a_shipped_global_chord_in_that_pane_only(tmp_path):
     km = _user(tmp_path, '[modes.info]\n"g" = { cmd = "nav.top" }\n')
     assert km.lookup("info", ("g", "o")) is None
-    assert km.lookup("files", ("g", "o")).cmd == "app.log"
+    assert km.lookup("files", ("g", "o")).command == "app.log"
     assert km.conflicts() == []
 
 
@@ -57,11 +57,11 @@ def test_a_pane_key_beats_a_global_chord_it_shadows_in_that_pane_only(tmp_path):
         '[global]\n"t y" = { cmd = "app.reload" }\n"w" = { cmd = "app.reload", args = { rescan = true } }\n'
         '[modes.info]\n"t" = { cmd = "nav.top" }\n"w q" = { cmd = "nav.bottom" }\n',
     )
-    assert km.lookup("info", ("t",)).cmd == "nav.top"
+    assert km.lookup("info", ("t",)).command == "nav.top"
     assert km.lookup("info", ("t", "y")) is None
     assert km.lookup("info", ("w",)) is None  # the other way round: the pane's chord takes the global key
-    assert km.lookup("info", ("w", "q")).cmd == "nav.bottom"
-    assert km.lookup("list", ("t", "y")).cmd == "app.reload"
+    assert km.lookup("info", ("w", "q")).command == "nav.bottom"
+    assert km.lookup("list", ("t", "y")).command == "app.reload"
     assert km.lookup("list", ("w",)).args == {"rescan": True}
     assert km.conflicts() == []
 
@@ -75,12 +75,12 @@ def test_binding_a_command_to_a_new_key_keeps_its_shipped_keys(tmp_path):
         '[modes.list]\n"n" = { cmd = "nav.down" }\n"t" = { cmd = "pane.focus", args = { pane = "log" } }\n',
     )
     for mode in keymap.PANES:
-        assert km.lookup(mode, ("Q",)).cmd == "app.quit"
-        assert km.lookup(mode, ("q",)).cmd == "app.quit"
-        assert km.lookup(mode, ("w",)).cmd == "cmdline.open"
-        assert km.lookup(mode, (":",)).cmd == "cmdline.open"
-        assert km.lookup(mode, ("ctrl+p",)).cmd == "cmdline.open"
-    assert [km.lookup("list", (key,)).cmd for key in ("n", "j", "down")] == ["nav.down"] * 3
+        assert km.lookup(mode, ("Q",)).command == "app.quit"
+        assert km.lookup(mode, ("q",)).command == "app.quit"
+        assert km.lookup(mode, ("w",)).command == "cmdline.open"
+        assert km.lookup(mode, (":",)).command == "cmdline.open"
+        assert km.lookup(mode, ("ctrl+p",)).command == "cmdline.open"
+    assert [km.lookup("list", (key,)).command for key in ("n", "j", "down")] == ["nav.down"] * 3
     assert km.lookup("list", ("4",)).args == {"pane": "log"}
 
 
@@ -88,7 +88,7 @@ def test_false_unbinds_a_shipped_key(tmp_path):
     km = _user(tmp_path, '[global]\n"u" = false\n[modes.list]\n"b" = false\n"g" = false\n')
     assert km.lookup("list", ("b",)) is None
     assert km.under_prefix("list", ("g",)) == []  # a prefix takes its namespace, `g o` included
-    assert km.lookup("info", ("g", "o")).cmd == "app.log"
+    assert km.lookup("info", ("g", "o")).command == "app.log"
     for mode in keymap.PANES:
         assert km.lookup(mode, ("u",)) is None
     assert km.conflicts() == []
@@ -100,17 +100,17 @@ def test_global_keys_reach_every_pane_but_not_the_picker(tmp_path):
     (tmp_path / "keys.toml").write_text('[modes.info]\n"x" = { cmd = "app.quit" }\n"u" = { cmd = "nav.down" }\n')
     km = keymap.load(tmp_path / "keys.toml")
     for mode in keymap.PANES:
-        assert km.lookup(mode, ("tab",)).cmd == "pane.cycle"
-        assert km.lookup(mode, ("g", "o")).cmd == "app.log"
-    assert km.lookup("info", ("u",)).cmd == "nav.down"  # the pane's own table wins
-    assert km.lookup("files", ("u",)).cmd == "app.undo"
+        assert km.lookup(mode, ("tab",)).command == "pane.cycle"
+        assert km.lookup(mode, ("g", "o")).command == "app.log"
+    assert km.lookup("info", ("u",)).command == "nav.down"  # the pane's own table wins
+    assert km.lookup("files", ("u",)).command == "app.undo"
     assert km.lookup("picker", ("u",)) is None  # letters are filter text there
     assert km.lookup("picker", ("tab",)) is None
 
 
 def test_chords_and_lookup():
     km = keymap.load(keymap.DEFAULTS_DIR / "nope.toml")
-    assert km.lookup("list", ("g", "g")).cmd == "nav.top"
+    assert km.lookup("list", ("g", "g")).command == "nav.top"
     assert km.is_prefix("list", ("g",))
     assert not km.is_prefix("list", ("j",))
     assert [b.keys for b in km.under_prefix("list", ("y",))] == ["y b", "y e", "y p", "y u", "y y"]

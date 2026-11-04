@@ -22,9 +22,9 @@ type Chord = tuple[str, ...]
 @dataclass(frozen=True, slots=True)
 class Binding:
     chord: Chord
-    cmd: str
+    command: str
     args: dict[str, Any]
-    desc: str
+    description: str
 
     @property
     def keys(self) -> str:
@@ -57,7 +57,7 @@ class Keymap:
 
     def for_command(self, mode: str, cmd: str) -> str | None:
         """The keys bound to a command, for help and the hint bar."""
-        return next((b.keys for b in self.modes.get(mode, {}).values() if b.cmd == cmd), None)
+        return next((b.keys for b in self.modes.get(mode, {}).values() if b.command == cmd), None)
 
     def conflicts(self) -> list[str]:
         """Human-readable descriptions of every prefix collision, empty if clean."""
@@ -68,7 +68,7 @@ class Keymap:
                     if other != chord and other[: len(chord)] == chord:
                         out.append(
                             f"[modes.{mode}] {' '.join(chord)!r} shadows {' '.join(other)!r} "
-                            f"({bindings[chord].cmd} vs {bindings[other].cmd})"
+                            f"({bindings[chord].command} vs {bindings[other].command})"
                         )
         return sorted(out)
 
@@ -110,9 +110,9 @@ def _table(section: str, bindings: dict[str, Any], path: Path, unknown: list[str
             unknown.append(f"[{section}] {keys!r} -> unknown command {cmd!r}")
         out[chord] = Binding(
             chord=chord,
-            cmd=cmd,
+            command=cmd,
             args=spec.get("args", {}),
-            desc=spec.get("desc") or (registered.desc if registered else ""),
+            description=spec.get("desc") or (registered.description if registered else ""),
         )
     return out
 

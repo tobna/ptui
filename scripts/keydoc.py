@@ -77,7 +77,7 @@ def render() -> str:
         for keys, spec in sorted(bindings.items(), key=lambda kv: (kv[0][0].casefold(), kv[0])):
             cmd = spec["cmd"]
             registered = REGISTRY.get(cmd)
-            desc = spec.get("desc") or (registered.desc if registered else "—")
+            desc = spec.get("desc") or (registered.description if registered else "—")
             args = " ".join(f"{k}={v}" for k, v in spec.get("args", {}).items())
             note = "" if registered else " *(not implemented)*"
             out.append(f"| `{keys}` | `{cmd}`{f' {args}' if args else ''} | {desc}{note} |")

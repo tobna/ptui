@@ -26,7 +26,7 @@ async def test_the_command_line_lists_every_command_with_the_keys_of_this_pane_o
 async def test_the_command_line_can_keep_the_keys_to_itself(app):
     async with app.run_test() as pilot:
         await settle(pilot)
-        app.km.options["show_keys_in_cmdline"] = False
+        app.keymap.options["show_keys_in_cmdline"] = False
         await press(pilot, ":")
         assert all(item.hint == "" for item in app.screen.items)
 
@@ -277,7 +277,7 @@ async def test_each_source_asks_for_what_it_needs(app, source, kind):
 
 
 async def test_the_inbox_when_there_is_none_says_where_it_looked(app, papis_lib, monkeypatch):
-    app.cfg.data["files"]["inbox"] = str(papis_lib / "no-inbox")
+    app.config.data["files"]["inbox"] = str(papis_lib / "no-inbox")
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)

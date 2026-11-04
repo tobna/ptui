@@ -15,7 +15,7 @@ TOOLS = {
 
 def copy(app: Any, text: str) -> str:
     """Copy `text`, returning the method used so the caller can say so."""
-    choice = app.cfg.get("export.clipboard", "auto")
+    choice = app.config.get("export.clipboard", "auto")
     candidates = [choice] if choice in TOOLS else ([] if choice == "osc52" else list(TOOLS))
     for name in candidates:
         if shutil.which(name):

@@ -62,7 +62,7 @@ async def test_a_forgotten_chord_is_found_by_waiting_on_its_prefix(papis_lib):
     async with app.run_test(size=(80, 24)) as pilot:
         await settle(pilot)
         await pilot.press("g")
-        await pilot.pause(app.km.option("which_key_delay_ms") / 1000 + 0.2)
+        await pilot.pause(app.keymap.option("which_key_delay_ms") / 1000 + 0.2)
         shown = screen(app)
         assert "─ g ─" in shown
         assert "r  go to a citekey" in shown and "l  switch library" in shown

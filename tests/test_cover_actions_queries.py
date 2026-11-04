@@ -167,7 +167,7 @@ async def test_loading_an_unknown_search_changes_nothing(app, monkeypatch):
 
 async def test_with_no_saved_searches_the_picker_does_not_open(papis_lib, monkeypatch):
     app = build_app(papis_lib)
-    app.cfg.data["query"]["saved"] = {}
+    app.config.data["query"]["saved"] = {}
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -196,7 +196,7 @@ async def test_a_saved_search_with_unicode_round_trips(app, papis_lib):
 
 async def test_saving_with_no_saved_file_is_reported_not_fatal(papis_lib, monkeypatch):
     app = build_app(papis_lib)
-    app.cfg.data["query"]["saved_file"] = ""
+    app.config.data["query"]["saved_file"] = ""
     async with app.run_test() as pilot:
         await settle(pilot)
         logged = logs(app, monkeypatch)
@@ -230,7 +230,7 @@ async def test_switching_to_an_unknown_library_leaves_everything_as_it_was(app, 
         await settle(pilot)
         assert app.marks == {"id0"}
         assert len(app.docs) == 3
-        assert not app.cfg.get("general.library")
+        assert not app.config.get("general.library")
 
 
 async def test_switching_libraries_drops_the_marks_of_the_old_one(app, papis_lib):
@@ -303,7 +303,7 @@ async def test_moving_one_document_needs_no_confirmation(app, papis_lib):
 async def test_a_history_that_cannot_be_written_costs_the_history_not_the_query(app, papis_lib, monkeypatch):
     state = papis_lib / "state"
     state.mkdir()
-    app.cfg.data["query"]["history_file"] = str(state / "history")
+    app.config.data["query"]["history_file"] = str(state / "history")
     state.chmod(0o555)
     try:
         async with app.run_test() as pilot:
@@ -318,8 +318,8 @@ async def test_a_history_that_cannot_be_written_costs_the_history_not_the_query(
 
 async def test_a_session_state_that_cannot_be_written_does_not_stop_the_app_closing(app, papis_lib):
     (papis_lib / "blocker").write_text("a file where a folder should be")
-    app.cfg.data["general"]["persist_state"] = True
-    app.cfg.data["general"]["state_file"] = str(papis_lib / "blocker" / "state.json")
+    app.config.data["general"]["persist_state"] = True
+    app.config.data["general"]["state_file"] = str(papis_lib / "blocker" / "state.json")
     async with app.run_test() as pilot:
         await settle(pilot)
     assert app.return_code in (0, None)

@@ -235,8 +235,8 @@ class PtuiApp(App[None]):
 
     def __init__(self, cfg: config.Config, km: keymap.Keymap) -> None:
         super().__init__()
-        self.cfg = cfg
-        self.km = km
+        self.config = cfg
+        self.keymap = km
         ui.use_icons(cfg.get("ui.icons", False))  # every glyph goes through ui.glyph
         self.mode = "list"
         self.pending: keymap.Chord = ()
@@ -290,7 +290,7 @@ class PtuiApp(App[None]):
         self.theme = name or DEFAULT_THEME
 
     def _default_sort(self) -> tuple[str, bool]:
-        presets = self.cfg.get("list.sort_presets", [])
+        presets = self.config.get("list.sort_presets", [])
         preset = next((p for p in presets if p.get("default")), presets[0] if presets else {})
         return preset.get("key", "time-added"), preset.get("dir", "desc") == "desc"
 
@@ -310,7 +310,7 @@ class PtuiApp(App[None]):
                 yield info
                 yield files
         # wrap: a finding quotes a whole path, and the pane has no horizontal scroll key
-        log = LogPane(id="log-pane", markup=True, wrap=True, max_lines=self.cfg.get("log.max_entries", 500))
+        log = LogPane(id="log-pane", markup=True, wrap=True, max_lines=self.config.get("log.max_entries", 500))
         log.border_title = "log"
         yield log
         yield Static(id="which-key")
@@ -319,21 +319,21 @@ class PtuiApp(App[None]):
         yield Input(id="prompt")
 
     def on_mount(self) -> None:
-        self.apply_theme(self.cfg.get("ui.theme", DEFAULT_THEME))
+        self.apply_theme(self.config.get("ui.theme", DEFAULT_THEME))
         self.apply_split()
         self._setup_logging()
-        for problem in self.km.unknown_commands:
+        for problem in self.keymap.unknown_commands:
             self.log_line(f"[yellow]keys.toml:[/] {problem}")
-        for problem in self.cfg.invalid:
+        for problem in self.config.invalid:
             self.log_line(f"[yellow]config.toml:[/] {problem}")
-        if editor := self.cfg.get("edit.editor"):  # overrides papis's `editor`, which papis's edit reads
+        if editor := self.config.get("edit.editor"):  # overrides papis's `editor`, which papis's edit reads
             papis.config.set("editor", editor)
-        if name := self.cfg.get("general.library"):  # `-l` or [general] library
+        if name := self.config.get("general.library"):  # `-l` or [general] library
             try:
                 library.use(name)
             except Exception as exc:
                 self.log_line(f"[red]library {name!r}:[/] {exc}")
-                self.cfg.data["general"]["library"] = ""
+                self.config.data["general"]["library"] = ""
         cursor = actions.restore_state(self)
         actions.reload(self)
         if cursor:
@@ -345,7 +345,7 @@ class PtuiApp(App[None]):
         self.focus_pane("list")
         actions.warn_untracked(self)  # once per session, and only under git
         actions.auto_empty_trash(self)
-        if self.cfg.get("doctor.scan_on_startup", True):
+        if self.config.get("doctor.scan_on_startup", True):
             self.scan_library()
 
     def on_unmount(self) -> None:
@@ -359,15 +359,15 @@ class PtuiApp(App[None]):
         Everything else (columns, sort tiebreak, narrow mode, …) is read when it
         is used, so the redraw at the end is all it needs.
         """
-        ui.use_icons(self.cfg.get("ui.icons", False))
-        self.apply_theme(self.cfg.get("ui.theme", DEFAULT_THEME))
-        if editor := self.cfg.get("edit.editor"):
+        ui.use_icons(self.config.get("ui.icons", False))
+        self.apply_theme(self.config.get("ui.theme", DEFAULT_THEME))
+        if editor := self.config.get("edit.editor"):
             papis.config.set("editor", editor)
-        layout = self.cfg.get("ui.layout", "auto")
+        layout = self.config.get("ui.layout", "auto")
         self.layout_auto = layout == "auto"
         if not self.layout_auto:
             self.side_by_side = layout != "horizontal"
-        self.split = self.cfg.get("ui.split_ratio", 0.6)
+        self.split = self.config.get("ui.split_ratio", 0.6)
         self._cells.clear()  # icons, strip_latex and the columns all shape a cell
         self._fit_state = None
         self.choose_layout()
@@ -386,7 +386,7 @@ class PtuiApp(App[None]):
     def _setup_logging(self) -> None:
         logger.remove()
         pane = self.query_one(LogPane)
-        level = self.cfg.get("log.level", "info").upper()
+        level = self.config.get("log.level", "info").upper()
 
         def write(message: Any) -> None:
             """One loguru record, coloured by its level.
@@ -415,7 +415,7 @@ class PtuiApp(App[None]):
             format="{message}",
             filter=lambda record: "papis" not in record["extra"] or record["level"].no >= logging.WARNING,
         )
-        log_file = self.cfg.as_path("log.file")
+        log_file = self.config.as_path("log.file")
         if log_file:
             log_file.parent.mkdir(parents=True, exist_ok=True)
             logger.add(log_file, level=level, rotation="1 MB", retention=3)
@@ -456,16 +456,16 @@ class PtuiApp(App[None]):
             return
         # Help is guaranteed the same way, and follows its [modes.list] binding:
         # rebind help.show there and `?` moves in every mode at once.
-        help_key = self.km.for_command("list", "help.show")
-        if not self.pending and key == help_key and self.km.lookup(self.mode, (key,)) is None:
+        help_key = self.keymap.for_command("list", "help.show")
+        if not self.pending and key == help_key and self.keymap.lookup(self.mode, (key,)) is None:
             self.run_command("help.show")
             return
         chord = (*self.pending, key)
-        binding = self.km.lookup(self.mode, chord)
+        binding = self.keymap.lookup(self.mode, chord)
         if binding is not None:
             self.pending = ()
-            self.run_command(binding.cmd, binding.args)
-        elif self.km.is_prefix(self.mode, chord):
+            self.run_command(binding.command, binding.args)
+        elif self.keymap.is_prefix(self.mode, chord):
             self.pending = chord
             self.schedule_which_key()
         else:
@@ -495,20 +495,20 @@ class PtuiApp(App[None]):
     # ── which-key ───────────────────────────────────────────────────────────
 
     def schedule_which_key(self) -> None:
-        if not self.km.option("which_key", True):
+        if not self.keymap.option("which_key", True):
             return
-        delay = self.km.option("which_key_delay_ms", 400) / 1000
+        delay = self.keymap.option("which_key_delay_ms", 400) / 1000
         self._which_timer = self.set_timer(delay, self.show_which_key)
 
     def show_which_key(self) -> None:
-        rows = self.km.under_prefix(self.mode, self.pending)
+        rows = self.keymap.under_prefix(self.mode, self.pending)
         if not rows:
             return
         panel = self.query_one("#which-key", Static)
         panel.border_title = " ".join(self.pending)
         panel.update(
             "\n".join(
-                f"[$accent bold]{ui.literal(b.keys[len(' '.join(self.pending)) + 1 :])}[/]  {ui.literal(b.desc or b.cmd)}"
+                f"[$accent bold]{ui.literal(b.keys[len(' '.join(self.pending)) + 1 :])}[/]  {ui.literal(b.description or b.command)}"
                 for b in rows
             )
         )
@@ -557,7 +557,7 @@ class PtuiApp(App[None]):
         """
         if not self.layout_auto:
             return
-        target = self.cfg.get("list.flex_target", 45)
+        target = self.config.get("list.flex_target", 45)
         self.side_by_side = self.flex_width_if_side_by_side(total) >= target
 
     def apply_split(self) -> None:
@@ -621,7 +621,7 @@ class PtuiApp(App[None]):
             text = ""
         if family := column.get("glyph"):
             return ui.glyph(f"{family}.{text.strip().casefold()}", f"{family}.misc")
-        return library.strip_latex(text) if self.cfg.get("list.strip_latex", True) else text
+        return library.strip_latex(text) if self.config.get("list.strip_latex", True) else text
 
     @property
     def sort_format(self) -> str:
@@ -635,7 +635,7 @@ class PtuiApp(App[None]):
     def title_column(self) -> dict[str, Any] | None:
         """The first `width = 0` column: the one that wraps and carries the
         exception marker. Any further flexible column only shares the room."""
-        return next((column for column in self.cfg.get("list.columns", []) if not column["width"]), None)
+        return next((column for column in self.config.get("list.columns", []) if not column["width"]), None)
 
     def header(self, column: dict[str, Any], first: bool = False) -> str:
         """`Year ↓` when the list is sorted on that column's own field.
@@ -683,7 +683,7 @@ class PtuiApp(App[None]):
         resizing anything.
         """
         table = self.query_one(DataTable)
-        spec = self.cfg.get("list.columns", [])
+        spec = self.config.get("list.columns", [])
         pad = table.cell_padding * 2
         width = table.size.width if pane_width is None else pane_width
         room = width - 2 - table.scrollbar_size_vertical  # border, scrollbar
@@ -693,7 +693,7 @@ class PtuiApp(App[None]):
         # pass keeps the flex columns above their floor: bare survival for the
         # required ones, comfort (for the title column) for the optional ones.
         for optional in (False, True):
-            reserve = self.cfg.get("list.flex_target", 45) if optional else MIN_FLEX
+            reserve = self.config.get("list.flex_target", 45) if optional else MIN_FLEX
             floor = reserve + pad + (len(flexes) - 1) * (MIN_FLEX + pad) if flexes else 0
             for index, column in enumerate(spec):
                 if index in flexes or bool(column.get("optional")) is not optional:
@@ -775,8 +775,8 @@ class PtuiApp(App[None]):
             self.docs,
             self.sort_key,
             reverse=self.sort_reverse,
-            tiebreak=self.cfg.get("list.sort_tiebreak"),
-            null_ordering=self.cfg.get("list.null_ordering", "last"),
+            tiebreak=self.config.get("list.sort_tiebreak"),
+            null_ordering=self.config.get("list.null_ordering", "last"),
         )
 
     def refresh_rows(self, keep: str | None = None) -> None:
@@ -790,10 +790,10 @@ class PtuiApp(App[None]):
         # may have matched a field that is not on screen.
         lit = [
             term.text
-            for term in library.parse_query(self.narrow_query, self.cfg.get("query.aliases", {}))
+            for term in library.parse_query(self.narrow_query, self.config.get("query.aliases", {}))
             if not term.negate and not term.field
         ]
-        height = max(1, self.cfg.get("list.row_height", 1))
+        height = max(1, self.config.get("list.row_height", 1))
         # DataTable cells are Rich, not CSS-styled, so the theme's colour has to
         # be fetched by hand — `theme_variables` is the same table the CSS reads.
         mark_style = f"bold {self.theme_variables.get('accent', '')}".strip()
@@ -847,7 +847,7 @@ class PtuiApp(App[None]):
     @work(exclusive=True, group="narrow", exit_on_error=False)
     async def apply_narrow(self, query: str) -> None:
         """Debounced, cancellable: an exclusive worker replaces the pending one."""
-        await asyncio.sleep(self.cfg.get("query.narrow_debounce_ms", 60) / 1000)
+        await asyncio.sleep(self.config.get("query.narrow_debounce_ms", 60) / 1000)
         self.refilter(query)
 
     def refilter(self, query: str | None = None) -> None:
@@ -871,9 +871,9 @@ class PtuiApp(App[None]):
         return library.narrow(
             docs,
             query,
-            self.cfg.get("query.narrow_fields", ["title"]),
-            self.cfg.get("query.narrow_mode", "substring"),
-            self.cfg.get("query.aliases", {}),
+            self.config.get("query.narrow_fields", ["title"]),
+            self.config.get("query.narrow_mode", "substring"),
+            self.config.get("query.aliases", {}),
         )
 
     # ── chrome ──────────────────────────────────────────────────────────────
@@ -886,7 +886,7 @@ class PtuiApp(App[None]):
         # The flattened view, so `venue` is the conference or journal name rather
         # than the city the stored key actually holds, and `kind` is available.
         doc = library.flatten(self.current)
-        strip = self.cfg.get("list.strip_latex", True)
+        strip = self.config.get("list.strip_latex", True)
 
         def show(value: Any) -> str:
             text = library.display(value)
@@ -941,7 +941,7 @@ class PtuiApp(App[None]):
         self._files_of = library.doc_id(doc) if doc else None
         entries = place.entries(doc) if doc else []
         self.file_index = max(0, min(self.file_index, len(entries) - 1))
-        patterns = self.cfg.get("files.kind_patterns", {})
+        patterns = self.config.get("files.kind_patterns", {})
         pane.clear_options()
         for entry in entries:
             path = place.resolve(doc, entry)
@@ -1024,7 +1024,7 @@ class PtuiApp(App[None]):
         and why it is a thread: the per-document checks are pure CPU and papis
         I/O, and nothing here touches the UI until the call back onto the app.
         """
-        checks = self.cfg.get("doctor.checks", [])
+        checks = self.config.get("doctor.checks", [])
         for doc in list(self.docs):
             doctor.scan(doc, checks)
         self.call_from_thread(self.refresh_rows)  # the markers live in the rows
@@ -1104,7 +1104,7 @@ class PtuiApp(App[None]):
         self.query_one("#status-bar", Static).update(f"{head}[on {STATUS_BG}]{' ' * gap}[/]{tail}")
 
     def refresh_hints(self) -> None:
-        if not self.km.option("hint_bar", True):
+        if not self.keymap.option("hint_bar", True):
             return
         if self.mode == "files":
             wanted = ["doc.open", "files.rename", "files.repoint", "files.detach", "files.reorder", "files.normalize"]
@@ -1122,11 +1122,11 @@ class PtuiApp(App[None]):
         wanted = [name for name in wanted if name in commands.REGISTRY]
         # `ListTable.on_resize` redraws the rows, and so this, once `App.size` is real
         hints, room = [], self.size.width - 1  # the bar starts with a space
-        for name in wanted[: self.km.option("hint_bar_max", 6)]:
-            keys = self.km.for_command(self.mode, name)
+        for name in wanted[: self.keymap.option("hint_bar_max", 6)]:
+            keys = self.keymap.for_command(self.mode, name)
             if not keys:
                 continue
-            desc = self.km.lookup(self.mode, tuple(keys.split(" "))).desc  # keys.toml's short one
+            desc = self.keymap.lookup(self.mode, tuple(keys.split(" "))).description  # keys.toml's short one
             width = cell_len(f"{keys} {desc}") + (3 if hints else 0)
             if width > room:
                 continue  # whole or not at all: a key without its words says nothing

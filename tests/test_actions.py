@@ -506,7 +506,7 @@ async def test_attach_from_inbox_is_papis_addto(app, papis_lib):
     inbox = papis_lib / "inbox"
     inbox.mkdir()
     (inbox / "supplement.pdf").write_bytes(b"supp")
-    app.cfg.data["files"]["inbox"] = str(inbox)
+    app.config.data["files"]["inbox"] = str(inbox)
     info = papis_lib / "lib" / "doc0" / "info.yaml"
 
     async with app.run_test() as pilot:
@@ -852,7 +852,7 @@ async def test_config_set_applies_for_the_session_and_checks_the_value(app):
         await pilot.pause(0.2)
         actions.cmdline_run(app, "config.set", "list.row_height 2")
         await pilot.pause(0.2)
-        assert app.cfg.get("list.row_height") == 2
+        assert app.config.get("list.row_height") == 2
         assert app.query_one("DataTable").get_row_at(0)  # redrawn
         assert app.query_one("DataTable").rows[app.query_one("DataTable").coordinate_to_cell_key((0, 0))[0]].height == 2
 
@@ -860,10 +860,10 @@ async def test_config_set_applies_for_the_session_and_checks_the_value(app):
         assert app.theme == "nord"
 
         actions.cmdline_run(app, "config.set", "ui.layout diagonal")
-        assert app.cfg.get("ui.layout") == "auto"  # repaired, as config.toml would be
+        assert app.config.get("ui.layout") == "auto"  # repaired, as config.toml would be
 
         actions.cmdline_run(app, "config.set", "ui.nonsense 1")
-        assert app.cfg.get("ui.nonsense") is None  # a new key would be read by nothing
+        assert app.config.get("ui.nonsense") is None  # a new key would be read by nothing
 
 
 def test_config_set_refuses_a_key_read_only_at_startup(app, monkeypatch):
@@ -881,9 +881,9 @@ def test_config_set_refuses_a_key_read_only_at_startup(app, monkeypatch):
         "general.startup_query",
         "doctor.scan_on_startup",
     ):
-        before = app.cfg.get(key)
+        before = app.config.get(key)
         actions.config_set(app, key, "1")
-        assert app.cfg.get(key) == before
+        assert app.config.get(key) == before
         assert f"{key} takes effect on restart" in logged.pop()
 
 

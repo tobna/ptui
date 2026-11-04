@@ -39,8 +39,8 @@ SUFFIXES = "bcdefghijklmnopqrstuvwxyz"
 class Rule:
     name: str
     match: tuple[str, ...]
-    op: str = "in-place"  # move | copy | link | hardlink | in-place
-    dest: str | None = None
+    operation: str = "in-place"  # move | copy | link | hardlink | in-place
+    destination: str | None = None
     path_style: str = "keep"  # keep | absolute | relative-doc
     slugify: bool = False
 
@@ -65,8 +65,8 @@ class Rules:
             return Rule(
                 name=data.get("name", name),
                 match=tuple(data.get("match", ["*"])),
-                op=data.get("op", "in-place"),
-                dest=data.get("dest"),
+                operation=data.get("op", "in-place"),
+                destination=data.get("dest"),
                 path_style=data.get("path_style", "keep"),
                 slugify=data.get("slugify", False),
             )
@@ -83,16 +83,16 @@ class Rules:
 @dataclass(frozen=True, slots=True)
 class PlaceResult:
     status: Status
-    src: Path
+    source: Path
     rule: str
-    dest: Path | None = None
+    destination: Path | None = None
     entry: str | None = None
     """What to store in `files` — None means leave the existing entry alone."""
     message: str = ""
 
     @property
     def moved(self) -> bool:
-        return self.status == "ok" and self.dest is not None
+        return self.status == "ok" and self.destination is not None
 
 
 def _digest(path: Path) -> str:
@@ -193,7 +193,7 @@ def target(doc: Document, src: Path, rule: Rule, rules: Rules, *, default: str |
     preview uses it so a half-filled form still shows a path.
     """
     formatted = papis.format.format(
-        rule.dest or src.name,
+        rule.destination or src.name,
         doc,
         additional={"pdf_root": str(rules.pdf_root or "")},
         default=default,
@@ -223,7 +223,7 @@ def place(
     src = resolve(doc, str(src_path))
     rule = rules.first_match(src)
 
-    if rule.op == "in-place" or not rule.dest:
+    if rule.operation == "in-place" or not rule.destination:
         return PlaceResult("unmanaged", src, rule.name, message="rule keeps files in place")
     if not src.exists():
         return PlaceResult("error", src, rule.name, message="source does not exist")
@@ -242,37 +242,37 @@ def place(
         broken = not clash.exists()
         if not broken and (src.resolve() == clash.resolve() or os.path.samefile(src, clash)):
             entry = _entry(clash, doc, rule.path_style, previous)
-            return PlaceResult("already", src, rule.name, dest=clash, entry=entry)
+            return PlaceResult("already", src, rule.name, destination=clash, entry=entry)
         if not broken and rules.hash_check and _digest(src) == _digest(clash):
-            return PlaceResult("duplicate", src, rule.name, dest=clash, message="destination is byte-identical")
+            return PlaceResult("duplicate", src, rule.name, destination=clash, message="destination is byte-identical")
         if rules.collision == "suffix" or force:
             suffixed = _suffixed(dest)
             if suffixed is None:
-                return PlaceResult("conflict", src, rule.name, dest=dest, message="no free suffix")
+                return PlaceResult("conflict", src, rule.name, destination=dest, message="no free suffix")
             dest = suffixed
         else:
             why = "destination is a broken link" if broken else "destination exists, differs"
-            return PlaceResult("conflict", src, rule.name, dest=dest, message=why)
+            return PlaceResult("conflict", src, rule.name, destination=dest, message=why)
 
     entry = _entry(dest, doc, rule.path_style, previous)
     if dry_run:
-        return PlaceResult("ok", src, rule.name, dest=dest, entry=entry)
+        return PlaceResult("ok", src, rule.name, destination=dest, entry=entry)
 
     try:
         _reserve(src, dest)
     except FileExistsError:
-        return PlaceResult("conflict", src, rule.name, dest=dest, message="destination appeared")
+        return PlaceResult("conflict", src, rule.name, destination=dest, message="destination appeared")
     except OSError as exc:
-        return PlaceResult("error", src, rule.name, dest=dest, message=str(exc))
+        return PlaceResult("error", src, rule.name, destination=dest, message=str(exc))
 
-    if rule.op in ("move", "copy"):
-        if rule.op == "move":
+    if rule.operation in ("move", "copy"):
+        if rule.operation == "move":
             src.unlink()
-        return PlaceResult("ok", src, rule.name, dest=dest, entry=entry)
-    if rule.op == "link":  # dest is a hardlink so far; replace it with a symlink
+        return PlaceResult("ok", src, rule.name, destination=dest, entry=entry)
+    if rule.operation == "link":  # dest is a hardlink so far; replace it with a symlink
         dest.unlink()
         dest.symlink_to(src)
-    return PlaceResult("ok", src, rule.name, dest=dest, entry=entry)
+    return PlaceResult("ok", src, rule.name, destination=dest, entry=entry)
 
 
 def adopt(src: Path, folder: Path) -> Path:
@@ -308,13 +308,13 @@ def rollback(result: PlaceResult) -> None:
     name since (or the copy was annotated), and deleting the placed one would
     lose it, so this raises and keeps it.
     """
-    if not result.moved or result.dest is None:
+    if not result.moved or result.destination is None:
         return
-    if not result.src.exists():
-        _reserve(result.dest, result.src)
-    elif result.dest.exists() and _digest(result.src) != _digest(result.dest):
-        raise FileExistsError(f"{result.src} is another file now; {result.dest} is kept")
-    result.dest.unlink(missing_ok=True)
+    if not result.source.exists():
+        _reserve(result.destination, result.source)
+    elif result.destination.exists() and _digest(result.source) != _digest(result.destination):
+        raise FileExistsError(f"{result.source} is another file now; {result.destination} is kept")
+    result.destination.unlink(missing_ok=True)
 
 
 def trash(folder: Path, trash_dir: Path) -> Path:

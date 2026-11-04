@@ -455,7 +455,7 @@ def test_git_on_a_library_outside_git_starts_on_trash_and_says_so(request, papis
     (papis_lib / "ptui" / "config.toml").write_text('[undo]\nstrategy = "git"\n')
     monkeypatch.setattr(config, "config_dir", lambda: papis_lib / "ptui")
     seen = {}
-    monkeypatch.setattr(PtuiApp, "run", lambda self, **_: seen.update(cfg=self.cfg))
+    monkeypatch.setattr(PtuiApp, "run", lambda self, **_: seen.update(cfg=self.config))
     result = CliRunner().invoke(cli.main, [])
     assert result.exit_code == 0, result.output
     assert seen["cfg"].get("undo.strategy") == ("git" if repository else "trash")
@@ -470,7 +470,7 @@ async def test_config_set_to_git_outside_git_keeps_the_trash(app):
         logged = []
         app.log_line = logged.append
         actions.config_set(app, "undo.strategy", "git")
-        assert app.cfg.get("undo.strategy") == "trash"
+        assert app.config.get("undo.strategy") == "trash"
         assert any("not in a git work tree" in line for line in logged)
 
 
@@ -540,7 +540,7 @@ async def test_startup_empties_what_has_been_in_the_trash_past_its_retention(pap
         (trash / name / "info.yaml").write_text("title: x\n")
     place.trashed_at(trash, {"old-doc": time.time() - 40 * 86400, "new-doc": time.time()})
     app = build_app(papis_lib)
-    app.cfg.data["undo"]["auto_empty_trash"] = auto  # the fixture turns it off for every other test
+    app.config.data["undo"]["auto_empty_trash"] = auto  # the fixture turns it off for every other test
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "4")

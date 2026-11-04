@@ -88,7 +88,7 @@ async def test_the_hint_bar_shows_an_entry_whole_or_not_at_all(app):
 
     def entries() -> list[str]:
         shown = hints(app).strip().split("   ")
-        whole = {f"{b.keys} {b.desc}" for b in app.km.modes[app.mode].values()}  # keys.toml's words
+        whole = {f"{b.keys} {b.description}" for b in app.keymap.modes[app.mode].values()}  # keys.toml's words
         assert set(shown) <= whole, set(shown) - whole
         return shown
 
@@ -130,7 +130,7 @@ async def test_auto_layout_stacks_until_the_flex_column_fits(app):
     async with app.run_test(size=(70, 24)) as pilot:
         await settle(pilot)
         assert not app.side_by_side  # too narrow: the title would be squeezed
-        assert app.flex_width_if_side_by_side() < app.cfg.get("list.flex_target")
+        assert app.flex_width_if_side_by_side() < app.config.get("list.flex_target")
 
         await pilot.resize_terminal(200, 24)
         await settle(pilot)
@@ -170,7 +170,7 @@ async def test_columns_fit_the_pane_and_drop_when_they_cannot(app):
 async def test_an_optional_column_yields_to_the_flex_target(app):
     app.layout_auto = False  # forcing side by side is how the squeeze happens
     app.side_by_side = True
-    target = app.cfg.get("list.flex_target")
+    target = app.config.get("list.flex_target")
     async with app.run_test(size=(110, 24)) as pilot:
         await settle(pilot)
         widths = {column["title"]: width for column, width in app._fit}
@@ -537,7 +537,7 @@ async def test_every_allowed_log_level_starts(app, level):
 
     from loguru import logger
 
-    app.cfg.data["log"]["level"] = level
+    app.config.data["log"]["level"] = level
     async with app.run_test() as pilot:
         await settle(pilot)
         assert logging.getLogger("papis").level == logger.level(level.upper()).no
@@ -565,7 +565,7 @@ async def test_papis_records_reach_the_log_pane_not_the_terminal(app):
 async def test_an_edit_shows_up_in_the_cached_cells(app):
     from ptui import actions
 
-    title = next(column for column in app.cfg.get("list.columns") if column["title"] == "Title")
+    title = next(column for column in app.config.get("list.columns") if column["title"] == "Title")
     async with app.run_test() as pilot:
         await settle(pilot)
         assert app.cell_text(app.current, title) == "Attention Is All You Need"
@@ -752,7 +752,7 @@ async def test_two_flexible_columns_share_the_room(papis_lib):
     from conftest import build_app
 
     app = build_app(papis_lib)
-    app.cfg.data["list"]["columns"] = [
+    app.config.data["list"]["columns"] = [
         {"title": "Author", "format": "{doc[author]}", "width": 0},
         {"title": "Title", "format": "{doc[title]}", "width": 0},
     ]
@@ -770,7 +770,7 @@ async def test_the_first_header_sits_over_its_values_not_over_the_mark(papis_lib
     from conftest import build_app
 
     app = build_app(papis_lib)
-    app.cfg.data["list"]["columns"] = [
+    app.config.data["list"]["columns"] = [
         {"title": "Year", "format": "{doc[year]}", "width": 6},
         {"title": "Title", "format": "{doc[title]}", "width": 0},
     ]
@@ -955,7 +955,7 @@ async def test_the_next_session_starts_where_this_one_ended(papis_lib):
 
     def session():
         app = build_app(papis_lib)
-        app.cfg.data["general"]["persist_state"] = True
+        app.config.data["general"]["persist_state"] = True
         return app
 
     app = session()

@@ -196,10 +196,10 @@ def app_log(app: Any) -> None:
 def scope(app: Any, query: str) -> bool:
     """Run a papis query and rebuild the scoped set. Marks survive by design.
     False when papis rejected the query and the old scope is still on screen."""
-    aliases = app.cfg.get("query.aliases", {})
+    aliases = app.config.get("query.aliases", {})
     expanded = library.expand_aliases(query, aliases)
     try:
-        app.docs = library.scope(expanded, app.cfg.get("general.library"))
+        app.docs = library.scope(expanded, app.config.get("general.library"))
     except Exception as exc:
         # The scope stays what it was, and so does the status bar: it must
         # name the query whose results are on screen, not the one that failed.
@@ -223,7 +223,7 @@ def scope(app: Any, query: str) -> bool:
 def _saved_file(app: Any) -> dict[str, dict[str, Any]]:
     """What `query.save` wrote. JSON, in the state dir: ptui never rewrites
     `config.toml`, and the standard library cannot write TOML anyway."""
-    path = app.cfg.as_path("query.saved_file")
+    path = app.config.as_path("query.saved_file")
     try:
         return json.loads(path.read_text()) if path else {}
     except (OSError, ValueError):
@@ -235,14 +235,14 @@ def saved_searches(app: Any) -> dict[str, dict[str, Any]]:
     saved from the app wins. A plain string is a scope with no sort."""
     out = {
         name: value if isinstance(value, dict) else {"scope": str(value)}
-        for name, value in app.cfg.get("query.saved", {}).items()
+        for name, value in app.config.get("query.saved", {}).items()
     }
     out.update(_saved_file(app))
     return out
 
 
 def _write_saved(app: Any, saved: dict[str, dict[str, Any]]) -> None:
-    path = app.cfg.as_path("query.saved_file")
+    path = app.config.as_path("query.saved_file")
     if path is None:
         raise ValueError("query.saved_file is not set")
     _write_json(path, saved)
@@ -256,7 +256,7 @@ def _write_json(path: Path, data: Any) -> None:
 
 
 def _state(app: Any) -> tuple[Path | None, dict[str, Any]]:
-    path = app.cfg.as_path("general.state_file") if app.cfg.get("general.persist_state", False) else None
+    path = app.config.as_path("general.state_file") if app.config.get("general.persist_state", False) else None
     try:
         return path, json.loads(path.read_text()) if path else {}
     except (OSError, ValueError):
@@ -298,7 +298,7 @@ def query_save(app: Any, name: str | None = None) -> None:
     if name is None:
         app.open_prompt("save", "name for this search (scope + sort)")
         return
-    if app.cfg.as_path("query.saved_file") is None:
+    if app.config.as_path("query.saved_file") is None:
         app.log_line("[red]nowhere to save:[/] query.saved_file is not set in config.toml")
         return
     saved = _saved_file(app)
@@ -315,7 +315,7 @@ HISTORY_MAX = 500
 
 def history(app: Any) -> list[str]:
     """Submitted queries, oldest first. One per line: a prompt is one line."""
-    path = app.cfg.as_path("query.history_file")
+    path = app.config.as_path("query.history_file")
     try:
         return path.read_text().splitlines() if path else []
     except OSError:
@@ -324,7 +324,7 @@ def history(app: Any) -> list[str]:
 
 def remember(app: Any, query: str) -> None:
     """Newest last, each query once — running one again moves it to the end."""
-    path = app.cfg.as_path("query.history_file")
+    path = app.config.as_path("query.history_file")
     if path is None or not query.strip():
         return
     past = [*[line for line in history(app) if line != query][-(HISTORY_MAX - 1) :], query]
@@ -537,7 +537,7 @@ def reload(app: Any, rescan: bool = False) -> None:
     import papis.database
 
     if rescan:
-        papis.database.get(app.cfg.get("general.library") or None).clear()
+        papis.database.get(app.config.get("general.library") or None).clear()
     papis.database.clear_cached()
     scope(app, app.scope_query)
 
@@ -548,7 +548,7 @@ def reload(app: Any, rescan: bool = False) -> None:
 @command("sort.by", "sort by a key")
 def sort_by(app: Any, key: str, reverse: bool | None = None) -> None:
     if reverse is None:
-        presets = {p["key"]: p for p in app.cfg.get("list.sort_presets", [])}
+        presets = {p["key"]: p for p in app.config.get("list.sort_presets", [])}
         reverse = presets.get(key, {}).get("dir", "asc") == "desc"
     app.sort_key, app.sort_reverse = key, reverse
     app.apply_sort()
@@ -565,7 +565,7 @@ def sort_picker(app: Any) -> None:
     """Presets first, then keys discovered in the library. `enter` applies the
     key's own default direction, `shift+enter` inverts it — a single global
     reverse flag is wrong half the time (author ascending, date descending)."""
-    presets = app.cfg.get("list.sort_presets", [])
+    presets = app.config.get("list.sort_presets", [])
     items = [
         ui.Item(
             label=f"{p.get('label', p['key'])} {ui.glyph('sort_desc' if p.get('dir') == 'desc' else 'sort_asc')}",
@@ -574,7 +574,7 @@ def sort_picker(app: Any) -> None:
         )
         for p in presets
     ]
-    if app.cfg.get("list.sort_discover_keys", True):
+    if app.config.get("list.sort_discover_keys", True):
         known = {p["key"] for p in presets}
         # ponytail: discovered from the documents already in memory. Add the
         # worker + cache generation from SPEC if a big library makes this drag.
@@ -598,8 +598,8 @@ def lib_switch(app: Any, name: str | None = None) -> None:
 
     def apply(library_name: str, _inverted: bool = False) -> None:
         library.use(library_name)  # raises on an unknown name, before anything changed
-        app.cfg.data["general"]["library"] = library_name
-        if why := undo.require_git(app.cfg, library_dir(app)):
+        app.config.data["general"]["library"] = library_name
+        if why := undo.require_git(app.config, library_dir(app)):
             app.log_line(f"[yellow]{why}[/]")
         app.marks.clear()
         reload(app)
@@ -608,7 +608,7 @@ def lib_switch(app: Any, name: str | None = None) -> None:
     if name:
         apply(name)
         return
-    current = app.cfg.get("general.library") or papis.config.get_lib_name()
+    current = app.config.get("general.library") or papis.config.get_lib_name()
     items = [ui.Item(label=lib, value=lib) for lib in papis.config.get_libs()]
     ui.pick(app, items, title="Library", current=current)(apply)
 
@@ -654,7 +654,7 @@ def _move_apply(app: Any, docs: list[Any], to: str, target: Path) -> None:
     # exist yet is built by scanning the folder it has just moved into, and then
     # holds it twice. Build it first, from the folder as it is now.
     papis.database.get(library_name=to).get_all_documents()
-    git = bool(app.cfg.papis("edit.use_git", "use-git"))
+    git = bool(app.config.papis("edit.use_git", "use-git"))
     moved = 0
     for doc in docs:
         dest = target / Path(doc.get_main_folder()).name
@@ -704,7 +704,7 @@ def mark_toggle(app: Any) -> None:
     app.visual = None  # every other mark command ends a range, or its next move undoes them
     app.marks.symmetric_difference_update({library.doc_id(doc)})
     app.refresh_row(_table(app).cursor_row)
-    if app.cfg.get("marks.advance", True):
+    if app.config.get("marks.advance", True):
         _move(app, 1)
     app.refresh_status()
     app.refresh_hints()
@@ -808,7 +808,7 @@ def files_of(app: Any, doc: Any) -> list[Path]:
     Kind is *inferred* from `files.kind_patterns` and never written to disk — a
     parallel `kind` key would desync with a script that appends to `files`.
     """
-    patterns = [p for group in app.cfg.get("files.kind_patterns", {}).values() for p in group]
+    patterns = [p for group in app.config.get("files.kind_patterns", {}).values() for p in group]
     paths = [place.resolve(doc, entry) for entry in place.entries(doc)]
     main = [p for p in paths if not any(fnmatch(p.name, pat) for pat in patterns)]
     return main + [p for p in paths if p not in main]
@@ -833,7 +833,7 @@ def doc_open(app: Any, which: int | None = None) -> None:
         return
     papis.utils.open_file(str(path), wait=False)
     app.log_line(f"opened {path.name}")
-    if app.cfg.get("general.track_opens", False):
+    if app.config.get("general.track_opens", False):
         _touch_opened_at(app, doc)
 
 
@@ -905,16 +905,16 @@ def doc_edit_raw(app: Any) -> None:
 
 def _opens_editor(app: Any, other: bool) -> bool:
     """Whether `doc.edit` with this `other` is `$EDITOR` rather than the form."""
-    return (app.cfg.get("edit.mode", "editor") == "structured") == other
+    return (app.config.get("edit.mode", "editor") == "structured") == other
 
 
 def _editor_key(app: Any) -> str | None:
     """The keys that open `$EDITOR` from here: `doc.edit_raw`, or the `doc.edit`
     binding `edit.mode` sends there — `e` by default, `E` when it is `structured`."""
     for mode in (app.mode, "list"):
-        for binding in app.km.modes.get(mode, {}).values():
-            if binding.cmd == "doc.edit_raw" or (
-                binding.cmd == "doc.edit" and _opens_editor(app, bool(binding.args.get("other")))
+        for binding in app.keymap.modes.get(mode, {}).values():
+            if binding.command == "doc.edit_raw" or (
+                binding.command == "doc.edit" and _opens_editor(app, bool(binding.args.get("other")))
             ):
                 return binding.keys
     return None
@@ -956,7 +956,7 @@ def doc_edit(app: Any, other: bool = False) -> None:
         doc_edit_raw(app)
         return
     doc.load()  # the form shows the file, not the copy loaded before a script changed it
-    fields = tuple(app.cfg.get("edit.structured_fields") or ui.ADD_FIELDS)
+    fields = tuple(app.config.get("edit.structured_fields") or ui.ADD_FIELDS)
 
     def text(field: str) -> str:
         if field == "author_list":
@@ -1062,7 +1062,7 @@ def doc_notes(app: Any) -> None:
     if doc is None:
         return
     with app.suspend():
-        papis.commands.edit.edit_notes(doc, git=bool(app.cfg.papis("edit.use_git", "use-git")))
+        papis.commands.edit.edit_notes(doc, git=bool(app.config.papis("edit.use_git", "use-git")))
     _resync(app, doc)
     app.log_line(f"notes: {doc.get('notes', 'unchanged')}")
 
@@ -1308,7 +1308,7 @@ def doc_add(app: Any, source: str | None = None, uri: str | None = None) -> None
     directly, which is how `i` reaches the inbox, and `uri` skips its prompt
     too: `:doc.add arxiv 2607.00687` is the paste-a-number path.
     """
-    sources = app.cfg.get("add.sources")
+    sources = app.config.get("add.sources")
     if source is None:
         _add_source_picker(app)
     elif uri is not None and (source in ("url", "bib") or source in sources):
@@ -1324,14 +1324,14 @@ def doc_add(app: Any, source: str | None = None, uri: str | None = None) -> None
 
 
 def _add_source_picker(app: Any) -> None:
-    inbox = app.cfg.as_path("files.inbox")
+    inbox = app.config.as_path("files.inbox")
     items = [
         ui.Item(label="a file on disk…", value="", hint="path"),
         ui.Item(label=f"the inbox ({inbox})", value="inbox", hint="newest first"),
         ui.Item(label="a URL from any publisher…", value="url", hint=f"{len(fetch.downloaders())} downloaders"),
         ui.Item(label="a .bib file…", value="bib", hint="choose an entry"),
     ]
-    sources = app.cfg.get("add.sources")
+    sources = app.config.get("add.sources")
     items += [
         ui.Item(label=f"{sources[name]['label']}…", value=name, hint=name)
         for name in fetch.available(sources)
@@ -1346,7 +1346,7 @@ def _add_from_file(app: Any, source: str) -> None:
     elif source == "inbox":
         items = _inbox(app)
         if items is not None:
-            inbox = app.cfg.as_path("files.inbox")
+            inbox = app.config.as_path("files.inbox")
             ui.pick(app, items, title=f"Add from {inbox}")(lambda path, _i: add_form(app, Path(path)))
     else:
         add_form(app, Path(source).expanduser())
@@ -1355,7 +1355,7 @@ def _add_from_file(app: Any, source: str) -> None:
 def _inbox(app: Any) -> list[ui.Item] | None:
     """The inbox, newest first — the file you just downloaded is the one you want.
     None, with a log line, when there is no inbox."""
-    inbox = app.cfg.as_path("files.inbox")
+    inbox = app.config.as_path("files.inbox")
     if inbox is None or not inbox.is_dir():
         app.log_line(f"[yellow]inbox not found:[/] {inbox}")
         return None
@@ -1423,7 +1423,7 @@ def add_form(app: Any, path: Path | None, fetched: dict[str, Any] | None = None)
         app.log_line(f"[red]no such file:[/] {path}")
         return
 
-    rules = place.Rules.from_config(app.cfg)
+    rules = place.Rules.from_config(app.config)
     fetched = fetched or {}
     initial = {field: library.display(fetched.get(field, "")) for field in ui.ADD_FIELDS if fetched.get(field)}
     initial.setdefault("title", path.stem if path else "")
@@ -1436,7 +1436,7 @@ def add_form(app: Any, path: Path | None, fetched: dict[str, Any] | None = None)
             return "no file — metadata only"
         doc = papis.document.from_data({**_expand(data), "files": [path.name]})
         rule = rules.first_match(path)
-        if rule.op == "in-place" or not rule.dest:
+        if rule.operation == "in-place" or not rule.destination:
             return f"stays in the document folder ({rule.name})"
         try:
             dest = str(place.target(doc, path, rule, rules, default=""))
@@ -1468,7 +1468,7 @@ def _duplicate(app: Any, data: dict[str, Any]) -> tuple[Any, str] | None:
     import papis.document
     import papis.utils
 
-    name = app.cfg.get("general.library") or None
+    name = app.config.get("general.library") or None
     candidate = papis.document.from_data(data)
     try:
         found = papis.utils.locate_document_in_lib(candidate, name)
@@ -1547,8 +1547,8 @@ def _add_document(
         papis.commands.add.run(
             [str(path)] if path else [],
             data=dict(data),
-            auto_doctor=app.cfg.get("add.auto_doctor", False),
-            git=bool(app.cfg.papis("edit.use_git", "use-git")),
+            auto_doctor=app.config.get("add.auto_doctor", False),
+            git=bool(app.config.papis("edit.use_git", "use-git")),
         )
     except Exception as exc:
         app.log_line(f"[red]add failed:[/] {exc}")
@@ -1561,7 +1561,7 @@ def _add_document(
     if added is not None:
         app.refresh_rows(keep=library.doc_id(added))
         if path is not None:  # the new document only, never the marks; the add has no undo, so neither has this
-            _relocate_run(app, [added], place.Rules.from_config(app.cfg), False, [])
+            _relocate_run(app, [added], place.Rules.from_config(app.config), False, [])
     where = f" (source left at {path})" if path else " (no file)"
     app.log_line(f"added {data.get('title', path.name if path else '?')}{where}")
 
@@ -1585,7 +1585,7 @@ def export_citekey(app: Any) -> None:
     import papis.document
     import papis.format
 
-    fmt = app.cfg.get("export.citekey_format", "{doc[ref]}")
+    fmt = app.config.get("export.citekey_format", "{doc[ref]}")
     blank = papis.format.format(fmt, papis.document.from_data({}), default="")
     keys = []
     for doc in app.targets:
@@ -1667,7 +1667,7 @@ def files_relocate(app: Any, force: bool = False) -> None:
     docs = app.targets
     if not docs:
         return
-    rules = place.Rules.from_config(app.cfg)
+    rules = place.Rules.from_config(app.config)
     _confirm_batch(app, len(docs), "relocate the files", lambda: _relocate_apply(app, docs, rules, force))
 
 
@@ -1722,7 +1722,7 @@ def _relocate_run(
         for result in results:
             tally[result.status] = tally.get(result.status, 0) + 1
             if result.status not in ("ok", "already", "unmanaged"):
-                app.log_line(f"[yellow]{result.status}[/] {result.src.name}: {result.message}")
+                app.log_line(f"[yellow]{result.status}[/] {result.source.name}: {result.message}")
 
         moved = {e: r.entry for e, r in zip(entries, results, strict=True) if r.entry and r.status in ("ok", "already")}
         if all(e == new for e, new in moved.items()):
@@ -1760,7 +1760,7 @@ def _relocate_back(app: Any, landed: list[tuple[Any, Any, list[tuple[str, place.
             try:
                 place.rollback(result)
             except OSError as exc:
-                app.log_line(f"[red]{result.dest} not moved back to {result.src}:[/] {exc}")
+                app.log_line(f"[red]{result.destination} not moved back to {result.source}:[/] {exc}")
                 stuck[entry] = result.entry
         if stuck:  # the entry names where the file still is, not the path it could not go back to
             again = [(doc, lambda files, stuck=stuck: [stuck.get(e, e) for e in _entries(files)])]
@@ -1899,7 +1899,7 @@ def files_rename(app: Any, index: int | None = None) -> None:
         return
     # papis's scheme names the paper; a supplement renamed by it becomes a
     # second main file, and its `_supp` — the only record of what it is — is gone
-    for kind, patterns in app.cfg.get("files.kind_patterns", {}).items():
+    for kind, patterns in app.config.get("files.kind_patterns", {}).items():
         if any(fnmatch(src.name, pattern) for pattern in patterns):
             app.log_line(f"[yellow]{src.name} is {kind} by its name; the scheme would make it the paper[/]")
             return
@@ -1949,7 +1949,7 @@ def files_normalize(app: Any) -> None:
     outside it — and drop entries that point at the same file twice. Explicit
     only: nothing else in ptui changes a path's style. A batch confirms first,
     counting the documents that change, and the run is one undo step."""
-    rules = place.Rules.from_config(app.cfg)
+    rules = place.Rules.from_config(app.config)
 
     def normalized(doc: Any, entries: Any) -> list[str]:
         folder = place.normal(Path(doc.get_main_folder() or "."))
@@ -2039,7 +2039,7 @@ def _attach(app: Any, doc: Any, src: Path, *, downloaded: bool = False) -> None:
             app.log_line(f"[yellow]{ref} already has {src.name} (as {held.name})[/]")
             return
         before = place.entries(doc)
-        papis.commands.addto.run(doc, [str(src)], git=bool(app.cfg.papis("edit.use_git", "use-git")))
+        papis.commands.addto.run(doc, [str(src)], git=bool(app.config.papis("edit.use_git", "use-git")))
     except Exception as exc:
         app.log_line(f"[red]attach failed:[/] {exc}")
         return
@@ -2062,7 +2062,7 @@ def _attach(app: Any, doc: Any, src: Path, *, downloaded: bool = False) -> None:
 @command("app.escape", "cancel")
 def app_escape(app: Any) -> None:
     """Resolve per `escape_chain`. Never clears marks — only `m c` does."""
-    for step in app.km.option("escape_chain", ["modal", "narrow"]):
+    for step in app.keymap.option("escape_chain", ["modal", "narrow"]):
         if step == "modal" and app.prompt_kind:
             app.close_prompt()
             return
@@ -2085,15 +2085,15 @@ def help_show(app: Any) -> None:
     running things by name is the `:` command line's job.
     """
     items = []
-    for binding in sorted(app.km.modes.get(app.mode, {}).values(), key=lambda b: (b.chord[0].casefold(), b.keys)):
+    for binding in sorted(app.keymap.modes.get(app.mode, {}).values(), key=lambda b: (b.chord[0].casefold(), b.keys)):
         # as keys.toml spells them: `current=true` says what `True` alone does not
         args = " ".join(
             f"{key}={str(value).lower() if isinstance(value, bool) else value}" for key, value in binding.args.items()
         )
-        note = "" if binding.cmd in REGISTRY else "  (not implemented)"
-        label = f"{binding.keys:<10} {binding.desc or binding.cmd}{f' — {args}' if args else ''}"
-        hint = "" if binding.desc in ("", binding.cmd) else binding.cmd  # no echo of the label
-        items.append(ui.Item(label=label + note, value=binding.cmd, hint=hint))
+        note = "" if binding.command in REGISTRY else "  (not implemented)"
+        label = f"{binding.keys:<10} {binding.description or binding.command}{f' — {args}' if args else ''}"
+        hint = "" if binding.description in ("", binding.command) else binding.command  # no echo of the label
+        items.append(ui.Item(label=label + note, value=binding.command, hint=hint))
     if app.mode != "list":
         # Guaranteed by the dispatcher, so it is in no mode's table.
         items = [ui.Item(label=f"{'escape':<10} back to the list", value=""), *items]
@@ -2111,16 +2111,16 @@ def cmdline_open(app: Any) -> None:
     falling back to the list mode's table so a pane with no bindings of its own
     still shows where the command lives.
     """
-    show_keys = app.km.option("show_keys_in_cmdline", True)
+    show_keys = app.keymap.option("show_keys_in_cmdline", True)
 
     def keys(name: str) -> str:
         if not show_keys:
             return ""
-        return app.km.for_command(app.mode, name) or app.km.for_command("list", name) or ""
+        return app.keymap.for_command(app.mode, name) or app.keymap.for_command("list", name) or ""
 
     items = [
         ui.Item(
-            label=f"{name:<20} {cmd.desc}",
+            label=f"{name:<20} {cmd.description}",
             value=name,
             hint=keys(name),
             haystack=commands.signature(name),
@@ -2184,7 +2184,7 @@ def theme_picker(app: Any, name: str | None = None) -> None:
 
 @command("keymap.check", "check keymap conflicts")
 def keymap_check(app: Any) -> None:
-    problems = [*app.km.conflicts(), *app.km.unknown_commands]
+    problems = [*app.keymap.conflicts(), *app.keymap.unknown_commands]
     for problem in problems:
         app.log_line(f"[yellow]{problem}[/]")
     app.log_line(f"keymap: {len(problems)} problem(s)")
@@ -2217,7 +2217,7 @@ def config_set(app: Any, key: str, value: str) -> None:
     import tomllib
 
     section, _, leaf = key.rpartition(".")
-    table = app.cfg.get(section) if section else None
+    table = app.config.get(section) if section else None
     if not isinstance(table, dict) or leaf not in table:
         app.log_line(f"[red]no config key[/] {key}")  # a new key would be read by nothing
         return
@@ -2232,9 +2232,9 @@ def config_set(app: Any, key: str, value: str) -> None:
     except tomllib.TOMLDecodeError:
         new = value
     old, table[leaf] = table[leaf], new
-    for problem in config.repair(app.cfg.data):
+    for problem in config.repair(app.config.data):
         app.log_line(f"[yellow]{problem}[/]")
-    if key == "undo.strategy" and (why := undo.require_git(app.cfg, library_dir(app))):
+    if key == "undo.strategy" and (why := undo.require_git(app.config, library_dir(app))):
         app.log_line(f"[yellow]{why}[/]")
     app.apply_config()
     app.log_line(f"{key} = {table[leaf]!r} until you quit (was {old!r}) — config.toml is where it stays")
@@ -2242,13 +2242,13 @@ def config_set(app: Any, key: str, value: str) -> None:
 
 @command("app.config_check", "check config")
 def config_check(app: Any) -> None:
-    for key in app.cfg.unknown:
+    for key in app.config.unknown:
         app.log_line(f"[yellow]unknown config key:[/] {key}")
-    for problem in app.cfg.invalid:
+    for problem in app.config.invalid:
         app.log_line(f"[yellow]invalid:[/] {problem}")
     app.log_line(
-        f"config: {len(app.cfg.unknown)} unknown key(s), {len(app.cfg.invalid)} invalid value(s)"
-        f" in {app.cfg.path or 'defaults'}"
+        f"config: {len(app.config.unknown)} unknown key(s), {len(app.config.invalid)} invalid value(s)"
+        f" in {app.config.path or 'defaults'}"
     )
     app.query_one("#log-pane").display = True
 
@@ -2446,7 +2446,7 @@ def _merge_apply(app: Any, plan: Any, resolved: dict[str, Any]) -> None:
     back = _merge_run(app, plan, resolved)
     if back is None:
         return
-    if app.cfg.get("undo.strategy", "trash") == "none":
+    if app.config.get("undo.strategy", "trash") == "none":
         app.history.clear()
         return
     undos = [back]
@@ -2469,8 +2469,8 @@ def _merge_run(
     """Do the merge. Returns its undo, or None when nothing was changed. A
     survivor changed on disk goes to `_reread`, or into `stale` as in `_write_field`."""
     data = merge.resolve(plan, resolved)
-    rules = place.Rules.from_config(app.cfg)
-    trash_dir = app.cfg.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
+    rules = place.Rules.from_config(app.config)
+    trash_dir = app.config.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
 
     # Files first, and resolved against the folder they still live in: an entry
     # may be relative to a folder that is about to be trashed.
@@ -2534,7 +2534,7 @@ def _merge_run(
     # two, so this does too.
     import papis.database
 
-    database = papis.database.get(app.cfg.get("general.library") or None)
+    database = papis.database.get(app.config.get("general.library") or None)
     trashed: list[tuple[Path, Path]] = []
     for doc in plan.others:
         folder = doc.get_main_folder()
@@ -2575,7 +2575,7 @@ def _merge_run(
 
 
 def _checks(app: Any, checks: str = "") -> list[str]:
-    configured = checks.split() if checks else app.cfg.get("doctor.checks", [])
+    configured = checks.split() if checks else app.config.get("doctor.checks", [])
     for name in doctor.unknown_checks(configured):
         app.log_line(f"[yellow]doctor: no such check[/] {name}")
     return configured
@@ -2734,7 +2734,7 @@ def doctor_fix(app: Any, checks: str = "", current: bool = False) -> None:
 
 
 def trash_dir(app: Any) -> Path:
-    return app.cfg.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
+    return app.config.as_path("undo.trash_dir") or Path.home() / ".local/share/ptui/trash"
 
 
 def _old_trash(app: Any, days: int) -> tuple[Path, list[Path], int]:
@@ -2766,9 +2766,9 @@ def auto_empty_trash(app: Any) -> None:
     longer than `undo.trash_retention_days` goes, with one line saying how much.
     The trash outlives the session that filled it, but `u` does not, so past the
     retention it is only a safety net."""
-    if not app.cfg.get("undo.auto_empty_trash", True):
+    if not app.config.get("undo.auto_empty_trash", True):
         return
-    days = app.cfg.get("undo.trash_retention_days", 30)
+    days = app.config.get("undo.trash_retention_days", 30)
     try:
         where, old, size = _old_trash(app, days)
         if old:
@@ -2787,7 +2787,7 @@ def lib_empty_trash(app: Any, days: int | None = None) -> None:
     and an undo step that pointed into it has nothing left to restore. Startup
     does the same unasked while `undo.auto_empty_trash` is on.
     """
-    days = app.cfg.get("undo.trash_retention_days", 30) if days is None else days
+    days = app.config.get("undo.trash_retention_days", 30) if days is None else days
     where, old, size = _old_trash(app, days)
     if not where.is_dir():
         app.log_line("the trash is empty")
@@ -2813,7 +2813,7 @@ def library_dir(app: Any) -> Path:
     """Where the current library lives on disk, straight from papis."""
     import papis.config
 
-    name = app.cfg.get("general.library") or papis.config.get_lib_name()
+    name = app.config.get("general.library") or papis.config.get_lib_name()
     return Path(papis.config.get_lib_from_name(name).path)
 
 
@@ -2846,8 +2846,8 @@ def _doomed_files(app: Any, targets: list[Any]) -> list[Doomed]:
     """
     import papis.database
 
-    everyone = papis.database.get(app.cfg.get("general.library") or None).get_all_documents()
-    pdf_root = app.cfg.as_path("files.pdf_root")
+    everyone = papis.database.get(app.config.get("general.library") or None).get_all_documents()
+    pdf_root = app.config.as_path("files.pdf_root")
     root = place.normal(pdf_root) if pdf_root else None
     doomed = []
     for doc in targets:
@@ -2916,7 +2916,7 @@ def _delete_apply(app: Any, targets: list[Any], files: list[Doomed]) -> None:
     files — rather than calling `doc.delete` again, which would act on whatever
     the cursor or the marks hold by then.
     """
-    strategy = app.cfg.get("undo.strategy", "trash")
+    strategy = app.config.get("undo.strategy", "trash")
     label = f"delete {len(targets)} document(s)"
     paths = [doomed.path for doomed in files]
     try:
@@ -2934,7 +2934,7 @@ def _delete_apply(app: Any, targets: list[Any], files: list[Doomed]) -> None:
             import papis.database
 
             # The whole library, not `app.docs`: the scope may have changed since the undo.
-            database = papis.database.get(app.cfg.get("general.library") or None)
+            database = papis.database.get(app.config.get("general.library") or None)
             again = [database.find_by_id(i) for i in ids]
             if None in again:  # without the document, its files would be trashed alone
                 raise RuntimeError("cannot redo: a deleted document is no longer in the library")
@@ -2958,7 +2958,7 @@ def _delete_run(app: Any, targets: list[Any], paths: list[Path], label: str) -> 
 
     folders = [Path(doc.get_main_folder()) for doc in targets if doc.get_main_folder()]
     root = None
-    if app.cfg.get("undo.strategy", "trash") == "git":
+    if app.config.get("undo.strategy", "trash") == "git":
         # Before anything moves: finding out after the files went to the trash
         # left them there, with the delete failed and no undo step for it.
         root = undo.git_root(folders[0]) if folders else None
@@ -2982,7 +2982,7 @@ def _delete_run(app: Any, targets: list[Any], paths: list[Path], label: str) -> 
 
     # Papis keeps its own index, and a document whose folder has gone still
     # comes back from the cache — the same pairing `papis rm` does.
-    database = papis.database.get(app.cfg.get("general.library") or None)
+    database = papis.database.get(app.config.get("general.library") or None)
     for doc in targets:
         try:
             database.delete(doc)
@@ -3019,7 +3019,7 @@ def _undo_trash(app: Any, moved: list[tuple[Path, Path]]) -> None:
 
 def _press(app: Any, cmd: str) -> str:
     """How to run `cmd` from here: press its keys, or, with none bound, run it by name."""
-    keys = app.km.for_command(app.mode, cmd) or app.km.for_command("list", cmd)
+    keys = app.keymap.for_command(app.mode, cmd) or app.keymap.for_command("list", cmd)
     return f"press {keys}" if keys else f"run {cmd}"
 
 
@@ -3067,13 +3067,13 @@ def warn_untracked(app: Any) -> None:
     the normal case, and it is covered by the trash — what would be a lie is
     letting the user believe the commit holds their PDFs.
     """
-    if app.cfg.get("undo.strategy") != "git" or not app.cfg.get("undo.git_warn_untracked", True):
+    if app.config.get("undo.strategy") != "git" or not app.config.get("undo.git_warn_untracked", True):
         return
     root = undo.git_root(library_dir(app))
     if root is None:
         app.log_line("[yellow]undo.strategy = git, but the library is not a git repository[/]")
         return
-    pdf_root = app.cfg.as_path("files.pdf_root")
+    pdf_root = app.config.as_path("files.pdf_root")
     if pdf_root and not undo.git_tracks(root, pdf_root):
         app.log_line(f"[yellow]git does not track {pdf_root}; those files undo via the trash[/]")
 

@@ -159,7 +159,7 @@ async def test_merge_folds_marks_into_the_chosen_ref(app, tmp_path):
         assert "# keep me" in (published / "info.yaml").read_text()  # round-trip intact
 
         assert not preprint.exists()  # folded in, folder removed from the library
-        trash = app.cfg.as_path("undo.trash_dir")
+        trash = app.config.as_path("undo.trash_dir")
         assert (trash / "preprint").is_dir()  # recoverable, not destroyed
         assert (trash / "preprint" / "info.yaml").exists()
 

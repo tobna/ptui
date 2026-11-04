@@ -192,7 +192,7 @@ async def test_attaching_a_path_that_is_not_a_file_says_so(app, papis_lib, monke
 async def test_the_attach_picker_without_an_inbox_still_offers_a_path(app, papis_lib):
     paper = papis_lib / "paper.pdf"
     paper.write_bytes(b"pdf")
-    app.cfg.data["files"]["inbox"] = str(papis_lib / "no-inbox")
+    app.config.data["files"]["inbox"] = str(papis_lib / "no-inbox")
     async with app.run_test() as pilot:
         await settle(pilot)
         await press(pilot, "f", "a")

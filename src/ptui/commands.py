@@ -17,8 +17,8 @@ from typing import Any
 @dataclass(frozen=True, slots=True)
 class Command:
     name: str
-    desc: str
-    fn: Callable[..., Any]
+    description: str
+    function: Callable[..., Any]
 
 
 REGISTRY: dict[str, Command] = {}
@@ -38,12 +38,12 @@ def run(name: str, app: Any, args: dict[str, Any] | None = None) -> Any:
     cmd = REGISTRY.get(name)
     if cmd is None:
         raise KeyError(name)
-    return cmd.fn(app, **(args or {}))
+    return cmd.function(app, **(args or {}))
 
 
 def params(name: str) -> list[inspect.Parameter]:
     """A command's own parameters — everything after the leading `app`."""
-    return list(inspect.signature(REGISTRY[name].fn).parameters.values())[1:]
+    return list(inspect.signature(REGISTRY[name].function).parameters.values())[1:]
 
 
 def _argument(param: inspect.Parameter) -> str:

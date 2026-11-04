@@ -122,7 +122,7 @@ async def test_a_named_doctor_run_narrows_by_its_check_and_keeps_the_other_marke
     info.write_text(info.read_text().replace("year: 2016", "year: '2016'"))  # field-type only
     async with app.run_test() as pilot:
         await pilot.pause(0.2)
-        app.cfg.data.setdefault("doctor", {})["checks"] = ["refs", "field-type"]
+        app.config.data.setdefault("doctor", {})["checks"] = ["refs", "field-type"]
         actions.reload(app)
         actions.doctor_run(app)
         assert sorted(library.doc_id(d) for d in app.rows) == ["id-broken", "id1"]
@@ -228,7 +228,7 @@ def only_refs(app):
     """Keep these tests about the view, not about papis's opinions: the fixture
     documents are minimal enough to trip `keys-missing` and `bibtex-type`, which
     would leave every row in the doctor narrow and prove nothing."""
-    app.cfg.data.setdefault("doctor", {})["checks"] = ["refs"]
+    app.config.data.setdefault("doctor", {})["checks"] = ["refs"]
 
 
 async def test_doctor_run_narrows_to_the_documents_with_findings(app, tmp_path):
@@ -400,7 +400,7 @@ async def test_the_startup_scan_marks_the_rows_it_found_something_on(papis_lib):
     from ptui import ui
 
     app = build_app(papis_lib)
-    app.cfg.data["doctor"]["scan_on_startup"] = True
+    app.config.data["doctor"]["scan_on_startup"] = True
     async with app.run_test() as pilot:
         await app.workers.wait_for_complete()
         await settle(pilot)

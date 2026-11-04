@@ -210,21 +210,21 @@ class SelectList(ModalScreen[tuple[Any, bool] | None]):
     def on_key(self, event: Any) -> None:
         """Dispatch through `[modes.picker]` — the same table as everything else."""
         token = keymap.normalize(event.key, event.character)
-        binding = self.app.km.lookup("picker", (token,))
+        binding = self.app.keymap.lookup("picker", (token,))
         if binding is None:
             return  # anything else is filter text
         event.stop()
 
         options = self.query_one(OptionList)
-        if binding.cmd in ("nav.down", "nav.up"):
-            step = binding.args.get("count", 1) * (1 if binding.cmd == "nav.down" else -1)
+        if binding.command in ("nav.down", "nav.up"):
+            step = binding.args.get("count", 1) * (1 if binding.command == "nav.down" else -1)
             if options.option_count:
                 options.highlighted = max(0, min(options.option_count - 1, (options.highlighted or 0) + step))
-        elif binding.cmd == "picker.confirm":
+        elif binding.command == "picker.confirm":
             index = options.highlighted
             picked = self.shown[index] if index is not None and self.shown else None
             self.dismiss((picked.value, binding.args.get("invert", False)) if picked else None)
-        elif binding.cmd == "picker.cancel":
+        elif binding.command == "picker.cancel":
             self.dismiss(None)
 
 

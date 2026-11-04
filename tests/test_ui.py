@@ -39,7 +39,7 @@ def test_glyphs_switch_with_the_setting_and_stay_one_cell():
 async def test_icons_setting_reaches_the_list_and_the_status_bar(app):
     from textual.widgets import Static
 
-    app.cfg.data["ui"]["icons"] = True
+    app.config.data["ui"]["icons"] = True
     async with app.run_test() as pilot:  # __init__ already ran, so set it by hand
         ui.use_icons(True)
         await press(pilot, "space")  # mark the first row
@@ -132,7 +132,7 @@ async def test_the_add_and_edit_forms_show_their_keys_on_an_80x24_screen(app):
 
     forms = [
         ui.AddForm(Path("paper.pdf"), {}, lambda _: "/library/2020_Someone_A_Long_Title/2020_Someone_A_Long_Title.pdf"),
-        ui.EditForm("Edit Vaswani2017", tuple(app.cfg.get("edit.structured_fields")), {}),
+        ui.EditForm("Edit Vaswani2017", tuple(app.config.get("edit.structured_fields")), {}),
     ]
     async with app.run_test(size=(80, 24)) as pilot:
         await settle(pilot)
