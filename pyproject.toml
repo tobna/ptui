@@ -54,9 +54,7 @@ filterwarnings = ["error::DeprecationWarning:ptui"]
 line-length = 120
 
 [tool.ruff.lint]
-# That set minus "D": this codebase writes prose docstrings on purpose (and
-# leaves small helpers undocumented), which D205/D401/D103 all fight.
-select = ["E", "F", "B", "NPY", "PD", "TD005", "TD006", "TD007", "SIM", "RET", "ICN", "I", "UP", "RUF"]
+select = ["D", "E", "F", "B", "NPY", "PD", "TD005", "TD006", "TD007", "SIM", "RET", "ICN", "I", "UP", "RUF"]
 ignore = [
   "E501",                        # the formatter owns line length
   "NPY002",
@@ -66,6 +64,9 @@ ignore = [
   "RUF001", "RUF002", "RUF003",  # × and – in prose are intentional
 ]
 unfixable = ["B"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.format]
 exclude = ["*.md"]  # ruff would reformat the python blocks in SPEC.md

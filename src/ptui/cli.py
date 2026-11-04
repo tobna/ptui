@@ -42,7 +42,7 @@ def main(lib: str | None, query: tuple[str, ...]) -> None:
     Args:
         lib: Name of the papis library to open, or `None` for the configured one.
         query: Words of the startup query, joined with spaces; empty keeps the configured query.
-    """
+    """  # noqa: D301
     try:
         configuration = config.load()
         key_bindings = keymap.load()

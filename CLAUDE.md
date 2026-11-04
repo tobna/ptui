@@ -17,7 +17,7 @@ and the reasons that have no single place in the code.
    commits, fix this file for agents (layout, traps, where things live),
    `README.md` for humans (short, install, features), and `SPEC.md` if
    behaviour diverged. `KEYS.md` is generated: touch `keys.toml` or a command's
-   `desc` and rerun `uv run python scripts/keydoc.py` in the same commit —
+   `description` and rerun `uv run python scripts/keydoc.py` in the same commit —
    `tests/test_docs.py` fails while it is stale. `CONFIG.md` is generated the
    same way from the shipped `config.toml`, comments included: rerun
    `uv run python scripts/configdoc.py`. (`.claude/` is local-only and not
@@ -148,6 +148,9 @@ whose keys the user names (`[query.aliases]`, `[add.sources]`) belongs in
 - **App-level resize fires before layout**: widget sizes, and `App.size`
   itself, are stale in `App.on_resize`. Read `event.size` there, and refit from
   a widget's own `on_resize` (`ListTable.on_resize`).
+- **`cli.main`'s docstring is click's `--help`.** The form feed (`\f`) ends
+  what click prints, which is why its `Args:` stay out of the help and why it
+  carries `noqa: D301`.
 - **`ConfirmDelete` binds `enter` with `priority=True`.** `SelectionList` binds
   both `space` and `enter` to toggling, so without the priority the confirm key
   ticks a checkbox instead.
@@ -335,6 +338,18 @@ needs its path redirected in `build_app` too. Other traps:
 
 - Follow the `python-rules` skill: f-strings, `pathlib`, `dataclass` records,
   `X | None`, ruff-clean.
+- Every module, class, function and method, tests and nested helpers included,
+  has a Google-style docstring: a one-line summary, the reasons, then `Args:`
+  for every parameter and `Returns:` or `Yields:` for what comes back, written
+  as the *shape* of the value, since most signatures say only `Any`. Add
+  `Raises:` for what a caller has to handle. ruff's `D` rules enforce the
+  layout, though not that a section is true.
+- Names are spelled out. Three kinds stay short on purpose: a `@command`
+  parameter (`q`, `fmt`) is public, because `keys.toml`'s `args`, the `:` line
+  and `commands.signature` reach it by name; a test's parameter is what pytest
+  finds its fixture by; and the on-disk keys `cmd`, `desc`, `op` and `dest`
+  belong to the file format, read into `Binding.command`, `Binding.description`,
+  `Rule.operation` and `Rule.destination`.
 - Non-trivial logic leaves one runnable check behind (`tests/test_*.py`, plain
   `assert`, no fixtures until two tests share setup).
 - Deliberate shortcuts get a `# ponytail:` comment naming the ceiling.
