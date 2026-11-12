@@ -266,6 +266,10 @@ papis doctor. ptui only ever *reports* unless you ask for a fix.
 | `citekey_format` | `"\\cite{{{doc[ref]}}}"` | what y y copies, a papis format string |
 | `clipboard` | `"auto"` | auto \| wl-copy \| xclip \| pbcopy \| osc52 |
 
+## `[shell]`
+
+Your own shell commands: each `name = { line = "…" }` becomes the command `shell.name`. `:` lists it; bind it in keys.toml, such as `"\\ m" = { cmd = "shell.move_to_papers" }`, and `?` shows it too. The line runs through `sh -c` in the library folder (start it with `cd` for another), with the terminal; end it with `; read` to read its output before ptui comes back. `rescan = true` rescans the library when it exits, as `r` does: for a script that changes the library.
+
 ## `[log]`
 
 | Setting | Default | What it does |

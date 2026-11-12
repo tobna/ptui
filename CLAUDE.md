@@ -110,8 +110,10 @@ it logs "not implemented yet". To list such names, run `uv run python -c` over
 `keymap.load()` and `commands.REGISTRY` — import `actions` first, or the
 registry is empty and every key looks unbound. `keymap.load` reads the
 registry for each binding's description and to report unknown commands, so
-`cli.main` imports `actions` before it loads the keymap; loaded first, it
-called all 120 shipped bindings unknown. A shipped config key nothing
+`cli.main` imports `actions` and registers the `[shell]` entries of
+`config.toml` (`actions.register_shell_commands`, one `shell.<name>` each)
+before it loads the keymap; loaded first, it called all 120 shipped bindings
+unknown. A shipped config key nothing
 reads fails `tests/test_config.py::test_every_shipped_key_is_read_somewhere`.
 
 Every entry point is guarded — log the failure once, the traceback to

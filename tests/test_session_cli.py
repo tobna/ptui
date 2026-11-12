@@ -125,6 +125,25 @@ def test_an_unknown_command_is_not_fatal(papis_lib, started):
     assert any("nav.sideways" in problem for problem in app.keymap.unknown_commands)
 
 
+def test_a_shell_command_is_a_command_by_the_time_keys_toml_binds_it(papis_lib, started):
+    """A `[shell]` entry is registered before the keymap is read, so its binding is known and described.
+
+    Args:
+        papis_lib: The temporary folder of the `papis_lib` fixture, holding the library in `lib/`.
+        started: The `started` fixture: `(app, run's keyword arguments)` per app started.
+    """
+    from ptui import commands
+
+    shell = '[shell]\nmove_to_papers = { line = "move_to_papers --all" }\n'
+    result = ptui(papis_lib, config=QUIET + shell, keys='[global]\n"\\\\ m" = { cmd = "shell.move_to_papers" }\n')
+    assert result.exit_code == 0, result.output
+    [(app, _)] = started
+    assert app.keymap.unknown_commands == ()
+    [binding] = [binding for binding in app.keymap.modes["list"].values() if binding.command == "shell.move_to_papers"]
+    assert binding.description == "$ move_to_papers --all"  # what `?` shows
+    assert commands.params("shell.move_to_papers") == []  # `:` runs it without an argument prompt
+
+
 def test_a_broken_config_toml_beats_a_broken_keys_toml(papis_lib, started):
     """Both broken: one line, for the file read first, and nothing started.
 

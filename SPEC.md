@@ -783,6 +783,8 @@ from this. Adding a command must not require touching four places.
 | `app.reload`                    | `rescan:bool=false`           | clear papis cache + reload; `rescan` drops the on-disk cache too, so an `info.yaml` changed outside papis shows (`r` rescans) |
 | `app.undo` / `app.redo`         |                               | per undo strategy                                |
 | `lib.empty_trash`               | `days:int?`                   | delete trash older than `undo.trash_retention_days`, after asking; startup does the same unasked while `undo.auto_empty_trash` |
+| `app.shell`                     | `line:str, rescan:bool=false` | `sh -c line` in the library folder, with the terminal as `$EDITOR` has it; `rescan` then rescans the library as `r` does, for a line that changes it; not undoable |
+| `shell.<name>`                  |                               | one per `[shell]` entry of `config.toml`: `app.shell` with that entry's `line` and `rescan`. Registered before the keymap is loaded, so `keys.toml` binds it like any command and `?` shows it as `$ line` |
 | `app.log`                       |                               | log pane                                         |
 | `app.config_check`              |                               | report unknown/invalid config keys               |
 | `config.set`                    | `key:str, value:str`          | override one config key for this session only; nothing is written to `config.toml`; a key read only at startup (`log.*`, `ui.mouse`, …) is refused |
@@ -809,6 +811,7 @@ them: the value is arbitrary text.
 | `:query.save unread-2026`            | a name is text by definition (loading stays a picker)                     |
 | `:nav.goto Nauen2026_LUMA`           | exact jump to a citekey pasted from a `.tex`; `/` changes the view        |
 | `:export.bibtex ~/paper/refs.bib`    | `y b` yanks to the clipboard; only the argument writes a file             |
+| `:app.shell "git status; read"`      | a one-off line; one run often belongs in `[shell]`, as `shell.<name>`     |
 
 Deliberately **not** argument-driven: `query.scope` / `query.narrow` (`s` and
 `/` own them), the `pane.*` family (a key is faster than typing), and

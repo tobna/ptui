@@ -3223,6 +3223,74 @@ def config_check(app: Any) -> None:
     app.query_one("#log-pane").display = True
 
 
+@command("app.shell", "run a shell line in the library folder")
+def app_shell(app: Any, line: str, rescan: bool = False) -> None:
+    """Hand the terminal to a shell line run in the library folder.
+
+    It gets the terminal, as `$EDITOR` does, so it may ask questions; ptui comes
+    back the moment it exits, so a line whose output should be read ends in
+    `; read`, and one meant for another folder starts with `cd`. `rescan` is for
+    a line that changes the library: papis's cache knows none of it. ptui's own
+    caches need nothing, being stamped with each `info.yaml`'s mtime.
+
+    Args:
+        app: The running `PtuiApp`.
+        line: The command, run by `sh -c`.
+        rescan: Rescan the library afterwards, as `r` does.
+    """
+    import subprocess
+
+    with app.suspend():
+        done = subprocess.run(line, shell=True, cwd=library_dir(app), check=False)
+    if done.returncode:
+        app.log_line(f"[red]{line} failed:[/] exit {done.returncode}")
+    else:
+        app.log_line(f"ran {line}")
+    if rescan:
+        reload(app, rescan=True)
+
+
+def register_shell_commands(entries: dict[str, dict[str, Any]]) -> None:
+    """Register each `[shell]` entry of config.toml as the command `shell.<name>`.
+
+    In the registry, `:` lists it and keys.toml can bind it, which is what puts
+    it in `?`. Must run before `keymap.load`, which loads a binding to a name
+    the registry lacks as an unknown command.
+
+    Args:
+        entries: The `[shell]` table, as `config.repair` left it: command name to `{"line": str, "rescan": bool}`,
+            `rescan` optional.
+    """
+    for name, entry in entries.items():
+        handler = _runs(entry["line"], entry.get("rescan", False))
+        commands.REGISTRY[f"shell.{name}"] = commands.Command(f"shell.{name}", f"$ {entry['line']}", handler)
+
+
+def _runs(line: str, rescan: bool) -> Callable[[Any], None]:
+    """Build the handler of one `[shell]` command: `app.shell` with its arguments fixed.
+
+    A closure, not `partial(app_shell, line=line)`: the partial keeps `line` as
+    a parameter, and a command with parameters gets the `:` argument prompt.
+
+    Args:
+        line: The shell line.
+        rescan: Rescan the library afterwards.
+
+    Returns:
+        A handler taking the app alone.
+    """
+
+    def run(app: Any) -> None:
+        """Run the fixed line.
+
+        Args:
+            app: The running `PtuiApp`.
+        """
+        app_shell(app, line, rescan)
+
+    return run
+
+
 # ── merge ───────────────────────────────────────────────────────────────────
 
 

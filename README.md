@@ -289,6 +289,22 @@ only what you want to change. [CONFIG.md](CONFIG.md) lists every setting with
 its default, and [KEYS.md](KEYS.md) every key binding and how yours combine
 with the shipped ones.
 
+To run your own script from ptui, name it in `config.toml`. It becomes the
+command `shell.move_to_papers`, which `:` lists; bind it in `keys.toml` and
+`?` shows it too. It runs in the library folder with the terminal; end the
+line with `; read` to read its output before ptui comes back. `rescan = true`
+rescans the library afterwards, for a script that changes it:
+
+```toml
+# config.toml
+[shell]
+move_to_papers = { line = "move_to_papers", rescan = true }
+
+# keys.toml
+[global]
+"\\ m" = { cmd = "shell.move_to_papers", desc = "move to papers" }
+```
+
 ## Development
 
 ```sh

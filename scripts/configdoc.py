@@ -173,6 +173,8 @@ def render() -> str:
         if section.array:
             lines += ["```toml", *section.lines, "```", ""]
             continue
+        if not section.rows:  # a table only the user fills, such as [shell]
+            continue
         lines += ["| Setting | Default | What it does |", "| --- | --- | --- |"]
         for key, value, note in section.rows:
             choices = CHOICES.get(f"{section.name}.{key}", ())

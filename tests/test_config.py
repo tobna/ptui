@@ -160,6 +160,24 @@ def test_a_users_source_joins_the_shipped_ones_and_a_broken_one_is_left_out(tmp_
     assert configuration.unknown == ()  # keys the user names are not typos
 
 
+def test_a_shell_entry_without_a_line_is_left_out(tmp_path):
+    """A `[shell]` entry `app.shell` cannot run is reported, not registered as a command that fails.
+
+    Args:
+        tmp_path: pytest's per-test temporary folder.
+    """
+    (tmp_path / "config.toml").write_text(
+        "[shell]\n"
+        'move = { line = "move_to_papers", rescan = true }\n'
+        'bare = "move_to_papers"\n'
+        'loud = { line = "x", rescan = "yes" }\n'
+    )
+    configuration = config.load(tmp_path / "config.toml")
+    assert configuration.get("shell") == {"move": {"line": "move_to_papers", "rescan": True}}
+    assert sorted(problem.split(" = ")[0] for problem in configuration.invalid) == ["shell.bare", "shell.loud"]
+    assert configuration.unknown == ()
+
+
 def test_an_empty_column_list_gets_the_shipped_columns(tmp_path):
     """An empty column list gets the shipped columns.
 

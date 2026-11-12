@@ -20,7 +20,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ptui import config, keymap
+from ptui import actions, config, keymap
 from ptui.app import PtuiApp
 
 CONVERTERS = (
@@ -59,6 +59,7 @@ async def shoot(
         configuration.data["ui"]["icons"] = True
     if rows:
         configuration.data["list"]["row_height"] = rows
+    actions.register_shell_commands(configuration.get("shell"))  # before the keymap, as `cli.main` does
     app = PtuiApp(configuration, keymap.load())
     async with app.run_test(size=size) as pilot:
         await pilot.pause(settle)

@@ -655,6 +655,33 @@ async def test_edit_reports_yaml_it_can_no_longer_parse(papis_lib, monkeypatch, 
         assert app.current["title"] == "Attention Is All You Need"  # not reloaded
 
 
+async def test_shell_runs_in_the_library_folder_and_shows_what_it_added(app, monkeypatch):
+    """`app.shell` runs its line in the library folder, rescans when asked, and logs a failure.
+
+    The rescan is the point of asking: a script that drops a document folder
+    into the library is invisible behind papis's on-disk cache without it.
+
+    Args:
+        app: The `PtuiApp` fixture, not started yet.
+        monkeypatch: pytest's monkeypatch fixture.
+    """
+    import contextlib
+
+    async with app.run_test() as pilot:
+        await settle(pilot)
+        logged = []
+        monkeypatch.setattr(app, "log_line", logged.append)
+        # the line takes the terminal for real, which a headless pilot has not got
+        monkeypatch.setattr(app, "suspend", contextlib.nullcontext)
+        actions.app_shell(
+            app, "mkdir new && printf 'title: Made by a script\\nref: Script2026\\n' > new/info.yaml", rescan=True
+        )
+        await settle(pilot)
+        assert "Script2026" in [doc["ref"] for doc in app.docs]
+        actions.app_shell(app, "exit 3")
+        assert any("exit 3" in message for message in logged)
+
+
 async def test_backfill_stamps_only_the_documents_that_lack_time_added(app, papis_lib):
     """Backfill stamps only the documents that lack time added.
 

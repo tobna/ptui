@@ -43,7 +43,7 @@ def _merge(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
     return merged
 
 
-USER_TABLES = ("query.aliases", "query.saved", "files.kind_patterns", "add.sources")
+USER_TABLES = ("query.aliases", "query.saved", "files.kind_patterns", "add.sources", "shell")
 """Tables whose keys the user names: a key the shipped table lacks is not unknown."""
 
 
@@ -261,6 +261,19 @@ def repair(data: dict[str, Any]) -> list[str]:
             sources[name] = shipped
         else:
             del sources[name]
+
+    shell = data["shell"]
+    for name, entry in list(shell.items()):
+        if (
+            isinstance(entry, dict)
+            and isinstance(entry.get("line"), str)
+            and isinstance(entry.get("rescan", False), bool)
+        ):
+            continue
+        problems.append(
+            f'shell.{name} = {entry!r} needs a line, like {{ line = "my_script", rescan = true }}; left out'
+        )
+        del shell[name]
     return problems
 
 
