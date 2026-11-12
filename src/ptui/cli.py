@@ -43,8 +43,12 @@ def main(lib: str | None, query: tuple[str, ...]) -> None:
         lib: Name of the papis library to open, or `None` for the configured one.
         query: Words of the startup query, joined with spaces; empty keeps the configured query.
     """  # noqa: D301
+    from ptui import actions  # noqa: F401 — registers every command; imported late: pulls in Textual
+
     try:
         configuration = config.load()
+        # The keymap looks every binding up in the registry, for its description
+        # and to report unknown commands, so all of them are registered first.
         key_bindings = keymap.load()
     except ValueError as error:  # a syntax error or a binding with no command, naming its file
         click.echo(f"ptui: {error}", err=True)
