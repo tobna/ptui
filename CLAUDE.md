@@ -295,7 +295,8 @@ the first `reload`, and `save_state`, from `PtuiApp.on_unmount`. Visual mode is
 **Fetching and adding.** `[add.sources]` in the shipped `config.toml`, through
 `fetch.available`, is what the `a` picker offers; the traps of matching are in
 SPEC § Adding and commented in `fetch.py`. `c u` is `fetch.refetchers` (no network), then `fetch.refetch` in a thread worker — or
-`fetch.crossref` for a title — then `actions._refresh_found` and
+`fetch.crossref` for a title, with `actions._first_author` as the author field
+(why: `fetch.crossref`'s docstring) — then `actions._refresh_found` and
 `_refresh_merge`: `merge.plan` with the fetched record as the other document,
 and `_ask_clashes`, the loop `doc.merge` uses, into `_fields_apply`. A test of
 ptui's own filtering stubs papis (`papis.importer.fetch_importers`,

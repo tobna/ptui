@@ -309,7 +309,9 @@ document, without the network: papis's own data matching (the DOI; the title,
 for Crossref — offered last, since a title search can find the wrong paper),
 plus arXiv for an arXiv id. Crossref is searched, not matched: papis's own
 importer fetches every hit and keeps the first, so ptui calls
-`papis.crossref.get_data` and lists the hits — title, then year, first author
+`papis.crossref.get_data` with the title *and the first author's family name*
+(the title alone ranks reviews and namesakes above the paper, and often leaves
+it out of the hits) and lists the hits — title, then year, first author
 and venue — with "none of these" last. A single hit is shown and confirmed ("is
 this the paper?"). Nothing is planned before that, or the gaps would be filled
 from another paper without a question. Data only, never the PDF; the fetched `ref` and

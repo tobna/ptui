@@ -723,6 +723,19 @@ def _bib_pick(app: Any, path: Path) -> None:
     )
 
 
+def _first_author(doc: dict[str, Any]) -> str:
+    """The first author's family name, from `author_list` or the bare `author` string.
+
+    Args:
+        doc: One record of document keys.
+
+    Returns:
+        The family name, or `""` when there is none.
+    """
+    names = merge._authors(doc) or [{}]
+    return str(names[0].get("family") or "") if isinstance(names[0], dict) else ""
+
+
 def _hit_summary(hit: dict[str, Any]) -> str:
     """Year, first author, venue: what tells two papers of one title apart.
 
@@ -732,9 +745,7 @@ def _hit_summary(hit: dict[str, Any]) -> str:
     Returns:
         The parts it has, joined by ` · `.
     """
-    names = merge._authors(hit) or [{}]
-    first = names[0].get("family") if isinstance(names[0], dict) else None
-    return " · ".join(str(part) for part in (hit.get("year"), first, library.venue(hit)) if part)
+    return " · ".join(str(part) for part in (hit.get("year"), _first_author(hit), library.venue(hit)) if part)
 
 
 NONE_OF_THESE = -1
@@ -3471,7 +3482,7 @@ def _refresh_fetch(app: Any, doc: Any, importer: Any) -> None:
     def job() -> None:
         """Fetch in the worker thread, handing the result back to the app's own."""
         try:
-            hits = fetch.refetch(importer)
+            hits = fetch.refetch(importer, _first_author(doc))
         except Exception as error:
             app.call_from_thread(app.log_line, f"[red]{importer.name} failed:[/] {error}")
             return

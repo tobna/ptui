@@ -1017,7 +1017,10 @@ async def test_refresh_from_crossref_lists_the_hits_and_merges_the_one_picked(ap
         await settle(pilot)
         await press(pilot, "c", "u")  # title only: Crossref is the one source
         await settle(pilot)
-        assert asked == [{"query": "Attention Is All You Need", "max_results": fetch.CROSSREF_HITS}]
+        # the first author too: the title alone ranks reviews and namesakes above the paper
+        assert asked == [
+            {"query": "Attention Is All You Need", "author": "Vaswani", "max_results": fetch.CROSSREF_HITS}
+        ]
         assert isinstance(app.screen, ui.SelectList)
         assert [item.label for item in app.screen.items] == [*(hit["title"] for hit in HITS), "none of these"]
         assert [item.hint for item in app.screen.items[:2]] == ["2021 · Dong", "2017 · Vaswani · NeurIPS"]
@@ -1063,7 +1066,7 @@ async def test_adding_from_crossref_lists_the_hits_and_fills_the_form_with_the_o
         actions.cmdline_run(app, "doc.add", "crossref 'attention is all'")
         await app.workers.wait_for_complete()
         await settle(pilot)
-        assert asked == [{"query": "attention is all", "max_results": fetch.CROSSREF_HITS}]
+        assert asked == [{"query": "attention is all", "author": "", "max_results": fetch.CROSSREF_HITS}]
         assert isinstance(app.screen, ui.SelectList)
         assert app.screen.items[-1].label == "none of these"
         await press(pilot, "down", "enter")
