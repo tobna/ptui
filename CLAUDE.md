@@ -41,7 +41,10 @@ and the reasons that have no single place in the code.
 ## Toolchain
 
 `uv` for everything: install and launch are in `README.md` § Install, tests and
-lint in § Development. The dev machine runs Python 3.14; CI runs 3.13.
+lint in § Development. The dev machine runs Python 3.15; CI runs 3.13. A
+dependency locked at a version with no wheels for the dev machine's Python is
+built from source and fails without the C headers (lxml 6.1.1 needed
+`libxml2-devel`): bump it with `uv lock --upgrade-package <name>` instead.
 
 ```sh
 uv run python scripts/keydoc.py    # regenerate KEYS.md after a keymap change
