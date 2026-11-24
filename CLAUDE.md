@@ -41,10 +41,14 @@ and the reasons that have no single place in the code.
 ## Toolchain
 
 `uv` for everything: install and launch are in `README.md` § Install, tests and
-lint in § Development. The dev machine runs Python 3.15; CI runs 3.13. A
-dependency locked at a version with no wheels for the dev machine's Python is
-built from source and fails without the C headers (lxml 6.1.1 needed
-`libxml2-devel`): bump it with `uv lock --upgrade-package <name>` instead.
+lint in § Development. `.python-version` pins the Python that `uv sync`, `uv
+run` and CI all use, whatever the machine's default (uv downloads it if
+missing): a compiled dependency in `uv.lock` (lxml, pyyaml, markupsafe,
+charset-normalizer) with no wheel for the interpreter is built from source,
+and fails without its C headers — lxml did on a Python 3.15 machine before the
+pin. Raise the pin only to a version every compiled package in `uv.lock` has
+wheels for. `uv tool install` ignores both the pin and `uv.lock`: it resolves
+current releases, which carry wheels for new Pythons, so it needs neither.
 
 ```sh
 uv run python scripts/keydoc.py    # regenerate KEYS.md after a keymap change

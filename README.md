@@ -315,7 +315,7 @@ uv run python scripts/keydoc.py      # regenerate KEYS.md after changing keys.to
 uv run python scripts/configdoc.py   # regenerate CONFIG.md after changing config.toml
 ```
 
-CI runs the tests with coverage on Python 3.13 for every push and pull
+CI runs the tests with coverage on the Python in `.python-version` for every push and pull
 request, and they fail while KEYS.md or CONFIG.md is out of date.
 [SPEC.md](SPEC.md) says how ptui is meant to behave, and
 [CLAUDE.md](CLAUDE.md) holds notes on the code for coding agents.
