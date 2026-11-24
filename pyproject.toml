@@ -23,6 +23,10 @@ dependencies = [
     "textual>=8.2.8",
 ]
 
+[project.urls]
+Repository = "https://github.com/tobna/ptui"
+Issues = "https://github.com/tobna/ptui/issues"
+
 [project.scripts]
 ptui = "ptui.cli:main"
 

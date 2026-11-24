@@ -10,13 +10,13 @@
   <img alt="Python" src="https://img.shields.io/badge/python-3.13%2B-blue">
   <img alt="Built with Textual" src="https://img.shields.io/badge/built%20with-Textual-5a5aff">
   <img alt="papis" src="https://img.shields.io/badge/papis-0.16.x-b8283c">
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
+  <a href="https://github.com/tobna/ptui/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
   <img alt="Coverage" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftobna%2Fptui%2Fbadges%2Fcoverage.json">
 </p>
 
 ---
 
-![`ptui` screenshot](img/screenshot.png)
+![`ptui` screenshot](https://raw.githubusercontent.com/tobna/ptui/main/img/screenshot.png)
 
 papis keeps your library as plain folders, one `info.yaml` per paper, and its
 command line is good for scripts. ptui is for working in that library by hand:
@@ -24,7 +24,7 @@ find a paper in a few keystrokes, read the abstract, open the PDF, tag it, copy
 its BibTeX. It reads and writes the same files papis does, so the `papis`
 command keeps working next to it.
 
-The [keys](KEYS.md) are vim-like, and you can start without learning them. Press a prefix
+The [keys](https://github.com/tobna/ptui/blob/main/KEYS.md) are vim-like, and you can start without learning them. Press a prefix
 such as `g` or `c` and a menu shows what can follow. `?` lists every key of the
 pane you are in, and `:` finds any command by name.
 
@@ -146,7 +146,7 @@ a DBLP key, a Zenodo record, a Crossref search, a PDF to read a DOI or arXiv id
 from, or an existing papis folder or library. `i` goes straight to the inbox,
 and `:doc.add arxiv 2607.00687` skips both questions. An arXiv import brings
 the PDF along. A papis importer plugin ptui does not list joins them with one
-line under `[add.sources]` in `config.toml` ([CONFIG.md](CONFIG.md)).
+line under `[add.sources]` in `config.toml` ([CONFIG.md](https://github.com/tobna/ptui/blob/main/CONFIG.md)).
 
 ptui counts a paper as already there when the DOI, ISBN, arXiv id, URL or
 title matches, and asks whether to go to it, add it anyway or cancel.
@@ -279,14 +279,14 @@ ptui tags:to-read     # start with a papis query as the scope
 | `y b`                        | copy their BibTeX                                  |
 | `o`                          | open the PDF of the paper under the cursor         |
 
-`q` quits. Every key is in [KEYS.md](KEYS.md).
+`q` quits. Every key is in [KEYS.md](https://github.com/tobna/ptui/blob/main/KEYS.md).
 
 ## Configuration
 
 ptui reads `config.toml` and `keys.toml` from the `ptui` folder in papis's
 config folder, usually `~/.config/papis/ptui/`. Neither has to exist: write
-only what you want to change. [CONFIG.md](CONFIG.md) lists every setting with
-its default, and [KEYS.md](KEYS.md) every key binding and how yours combine
+only what you want to change. [CONFIG.md](https://github.com/tobna/ptui/blob/main/CONFIG.md) lists every setting with
+its default, and [KEYS.md](https://github.com/tobna/ptui/blob/main/KEYS.md) every key binding and how yours combine
 with the shipped ones.
 
 To run your own script from ptui, name it in `config.toml`. It becomes the
@@ -317,9 +317,9 @@ uv run python scripts/configdoc.py   # regenerate CONFIG.md after changing confi
 
 CI runs the tests with coverage on the Python in `.python-version` for every push and pull
 request, and they fail while KEYS.md or CONFIG.md is out of date.
-[SPEC.md](SPEC.md) says how ptui is meant to behave, and
-[CLAUDE.md](CLAUDE.md) holds notes on the code for coding agents.
+[SPEC.md](https://github.com/tobna/ptui/blob/main/SPEC.md) says how ptui is meant to behave, and
+[CLAUDE.md](https://github.com/tobna/ptui/blob/main/CLAUDE.md) holds notes on the code for coding agents.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT, see [LICENSE](https://github.com/tobna/ptui/blob/main/LICENSE).

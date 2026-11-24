@@ -15,7 +15,8 @@ and the reasons that have no single place in the code.
    commit. This file points to the others instead of restating them, or the
    copies drift. If they have drifted: re-read `ls -R src` and the recent
    commits, fix this file for agents (layout, traps, where things live),
-   `README.md` for humans (short, install, features), and `SPEC.md` if
+   `README.md` for humans (short, install, features; it is also the PyPI page,
+where a relative link breaks, so files are linked by full GitHub URL), and `SPEC.md` if
    behaviour diverged. `KEYS.md` is generated: touch `keys.toml` or a command's
    `description` and rerun `uv run python scripts/keydoc.py` in the same commit —
    `tests/test_docs.py` fails while it is stale. `CONFIG.md` is generated the
