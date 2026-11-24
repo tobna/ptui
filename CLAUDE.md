@@ -103,6 +103,9 @@ src/ptui/
 .github/workflows/
   test.yml           CI: tests with coverage; from main, the README's coverage
                      badge as a one-commit `badges` branch
+  publish.yml        a `vX.Y.Z` tag builds and uploads to PyPI (trusted
+                     publishing); the tag must match pyproject's version, so
+                     release with `uv version --bump …`, commit, tag, push the tag
 scripts/
   keydoc.py          regenerates KEYS.md; tests/test_docs.py fails while stale
   configdoc.py       regenerates CONFIG.md from defaults/config.toml, likewise

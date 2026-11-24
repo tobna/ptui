@@ -1,0 +1,22 @@
+name: publish
+
+# Pushing a tag vX.Y.Z uploads that version to PyPI. No token: PyPI trusts
+# this workflow through trusted publishing, registered on pypi.org for the
+# repository, this file's name and the `pypi` environment.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # the OIDC token PyPI checks instead of a password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      # a tag that disagrees with pyproject would publish under the wrong number
+      - run: test "${GITHUB_REF_NAME#v}" = "$(uv version --short)"
+      - run: uv build
+      - run: uv publish
