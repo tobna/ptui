@@ -3,7 +3,7 @@
 <p align="center">
   A fast, keyboard-driven terminal UI for
   <a href="https://github.com/papis/papis">papis</a>.<br>
-  <em>Beta. Not on PyPI yet.</em>
+  <em>Beta.</em>
 </p>
 
 <p align="center">
@@ -30,28 +30,24 @@ pane you are in, and `:` finds any command by name.
 
 ## Install
 
-You need Python 3.13 or newer and [uv](https://docs.astral.sh/uv/).
+ptui needs Python 3.13 or newer. With [uv](https://docs.astral.sh/uv/):
 
 ```sh
-git clone https://github.com/tobna/ptui
-cd ptui
-uv sync
-uv run ptui
+uv tool install ptui   # a ptui command that works in any directory
+uvx ptui               # or run it without installing
 ```
 
-`uv tool install --editable .` gives you a `ptui` command that works in any
-directory. If you have no papis library yet, `uv run papis init
-/path/to/library` creates one.
+With pipx, `pipx install ptui`. If you have no papis library yet, `uvx papis
+init /path/to/library` creates one.
 
 <details>
 <summary>Running it as <code>papis ptui</code></summary>
 
-papis finds ptui only when both are installed in the same environment. From the
-checkout, `uv run papis ptui` works. If your papis came from pipx, add ptui to
-it:
+papis finds ptui only when both are installed in the same environment:
 
 ```sh
-pipx inject --editable --include-apps papis /path/to/ptui
+uv tool install papis --with ptui
+pipx inject papis ptui   # if your papis came from pipx
 ```
 
 </details>
@@ -308,7 +304,10 @@ move_to_papers = { line = "move_to_papers", rescan = true }
 ## Development
 
 ```sh
+git clone https://github.com/tobna/ptui
+cd ptui
 uv sync
+uv run ptui                          # or: uv run papis ptui
 uv run pytest
 uv run ruff check --fix && uv run ruff format
 uv run python scripts/keydoc.py      # regenerate KEYS.md after changing keys.toml
